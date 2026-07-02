@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import type { NextRequest } from "next/server";
 
 const SECRET =
   process.env.AUTH_SECRET || "dev-insecure-secret-change-me-in-.env";
@@ -67,10 +68,31 @@ export const makePendingTicket = (u: { id: string; username: string; role: strin
     exp: Date.now() + PENDING_TTL,
   });
 
-export const sessionCookieOptions = {
-  httpOnly: true,
-  sameSite: "lax" as const,
-  path: "/",
-  maxAge: SESSION_TTL / 1000,
-  secure: process.env.NODE_ENV === "production",
-};
+/**
+ * Whether to mark the session cookie `Secure`. A Secure cookie is dropped by
+ * the browser over plain HTTP — which broke self-hosted deploys reached via
+ * http://host:6769 (user created, but session cookie never sent back).
+ * Derive it from the actual request protocol (honoring a reverse proxy's
+ * X-Forwarded-Proto), with an explicit AUTH_COOKIE_SECURE override.
+ */
+function isSecureRequest(req?: NextRequest): boolean {
+  const override = process.env.AUTH_COOKIE_SECURE;
+  if (override === "true") return true;
+  if (override === "false") return false;
+  if (!req) return false;
+  const proto =
+    req.headers.get("x-forwarded-proto")?.split(",")[0].trim() ||
+    req.nextUrl.protocol.replace(":", "");
+  return proto === "https";
+}
+
+/** Session cookie options; pass the request so `Secure` matches http/https. */
+export function sessionCookieOptions(req?: NextRequest) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: SESSION_TTL / 1000,
+    secure: isSecureRequest(req),
+  };
+}

@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
 
   const user = upsertSsoUser(username, "entra");
   const res = NextResponse.redirect(origin + "/");
-  res.cookies.set(SESSION_COOKIE, makeSession(user), sessionCookieOptions);
+  res.cookies.set(SESSION_COOKIE, makeSession(user), sessionCookieOptions(req));
   res.cookies.set("oidc_state", "", { path: "/", maxAge: 0 });
   return res;
 }

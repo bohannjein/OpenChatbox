@@ -17,6 +17,10 @@ services:
       # REQUIRED — session signing key. Generate: openssl rand -hex 32
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
       NODE_ENV: production
+      # Session cookie "Secure" flag. Auto-detected from the request protocol
+      # (X-Forwarded-Proto) by default — leave empty for HTTP access on a LAN.
+      # Set "true" behind HTTPS, "false" to force plain-HTTP cookies.
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-}
       # Optional SSO (Microsoft Entra / OIDC) — see .env.example.
       ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
       ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-}

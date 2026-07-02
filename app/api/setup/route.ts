@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       // its provider list without a second round-trip.
       provider: { type: providerType, baseUrl, apiKey: apiKey || undefined },
     });
-    res.cookies.set(SESSION_COOKIE, makeSession(user), sessionCookieOptions);
+    res.cookies.set(SESSION_COOKIE, makeSession(user), sessionCookieOptions(req));
     return res;
   } catch (e) {
     return NextResponse.json(

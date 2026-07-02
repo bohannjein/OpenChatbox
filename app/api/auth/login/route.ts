@@ -33,6 +33,6 @@ export async function POST(req: NextRequest) {
   }
 
   const res = NextResponse.json({ ok: true, user: publicUser(user) });
-  res.cookies.set(SESSION_COOKIE, makeSession(user), sessionCookieOptions);
+  res.cookies.set(SESSION_COOKIE, makeSession(user), sessionCookieOptions(req));
   return res;
 }
