@@ -8,6 +8,7 @@ import SettingsModal from "@/components/SettingsModal";
 import SearchModal from "@/components/SearchModal";
 import { useStore } from "@/lib/store";
 import { hexToRgbChannels, darkenChannels } from "@/lib/branding";
+import { detectBrowserLang } from "@/lib/i18n";
 import clsx from "clsx";
 
 /**
@@ -33,7 +34,10 @@ export default function AppRoot() {
   const newChat = useStore((s) => s.newChat);
   const selectChat = useStore((s) => s.selectChat);
   const setAuthUser = useStore((s) => s.setAuthUser);
+  const setPluginFlags = useStore((s) => s.setPluginFlags);
   const setSearchOpen = useStore((s) => s.setSearchOpen);
+  const lang = useStore((s) => s.lang);
+  const setLang = useStore((s) => s.setLang);
 
   const prevPath = useRef<string | null>(null);
   const isAuthRoute =
@@ -44,6 +48,12 @@ export default function AppRoot() {
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null);
 
   useEffect(() => setMounted(true), []);
+
+  // First load: pick UI language from the browser (only if not chosen yet).
+  useEffect(() => {
+    if (lang === null) setLang(detectBrowserLang());
+    document.documentElement.lang = lang ?? detectBrowserLang();
+  }, [lang, setLang]);
 
   // Redirect to the isolated setup screen until the first admin exists.
   // Runs on the app + /login (funnel new operators to setup), but NOT on
@@ -71,6 +81,16 @@ export default function AppRoot() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [setSearchOpen]);
+
+  // Load enabled server plugins (admin master-switches) for the current session.
+  useEffect(() => {
+    if (isAuthRoute || isSetupRoute) return;
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((d) => d?.plugins && setPluginFlags(d.plugins))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   // Load session; ensure the per-user storage namespace matches the user.
   useEffect(() => {

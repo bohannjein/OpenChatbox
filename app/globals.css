@@ -130,7 +130,7 @@ body {
     #ff5ad8,
     #ff29c3
   );
-  filter: blur(26px) saturate(1.15);
+  filter: blur(14px) saturate(1.15);
   opacity: 0.4;
   animation: ai-glow-rotate 11s linear infinite;
 }
@@ -138,12 +138,12 @@ body {
 .ai-glow::after {
   content: "";
   position: absolute;
-  inset: -25%;
+  inset: -6%;
   border-radius: 9999px;
   background:
-    radial-gradient(closest-side, rgba(255, 171, 46, 0.30), transparent 72%),
-    radial-gradient(closest-side, rgba(255, 122, 26, 0.22), transparent 78%);
-  filter: blur(34px);
+    radial-gradient(closest-side, rgba(255, 171, 46, 0.30), transparent 58%),
+    radial-gradient(closest-side, rgba(255, 122, 26, 0.22), transparent 64%);
+  filter: blur(16px);
   pointer-events: none;
 }
 .incognito .ai-glow::after {

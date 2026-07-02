@@ -265,6 +265,56 @@ export async function extractMemory(
   }
 }
 
+/** Normalize a model's title reply → max 4 words, no quotes/punctuation/prefix. */
+function sanitizeTitle(raw: string): string {
+  let t = (raw || "").trim().split("\n")[0].trim();
+  t = t.replace(/^(titel|title)\s*[:\-–]\s*/i, ""); // drop "Titel:" prefix
+  t = t.replace(/^["'«»„“”]+|["'«»„“”.…]+$/g, "").trim(); // strip wrapping quotes / trailing dot
+  t = t.split(/\s+/).filter(Boolean).slice(0, 4).join(" ");
+  return t.length > 48 ? t.slice(0, 48).trim() : t;
+}
+
+/**
+ * Ask the model for a concise (<=4 word) chat title from the transcript.
+ * Non-streaming (accumulates the stream). Returns "" on failure/empty.
+ */
+export async function generateTitle(
+  base: {
+    type: ChatRequest["type"];
+    baseUrl: string;
+    apiKey?: string;
+    model: string;
+  },
+  transcript: string
+): Promise<string> {
+  const sys =
+    "Generiere aus dem folgenden Chatverlauf einen prägnanten Titel aus " +
+    "MAXIMAL 4 Wörtern. Keine Anführungszeichen, kein Punkt, keine Emojis, " +
+    "kein Präfix. Antworte NUR mit dem Titel, in der Sprache des Gesprächs.";
+  let acc = "";
+  try {
+    await streamChat(
+      {
+        type: base.type,
+        baseUrl: base.baseUrl,
+        apiKey: base.apiKey,
+        model: base.model,
+        messages: [
+          { role: "system", content: sys },
+          { role: "user", content: `Chatverlauf:\n${transcript}\n\nTitel:` },
+        ],
+        params: { temperature: 0.3, topP: 1, maxTokens: 24 },
+      },
+      (t, text) => {
+        if (t === "c") acc += text;
+      }
+    );
+  } catch {
+    return "";
+  }
+  return sanitizeTitle(acc);
+}
+
 /** One streamed event: content ("c") or reasoning ("r") text delta. */
 export type StreamEvent = { t: "c" | "r"; v: string };
 
@@ -287,8 +337,15 @@ export async function streamChat(
   });
 
   if (!res.ok || !res.body) {
-    const msg = await res.text().catch(() => res.statusText);
-    throw new Error(msg || `HTTP ${res.status}`);
+    const raw = await res.text().catch(() => "");
+    let msg = raw;
+    try {
+      const j = JSON.parse(raw);
+      if (j && typeof j.error === "string") msg = j.error;
+    } catch {
+      /* not JSON — use raw text */
+    }
+    throw new Error(msg || res.statusText || `HTTP ${res.status}`);
   }
 
   const reader = res.body.getReader();

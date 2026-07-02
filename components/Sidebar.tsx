@@ -18,8 +18,11 @@ import {
   PinOff,
   Search,
 } from "lucide-react";
-import { useStore } from "@/lib/store";
+import { useStore, inWorkspace } from "@/lib/store";
 import { SidekickAvatar } from "./SidekickIcon";
+import WorkspaceSwitcher from "./WorkspaceSwitcher";
+import AsciiSpinner from "./AsciiSpinner";
+import { useT } from "@/lib/i18n";
 import type { Chat } from "@/lib/types";
 
 export default function Sidebar() {
@@ -33,6 +36,9 @@ export default function Sidebar() {
   const logoUrl = useStore((s) => s.logoUrl);
   const appName = useStore((s) => s.appName);
   const sidekicks = useStore((s) => s.sidekicks);
+  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const titlePendingId = useStore((s) => s.titlePendingId);
+  const t = useT();
   const newChat = useStore((s) => s.newChat);
   const deleteChat = useStore((s) => s.deleteChat);
   const renameChat = useStore((s) => s.renameChat);
@@ -72,8 +78,13 @@ export default function Sidebar() {
     if (window.innerWidth < 768) setSidebarOpen(false);
   };
 
-  const pinned = chats.filter((c) => c.pinned);
-  const rest = chats.filter((c) => !c.pinned);
+  // Scope the sidebar to the active workspace (legacy items → default ws).
+  const wsChats = chats.filter((c) => inWorkspace(c, activeWorkspaceId));
+  const wsSidekicks = sidekicks.filter((sk) =>
+    inWorkspace(sk, activeWorkspaceId)
+  );
+  const pinned = wsChats.filter((c) => c.pinned);
+  const rest = wsChats.filter((c) => !c.pinned);
 
   const chatRow = (c: Chat) => {
     const active = c.id === activeChatId;
@@ -82,7 +93,7 @@ export default function Sidebar() {
       <div
         key={c.id}
         className={clsx(
-          "group mb-0.5 flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition",
+          "group mb-0.5 flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition",
           active
             ? "bg-neutral-200 dark:bg-white/10"
             : "hover:bg-neutral-200/60 dark:hover:bg-white/5"
@@ -125,7 +136,9 @@ export default function Sidebar() {
               className="flex min-w-0 flex-1 items-center gap-2 text-left"
               title={c.title}
             >
-              <span className="min-w-0 flex-1 truncate">{c.title}</span>
+              <span className="min-w-0 flex-1 truncate">
+                {titlePendingId === c.id ? <AsciiSpinner /> : c.title}
+              </span>
               {c.draft && c.draft.trim() && (
                 <span className="shrink-0 rounded bg-amber-200 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
                   Entwurf
@@ -177,15 +190,15 @@ export default function Sidebar() {
     >
       {/* fixed-width inner content — clipped by the animating aside width */}
       <div className="flex h-full w-72 flex-col">
-        {/* Top bar — branding + toggle, same height as the main chat header */}
-        <div className="flex shrink-0 items-center gap-2 px-3 py-2">
+        {/* Zeile 1 — Branding links · Suche + Einklappen rechts */}
+        <div className="flex shrink-0 items-center gap-0.5 px-3 py-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={logoUrl}
                 alt={appName || "Logo"}
-                className="max-h-7 max-w-[75%] object-contain"
+                className="max-h-7 max-w-[70%] object-contain"
               />
             ) : (
               <span className="flex min-w-0 items-center gap-2 text-base font-bold tracking-tight">
@@ -197,6 +210,13 @@ export default function Sidebar() {
             )}
           </div>
           <button
+            onClick={() => setSearchOpen(true)}
+            title="Suchen (⌘K)"
+            className="shrink-0 rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/5"
+          >
+            <Search size={17} />
+          </button>
+          <button
             onClick={() => setSidebarOpen(false)}
             title="Sidebar einklappen"
             className="shrink-0 rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/5"
@@ -205,42 +225,31 @@ export default function Sidebar() {
           </button>
         </div>
 
-        {/* Neuer Chat */}
-        <div className="flex items-center gap-2 px-3 pb-2">
+        {/* Zeile 2 — Workspace (schlank, untergeordnet) */}
+        <WorkspaceSwitcher />
+
+        {/* Zeile 3 — Haupt-Aktion: Neuer Chat (volle Breite, gefüllt) */}
+        <div className="px-3 pb-1 pt-0.5">
           <button
             onClick={startNewChat}
-            className="flex flex-1 items-center gap-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-sm font-semibold text-accent transition hover:bg-accent/20"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-hover"
           >
             <Plus size={16} />
-            Neuer Chat
-          </button>
-        </div>
-
-        {/* Global chat search trigger (opens Spotlight-style modal) */}
-        <div className="px-3 pb-2">
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="flex w-full items-center gap-2 rounded-lg border border-border-light px-2.5 py-1.5 text-sm text-neutral-500 transition hover:bg-neutral-200/60 dark:border-border-dark dark:hover:bg-white/5"
-          >
-            <Search size={14} className="shrink-0" />
-            <span className="flex-1 text-left">Chats durchsuchen…</span>
-            <kbd className="shrink-0 rounded border border-border-light px-1 text-[10px] dark:border-border-dark">
-              ⌘K
-            </kbd>
+            {t("sidebar.newChat")}
           </button>
         </div>
 
       {/* Meine Sidekicks */}
-      {sidekicks.length > 0 && (
-        <div className="px-2 pb-2">
-          <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
-            Meine Sidekicks
+      {wsSidekicks.length > 0 && (
+        <div className="px-2 pb-1 pt-4">
+          <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500 opacity-60">
+            {t("sidebar.sidekicks")}
           </div>
-          {sidekicks.map((sk) => (
+          {wsSidekicks.map((sk) => (
             <button
               key={sk.id}
               onClick={() => startSidekick(sk.id)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-neutral-200/60 dark:hover:bg-white/5"
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm transition hover:bg-neutral-200/60 dark:hover:bg-white/5"
               title={sk.name}
             >
               <SidekickAvatar icon={sk.icon} color={sk.color} size={22} />
@@ -253,23 +262,23 @@ export default function Sidebar() {
       )}
 
       {/* Chat list */}
-      <nav className="flex-1 overflow-y-auto px-2 py-1">
+      <nav className="flex-1 overflow-y-auto px-2 pb-1 pt-3">
         {chats.length === 0 && (
           <p className="px-3 py-4 text-sm text-neutral-500">
-            Noch keine Chats.
+            {t("sidebar.noChats")}
           </p>
         )}
 
         {pinned.length > 0 && (
           <div className="mb-2">
-            <div className="flex items-center gap-1 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
-              <Pin size={11} /> Angepinnt
+            <div className="flex items-center gap-1 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500 opacity-60">
+              <Pin size={10} /> Angepinnt
             </div>
             {pinned.map(chatRow)}
           </div>
         )}
         {pinned.length > 0 && rest.length > 0 && (
-          <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+          <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500 opacity-60">
             Chats
           </div>
         )}

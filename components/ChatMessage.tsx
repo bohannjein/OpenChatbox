@@ -15,6 +15,9 @@ import {
   ChevronRight,
   ChevronDown,
   Brain,
+  Download,
+  FileSpreadsheet,
+  FileType,
 } from "lucide-react";
 import Markdown from "./Markdown";
 import { useStore } from "@/lib/store";
@@ -209,6 +212,37 @@ export default function ChatMessage({
           ) : null}
           {streaming && message.content && (
             <span className="ml-0.5 inline-block h-4 w-2 animate-blink bg-neutral-500 align-middle" />
+          )}
+
+          {/* Auto-generated downloadable files (PDF/Excel) */}
+          {message.docs && message.docs.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {message.docs.map((doc) => (
+                <a
+                  key={doc.id}
+                  href={doc.dataUrl}
+                  download={doc.name}
+                  title={`${doc.name} herunterladen`}
+                  className="group flex items-center gap-2 rounded-xl border border-border-light bg-neutral-50 px-3 py-2 text-sm transition hover:border-accent hover:bg-accent/5 dark:border-border-dark dark:bg-white/5"
+                >
+                  {doc.mime.includes("pdf") ? (
+                    <FileType size={18} className="shrink-0 text-red-500" />
+                  ) : (
+                    <FileSpreadsheet size={18} className="shrink-0 text-emerald-600" />
+                  )}
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{doc.name}</span>
+                    <span className="block text-xs text-neutral-400">
+                      {(doc.size / 1024).toFixed(0)} KB
+                    </span>
+                  </span>
+                  <Download
+                    size={15}
+                    className="ml-1 shrink-0 text-neutral-400 transition group-hover:text-accent"
+                  />
+                </a>
+              ))}
+            </div>
           )}
 
           {/* Action bar */}

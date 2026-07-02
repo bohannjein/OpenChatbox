@@ -18,12 +18,33 @@ export interface Message {
   activeVariant?: number;
   /** assistant only: thumbs up/down for internal logging. */
   feedback?: Feedback;
+  /** assistant only: auto-generated downloadable files (PDF/Excel export). */
+  docs?: GeneratedDoc[];
+}
+
+/** A backend-generated, downloadable file attached under an assistant answer. */
+export interface GeneratedDoc {
+  id: string;
+  name: string;
+  mime: string;
+  /** base64 data URL; stripped on persist (regenerated on demand). */
+  dataUrl?: string;
+  size: number;
+}
+
+/** A collaboration space that owns chats, sidekicks and shared files. */
+export interface Workspace {
+  id: string;
+  name: string;
+  createdAt: number;
 }
 
 export interface Chat {
   id: string;
   title: string;
   messages: Message[];
+  /** owning workspace; undefined = the default personal workspace. */
+  workspaceId?: string;
   /** model id used for this chat, e.g. "ollama::llama3.1" */
   modelKey?: string;
   /** temporary (Inkognito) chat: never persisted, not shown in history. */
@@ -69,6 +90,8 @@ export interface PromptTemplate {
 export interface Sidekick {
   id: string;
   name: string;
+  /** owning workspace; undefined = the default personal workspace. */
+  workspaceId?: string;
   /** vector icon id (see SIDEKICK_ICONS) */
   icon: string;
   /** pastel color id (see SIDEKICK_COLORS) */

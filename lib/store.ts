@@ -6,6 +6,7 @@ import type {
   Chat,
   ChatFile,
   Feedback,
+  GeneratedDoc,
   GenParams,
   MemoryFact,
   Message,
@@ -13,11 +14,25 @@ import type {
   Provider,
   Role,
   Sidekick,
+  Workspace,
 } from "./types";
 
 export type Theme = "light" | "dark";
 
 const now = () => Date.now();
+
+/** The always-present personal workspace every user starts with. Legacy chats
+ *  and sidekicks (no workspaceId) are treated as belonging here. */
+export const DEFAULT_WORKSPACE_ID = "ws-default";
+const defaultWorkspaces = (): Workspace[] => [
+  { id: DEFAULT_WORKSPACE_ID, name: "Persönlich", createdAt: 0 },
+];
+/** True if an item (chat/sidekick) belongs to the given workspace, treating a
+ *  missing workspaceId as the default workspace. */
+export const inWorkspace = (
+  item: { workspaceId?: string },
+  wsId: string
+): boolean => (item.workspaceId ?? DEFAULT_WORKSPACE_ID) === wsId;
 
 /** Default: nur lokales Ollama aktiv. Weitere Anbieter per „+ Anbieter hinzufügen". */
 const defaultProviders = (): Provider[] => [
@@ -146,12 +161,20 @@ interface State {
   activeChatId: string | null;
   providers: Provider[];
   selectedModelKey: string | null;
+  // Auto model-router: when on, route each turn to vision/OCR/text automatically.
+  autoRouter: boolean;
+  routerVisionKey: string | null;
+  routerOcrKey: string | null;
   prompts: PromptTemplate[];
   customInstructions: string;
   params: GenParams;
   /** global incognito switch: new chats are temporary while on. */
   incognito: boolean;
   theme: Theme;
+  /** UI language; null = auto-detect from navigator.language on first load. */
+  lang: "de" | "en" | null;
+  /** chat whose title is being generated → shows the ASCII loader (transient). */
+  titlePendingId: string | null;
   // branding
   accentColor: string;
   logoUrl: string;
@@ -168,6 +191,9 @@ interface State {
   ollamaKeepAlive: string;
   // sidekicks + memory
   sidekicks: Sidekick[];
+  // workspaces (collaboration spaces): scope chats/sidekicks/files to a team
+  workspaces: Workspace[];
+  activeWorkspaceId: string;
   memory: MemoryFact[];
   memoryEnabled: boolean;
   /** internet search toggle (client flag) */
@@ -176,6 +202,9 @@ interface State {
   // auth (transient, not persisted)
   authUser: AuthUser | null;
   setAuthUser: (u: AuthUser | null) => void;
+  // admin plugin master-switches (transient, fetched from /api/config)
+  plugins: { officeParser: boolean; ocrEngine: boolean; docGenerator: boolean } | null;
+  setPluginFlags: (p: State["plugins"]) => void;
   settingsOpen: boolean;
   searchOpen: boolean;
   setSearchOpen: (v: boolean) => void;
@@ -211,16 +240,22 @@ interface State {
   finalizeVariant: (chatId: string, msgId: string) => void;
   setActiveVariant: (chatId: string, msgId: string, index: number) => void;
   setFeedback: (chatId: string, msgId: string, fb: Feedback) => void;
+  attachGeneratedDoc: (chatId: string, msgId: string, doc: GeneratedDoc) => void;
 
   // provider actions
   setProviders: (p: Provider[]) => void;
   upsertProvider: (p: Provider) => void;
   removeProvider: (id: string) => void;
   selectModel: (key: string) => void;
+  setAutoRouter: (v: boolean) => void;
+  setRouterModel: (role: "vision" | "ocr", key: string | null) => void;
 
   // prompts
   upsertPrompt: (p: PromptTemplate) => void;
   removePrompt: (id: string) => void;
+
+  setLang: (lang: "de" | "en") => void;
+  setTitlePending: (id: string | null) => void;
 
   // system / params
   setCustomInstructions: (v: string) => void;
@@ -244,6 +279,12 @@ interface State {
   // sidekicks
   upsertSidekick: (s: Sidekick) => void;
   removeSidekick: (id: string) => void;
+
+  // workspaces
+  createWorkspace: (name: string) => string;
+  renameWorkspace: (id: string, name: string) => void;
+  deleteWorkspace: (id: string) => void;
+  switchWorkspace: (id: string) => void;
   setChatSidekick: (chatId: string, sidekickId: string | null) => void;
 
   // memory
@@ -283,11 +324,16 @@ export const useStore = create<State>()(
       activeChatId: null,
       providers: defaultProviders(),
       selectedModelKey: null,
+      autoRouter: false,
+      routerVisionKey: null,
+      routerOcrKey: null,
       prompts: defaultPrompts(),
       customInstructions: "",
       params: defaultParams(),
       incognito: false,
       theme: "dark",
+      lang: null,
+      titlePendingId: null,
       accentColor: "#10a37f",
       logoUrl: "",
       appName: "OpenChatbox",
@@ -298,6 +344,8 @@ export const useStore = create<State>()(
       vramManaged: true,
       ollamaKeepAlive: "2m",
       sidekicks: [],
+      workspaces: defaultWorkspaces(),
+      activeWorkspaceId: DEFAULT_WORKSPACE_ID,
       memory: [],
       memoryEnabled: true,
       webSearchEnabled: false,
@@ -305,6 +353,8 @@ export const useStore = create<State>()(
         set((s) => ({ webSearchEnabled: !s.webSearchEnabled })),
       authUser: null,
       setAuthUser: (authUser) => set({ authUser }),
+      plugins: null,
+      setPluginFlags: (plugins) => set({ plugins }),
       settingsOpen: false,
       searchOpen: false,
       setSearchOpen: (searchOpen) => set({ searchOpen }),
@@ -327,6 +377,7 @@ export const useStore = create<State>()(
           modelKey: (sk?.modelKey || s.selectedModelKey) ?? undefined,
           temporary: temp,
           sidekickId: sk?.id,
+          workspaceId: s.activeWorkspaceId,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -549,6 +600,13 @@ export const useStore = create<State>()(
             feedback: m.feedback === fb ? null : fb,
           })),
         })),
+      attachGeneratedDoc: (chatId, msgId, doc) =>
+        set((s) => ({
+          chats: patchMessage(s.chats, chatId, msgId, (m) => ({
+            ...m,
+            docs: [...(m.docs ?? []), doc],
+          })),
+        })),
 
       setProviders: (providers) => set({ providers }),
       upsertProvider: (p) =>
@@ -560,6 +618,9 @@ export const useStore = create<State>()(
       removeProvider: (id) =>
         set((s) => ({ providers: s.providers.filter((p) => p.id !== id) })),
       selectModel: (key) => set({ selectedModelKey: key }),
+      setAutoRouter: (autoRouter) => set({ autoRouter }),
+      setRouterModel: (role, key) =>
+        set(role === "vision" ? { routerVisionKey: key } : { routerOcrKey: key }),
 
       upsertPrompt: (p) =>
         set((s) => ({
@@ -600,13 +661,67 @@ export const useStore = create<State>()(
       setVramManaged: (vramManaged) => set({ vramManaged }),
 
       upsertSidekick: (sk) =>
-        set((s) => ({
-          sidekicks: s.sidekicks.some((x) => x.id === sk.id)
-            ? s.sidekicks.map((x) => (x.id === sk.id ? sk : x))
-            : [...s.sidekicks, sk],
-        })),
+        set((s) => {
+          // New sidekicks join the active workspace; existing keep their scope.
+          const withWs: Sidekick = {
+            ...sk,
+            workspaceId: sk.workspaceId ?? s.activeWorkspaceId,
+          };
+          return {
+            sidekicks: s.sidekicks.some((x) => x.id === sk.id)
+              ? s.sidekicks.map((x) => (x.id === sk.id ? withWs : x))
+              : [...s.sidekicks, withWs],
+          };
+        }),
       removeSidekick: (id) =>
         set((s) => ({ sidekicks: s.sidekicks.filter((x) => x.id !== id) })),
+
+      createWorkspace: (name) => {
+        const id = uid();
+        set((s) => ({
+          workspaces: [
+            ...s.workspaces,
+            { id, name: name.trim() || "Workspace", createdAt: now() },
+          ],
+          activeWorkspaceId: id,
+        }));
+        return id;
+      },
+      renameWorkspace: (id, name) =>
+        set((s) => ({
+          workspaces: s.workspaces.map((w) =>
+            w.id === id ? { ...w, name: name.trim() || w.name } : w
+          ),
+        })),
+      deleteWorkspace: (id) =>
+        set((s) => {
+          // The default workspace is permanent; never orphan its contents.
+          if (id === DEFAULT_WORKSPACE_ID) return {};
+          return {
+            workspaces: s.workspaces.filter((w) => w.id !== id),
+            // reassign contents to the default workspace instead of deleting them
+            chats: s.chats.map((c) =>
+              inWorkspace(c, id)
+                ? { ...c, workspaceId: DEFAULT_WORKSPACE_ID }
+                : c
+            ),
+            sidekicks: s.sidekicks.map((sk) =>
+              inWorkspace(sk, id)
+                ? { ...sk, workspaceId: DEFAULT_WORKSPACE_ID }
+                : sk
+            ),
+            activeWorkspaceId:
+              s.activeWorkspaceId === id
+                ? DEFAULT_WORKSPACE_ID
+                : s.activeWorkspaceId,
+          };
+        }),
+      switchWorkspace: (id) =>
+        set((s) =>
+          s.workspaces.some((w) => w.id === id)
+            ? { activeWorkspaceId: id }
+            : {}
+        ),
       setChatSidekick: (chatId, sidekickId) =>
         set((s) => ({
           chats: s.chats.map((c) =>
@@ -641,6 +756,8 @@ export const useStore = create<State>()(
       setMemoryEnabled: (memoryEnabled) => set({ memoryEnabled }),
 
       setTheme: (theme) => set({ theme }),
+      setLang: (lang) => set({ lang }),
+      setTitlePending: (titlePendingId) => set({ titlePendingId }),
       toggleTheme: () =>
         set((s) => ({ theme: s.theme === "dark" ? "light" : "dark" })),
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
@@ -648,7 +765,7 @@ export const useStore = create<State>()(
     }),
     {
       name: "openchatbox-store",
-      version: 2,
+      version: 3,
       // localStorage-backed, but tolerant of quota errors (see safeStorage).
       storage: createJSONStorage(() => safeStorage),
       // persist everything except transient UI flags + temporary chats.
@@ -658,16 +775,20 @@ export const useStore = create<State>()(
           .filter((c) => !c.temporary)
           .map((c) => ({
             ...c,
-            messages: c.messages.map(({ images, ...m }) => m),
+            messages: c.messages.map(({ images, docs, ...m }) => m),
             files: c.files?.map(({ dataUrl, ...f }) => f),
           })),
         activeChatId: s.activeChatId,
         providers: s.providers,
         selectedModelKey: s.selectedModelKey,
+        autoRouter: s.autoRouter,
+        routerVisionKey: s.routerVisionKey,
+        routerOcrKey: s.routerOcrKey,
         prompts: s.prompts,
         customInstructions: s.customInstructions,
         params: s.params,
         theme: s.theme,
+        lang: s.lang,
         accentColor: s.accentColor,
         logoUrl: s.logoUrl,
         appName: s.appName,
@@ -678,6 +799,8 @@ export const useStore = create<State>()(
         vramManaged: s.vramManaged,
         ollamaKeepAlive: s.ollamaKeepAlive,
         sidekicks: s.sidekicks,
+        workspaces: s.workspaces,
+        activeWorkspaceId: s.activeWorkspaceId,
         memory: s.memory,
         memoryEnabled: s.memoryEnabled,
         webSearchEnabled: s.webSearchEnabled,
@@ -698,6 +821,13 @@ export const useStore = create<State>()(
           if (!s.prompts) s.prompts = defaultPrompts();
           if (s.customInstructions == null) s.customInstructions = "";
           if (!s.params) s.params = defaultParams();
+        }
+        if (version < 3) {
+          // Introduce workspaces. Existing chats/sidekicks keep workspaceId
+          // undefined → resolved to the default workspace by inWorkspace().
+          if (!Array.isArray(s.workspaces) || s.workspaces.length === 0)
+            s.workspaces = defaultWorkspaces();
+          if (!s.activeWorkspaceId) s.activeWorkspaceId = DEFAULT_WORKSPACE_ID;
         }
         return s as State;
       },

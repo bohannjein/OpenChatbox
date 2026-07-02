@@ -9,19 +9,34 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return new Response("Invalid JSON", { status: 400 });
+    return Response.json(
+      { error: "Ungültiger Request-Body (kein gültiges JSON)." },
+      { status: 400 }
+    );
   }
 
   const baseUrl = (body.baseUrl || "").replace(/\/+$/, "");
   const { type, model, messages, apiKey, params } = body;
   if (!baseUrl || !model || !messages)
-    return new Response("baseUrl, model und messages erforderlich", {
-      status: 400,
-    });
+    return Response.json(
+      { error: "baseUrl, model und messages erforderlich." },
+      { status: 400 }
+    );
 
   const temperature = params?.temperature;
   const topP = params?.topP;
   const maxTokens = params?.maxTokens;
+
+  // Ollama keep_alive: coerce numeric strings ("-1","0") to numbers so they
+  // are honored (Ollama parses a *string* as a Go duration → "-1" would fail).
+  // -1 = keep the model resident forever (RAM-cache on big-RAM hosts).
+  const rawKeep = body.keepAlive || process.env.OLLAMA_KEEP_ALIVE;
+  const keepAlive =
+    rawKeep == null || rawKeep === ""
+      ? undefined
+      : /^-?\d+$/.test(String(rawKeep))
+      ? Number(rawKeep)
+      : rawKeep;
 
   const stripPrefix = (u: string) => {
     const i = u.indexOf("base64,");
@@ -55,14 +70,9 @@ export async function POST(req: NextRequest) {
           model,
           messages: msgs,
           stream: true,
-          // VRAM-Schutz (Multi-User): keep_alive nur wenn Management aktiv.
-          // Aus → Feld weglassen → Ollama-Default (Modell bleibt geladen).
-          ...(body.keepAlive || process.env.OLLAMA_KEEP_ALIVE
-            ? {
-                keep_alive:
-                  body.keepAlive || process.env.OLLAMA_KEEP_ALIVE,
-              }
-            : {}),
+          // keep_alive: -1 hält das Modell dauerhaft im RAM (Cache), sonst
+          // Dauer wie "2m"; weglassen → Ollama-Default.
+          ...(keepAlive !== undefined ? { keep_alive: keepAlive } : {}),
           options: {
             ...(temperature != null ? { temperature } : {}),
             ...(topP != null ? { top_p: topP } : {}),
@@ -151,13 +161,25 @@ export async function POST(req: NextRequest) {
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return new Response(`Verbindung fehlgeschlagen: ${msg}`, { status: 502 });
+    return Response.json(
+      { error: `Verbindung fehlgeschlagen: ${msg}` },
+      { status: 502 }
+    );
   }
 
   if (!upstream.ok || !upstream.body) {
     const detail = await upstream.text().catch(() => "");
-    return new Response(
-      `Provider-Fehler (HTTP ${upstream.status}) ${detail}`.trim(),
+    // Unwrap the provider's JSON error so we don't surface nested {"error":"{...}"}.
+    let msg = detail;
+    try {
+      const j = JSON.parse(detail);
+      msg = j?.error?.message || j?.error || j?.message || detail;
+      if (typeof msg !== "string") msg = JSON.stringify(msg);
+    } catch {
+      /* not JSON — keep raw text */
+    }
+    return Response.json(
+      { error: `Provider-Fehler (HTTP ${upstream.status}): ${msg}`.trim() },
       { status: 502 }
     );
   }

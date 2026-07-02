@@ -26,11 +26,12 @@ import { useStore } from "@/lib/store";
 import {
   ACCEPT,
   processFile,
-  buildPromptWithAttachments,
   imageDataUrls,
   type Attachment,
 } from "@/lib/files";
 import { loadAllModels, displayName } from "@/lib/providers";
+import { resizeImageToAttachment } from "@/lib/imageResize";
+import { useT } from "@/lib/i18n";
 import { uid } from "@/lib/uid";
 import type { ModelOption } from "@/lib/types";
 
@@ -95,6 +96,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
   const selectModel = useStore((s) => s.selectModel);
   const activeChatId = useStore((s) => s.activeChatId);
   const setChatSidekick = useStore((s) => s.setChatSidekick);
+  const t = useT();
   const [modelOpts, setModelOpts] = useState<ModelOption[]>([]);
   useEffect(() => {
     loadAllModels(providers).then((r) => setModelOpts(r.options));
@@ -268,21 +270,59 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
   const addFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const list = Array.from(files);
-    // allSettled: one unreadable/corrupt file must not drop the others (and
-    // must not surface as an unhandled rejection — callers don't await this).
-    const results = await Promise.allSettled(list.map(processFile));
-    const processed: Attachment[] = results.map((r, i) =>
-      r.status === "fulfilled"
-        ? r.value
-        : {
+    const images = list.filter((f) => f.type.startsWith("image/"));
+    const others = list.filter((f) => !f.type.startsWith("image/"));
+    const collected: Attachment[] = [];
+
+    // Images: downscale + re-encode client-side so the base64 stays small.
+    // (Raw photos otherwise exceed the /api/chat body limit → "invalid json".)
+    for (const f of images) {
+      try {
+        collected.push(await resizeImageToAttachment(f));
+      } catch {
+        try {
+          collected.push(await processFile(f));
+        } catch {
+          collected.push({
             id: uid(),
-            name: list[i]?.name ?? "Datei",
-            size: list[i]?.size ?? 0,
+            name: f.name,
+            size: f.size,
             kind: "other",
-            note: "Datei konnte nicht verarbeitet werden.",
-          }
-    );
-    setAttachments((a) => [...a, ...processed]);
+            note: "Bild konnte nicht verarbeitet werden.",
+          });
+        }
+      }
+    }
+
+    // Documents: multipart upload endpoint → clean JSON; fallback local.
+    if (others.length) {
+      try {
+        const fd = new FormData();
+        for (const f of others) fd.append("files", f);
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok || !Array.isArray(data.files))
+          throw new Error(data?.error || `Upload fehlgeschlagen (HTTP ${res.status})`);
+        collected.push(...(data.files as Attachment[]));
+      } catch {
+        const results = await Promise.allSettled(others.map(processFile));
+        results.forEach((r, i) =>
+          collected.push(
+            r.status === "fulfilled"
+              ? r.value
+              : {
+                  id: uid(),
+                  name: others[i]?.name ?? "Datei",
+                  size: others[i]?.size ?? 0,
+                  kind: "other",
+                  note: "Datei konnte nicht verarbeitet werden.",
+                }
+          )
+        );
+      }
+    }
+
+    if (collected.length) setAttachments((a) => [...a, ...collected]);
   };
   const removeAttachment = (id: string) =>
     setAttachments((a) => a.filter((x) => x.id !== id));
@@ -340,10 +380,12 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
   const submit = () => {
     const text = value.trim();
     if ((!text && attachments.length === 0) || streaming) return;
-    const finalText = buildPromptWithAttachments(text, attachments);
+    // Keep the user message clean: attachments travel as structured objects
+    // (metadata + content) and are handed to the model as external-file context
+    // server-side, not concatenated into the prompt text.
     const images = imageDataUrls(attachments);
     onSend(
-      finalText || "(Datei angehängt)",
+      text || (attachments.length ? "(Datei angehängt)" : ""),
       images.length ? images : undefined,
       attachments.length ? attachments : undefined
     );
@@ -589,7 +631,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
               onChange={(e) => changeValue(e.target.value)}
               onKeyDown={onKeyDown}
               onPaste={onPaste}
-              placeholder={placeholder ?? "Nachricht senden…  ( / für Befehle )"}
+              placeholder={placeholder ?? t("input.placeholder")}
               className="max-h-60 flex-1 resize-none bg-transparent px-2 py-2 leading-6 outline-none placeholder:text-neutral-400 disabled:cursor-not-allowed"
             />
 
@@ -616,8 +658,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
       </div>
       {!bare && (
         <p className="mt-2 text-center text-xs text-neutral-400">
-          Enter zum Senden · Shift+Enter für Zeilenumbruch · „/" für Vorlagen ·
-          📎 für Dateien
+          {t("input.hint")}
         </p>
       )}
     </div>

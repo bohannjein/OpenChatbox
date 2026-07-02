@@ -1,56 +1,100 @@
 # OpenChatbox
 
-Selbstgehostete Chat-Oberfläche im ChatGPT-Look. Next.js (App Router) + Tailwind
-+ Zustand. Streaming, Markdown mit Code-Kopierbutton, Modell-Switcher, Dark/Light,
-einklappbare Sidebar. Verlauf & API-Keys bleiben im **LocalStorage** des Browsers —
-keine Datenbank nötig.
+Self-hosted, ChatGPT-style chat UI for **Ollama** and **OpenAI-compatible**
+backends. Streaming answers, Markdown with copy buttons, model switcher,
+sidekicks, workspaces, first-run admin setup, and an admin dashboard — all in a
+single Next.js app you run yourself.
 
-## Stack
-- **Next.js 16** (App Router, Turbopack) · **React 19**
-- **Tailwind CSS** (`darkMode: class`)
-- **Zustand** (persist → LocalStorage)
-- **lucide-react**, **react-markdown** + **remark-gfm** + **rehype-highlight**
+---
 
-## Start
+## ⚡ Quick Install (one command)
+
+On any Ubuntu/Linux server with `curl`, run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bohannjein/OpenChatbox/main/install.sh | bash
+```
+
+That's it. The script clones the repo, installs Docker + Compose if missing,
+builds the image, and starts everything **detached on port `6769`**. When it
+finishes, open:
+
+```
+http://<your-server-ip>:6769
+```
+
+The first visit shows the **setup screen** — create your admin account and point
+it at your Ollama/OpenAI server. Done.
+
+> Custom port or install dir:
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/bohannjein/OpenChatbox/main/install.sh | OPENCHATBOX_PORT=8080 bash
+> ```
+
+---
+
+## Features
+- **Streaming chat** — Ollama (NDJSON) and OpenAI-compatible (SSE) normalized to
+  one delta stream server-side; reasoning/thinking output split out.
+- **Attachments** — drag & drop / paste images and documents; parsed via a
+  multipart upload endpoint and passed to the model as structured context.
+- **Auto-title** — the first answer names the chat via a hidden model call.
+- **Sidekicks** — reusable assistant profiles (system prompt + model).
+- **Workspaces** — scope chats/sidekicks/files to a collaboration space.
+- **Auth + first-run setup** — local accounts, optional Entra/OIDC SSO, 2FA.
+- **Admin dashboard** — model pull/aliases, custom roles editor, and a secure
+  Ollama web-terminal (HTTP-API mapped, no shell).
+- Light/dark, custom accent + logo, per-user history.
+
+## Manual install (Docker)
+```bash
+git clone https://github.com/bohannjein/OpenChatbox.git && cd OpenChatbox
+cp .env.example .env          # set AUTH_SECRET: openssl rand -hex 32
+OPENCHATBOX_PORT=6769 docker compose up -d --build
+```
+
+## Local development
 ```bash
 npm install
-npm run dev      # http://localhost:3000
-npm run build && npm start   # Produktion
+npm run dev                   # http://localhost:3000
+npm run build && npm start    # production
 ```
 
-## Provider
-Standardmäßig konfiguriert (Einstellungen → Provider):
-- **Ollama (lokal)** — `http://localhost:11434`. Modelle via `/api/tags`.
-- **OpenAI-kompatibel** — `https://api.openai.com/v1` (oder HF TGI / vLLM). Base-URL
-  + API-Key eintragen. Modelle via `/models`, Chat via `/chat/completions`.
+## Providers
+Configured under Settings → Providers:
+- **Ollama (local)** — `http://localhost:11434`. In Docker, use
+  `http://host.docker.internal:11434` or the bundled `ollama` service.
+- **OpenAI-compatible** — `https://api.openai.com/v1` (or HF TGI / vLLM / …).
+  Enter base URL + API key.
 
-Weitere Provider per „Hinzufügen" ergänzbar. Jeder Provider hat An/Aus-Schalter und
-„Verbindung testen".
+## Data & configuration
+- Runtime state (admin account, server config) lives in `data/` — gitignored,
+  never in the image. In Docker it's the `openchatbox-data` volume.
+- Override its location with `OPENCHATBOX_DATA_DIR`.
+- Required env: `AUTH_SECRET`. Optional SSO env: see `.env.example`.
 
-## Architektur
+## Architecture
 ```
 app/
-  layout.tsx            # Theme-No-Flash-Script, Metadata
-  page.tsx              # App-Shell (Sidebar + Chat + Settings)
-  api/chat/route.ts     # Streaming-Proxy: Ollama NDJSON / OpenAI SSE → Text-Deltas
-  api/models/route.ts   # Modell-Liste je Provider
-components/             # Sidebar, ChatWindow, ChatInput, ChatMessage,
-                        # ModelSwitcher, Markdown, CodeBlock, SettingsModal
+  layout.tsx              # theme no-flash script, metadata
+  api/chat/route.ts       # streaming proxy: Ollama/OpenAI/Anthropic → delta stream
+  api/upload/route.ts     # multipart file upload → clean JSON attachments
+  api/setup/route.ts      # first-run admin bootstrap
+  api/admin/terminal      # admin-only Ollama web-terminal (streaming)
+  api/admin/roles         # custom roles CRUD
+  api/workspaces          # workspace membership
+components/               # Sidebar, ChatWindow, ChatInput, AdminPanel,
+                          # AdminTerminal, RolesEditor, WorkspaceSwitcher, …
 lib/
-  store.ts              # Zustand-Store (persist)
-  providers.ts          # fetchModels, streamChat, modelKey-Helfer
-  types.ts
+  store.ts                # Zustand store (persist, per-user namespace)
+  providers.ts            # fetchModels, streamChat, generateTitle
+  server/                 # users, sessions, roles, workspaces, config (file-backed)
 ```
 
-### Warum ein Proxy?
-Der Browser spricht nicht direkt mit Ollama/OpenAI, sondern mit
-`/api/chat` bzw. `/api/models`. Das umgeht CORS-Probleme (v. a. bei lokalem Ollama)
-und normalisiert die zwei unterschiedlichen Stream-Formate serverseitig zu einem
-einheitlichen Text-Delta-Stream. API-Keys liegen im Browser und werden pro Request
-an den eigenen Server-Proxy übergeben.
+### Why a proxy?
+The browser talks to `/api/chat`, not directly to Ollama/OpenAI — this avoids
+CORS issues (especially with local Ollama) and normalizes the different provider
+stream formats server-side. API keys are passed per request to your own proxy.
 
-## Bedienung
-- **Enter** senden · **Shift+Enter** Zeilenumbruch · Eingabefeld wächst mit.
-- Modell-Switcher oben links im Chat.
-- Stop-Button (■) bricht die Generierung ab (`AbortController`).
-- Sidebar mobil einklappbar; Chats umbenennen/löschen per Hover.
+## License
+See repository.

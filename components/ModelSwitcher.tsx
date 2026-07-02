@@ -10,6 +10,7 @@ import {
   Search,
   Star,
   Sparkles,
+  Zap,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import {
@@ -34,6 +35,8 @@ export default function ModelSwitcher() {
   const chats = useStore((s) => s.chats);
   const activeChatId = useStore((s) => s.activeChatId);
   const setChatSidekick = useStore((s) => s.setChatSidekick);
+  const autoRouter = useStore((s) => s.autoRouter);
+  const setAutoRouter = useStore((s) => s.setAutoRouter);
 
   const activeChat = chats.find((c) => c.id === activeChatId);
   const activeSidekickId = activeChat?.sidekickId ?? null;
@@ -78,6 +81,7 @@ export default function ModelSwitcher() {
   const chooseModel = (key: string) => {
     const prev = selectedModelKey;
     selectModel(key);
+    setAutoRouter(false); // picking a concrete model leaves Auto mode
     if (activeChatId) setChatSidekick(activeChatId, null); // back to plain model
     setOpen(false);
     if (prev && prev !== key) {
@@ -122,6 +126,8 @@ export default function ModelSwitcher() {
   const current = options.find((o) => o.key === selectedModelKey);
   const label = activeSk
     ? activeSk.name
+    : autoRouter
+    ? "Auto"
     : current
     ? name(current)
     : selectedModelKey
@@ -208,6 +214,27 @@ export default function ModelSwitcher() {
           </div>
 
           <div className="overflow-y-auto p-1.5">
+            {/* Auto router — pick vision/OCR/text per turn automatically */}
+            <button
+              onClick={() => {
+                setAutoRouter(true);
+                if (activeChatId) setChatSidekick(activeChatId, null);
+                setOpen(false);
+              }}
+              className="mb-1 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition hover:bg-neutral-200/70 dark:hover:bg-white/10"
+            >
+              <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-md bg-accent/15 text-accent">
+                <Zap size={14} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="font-medium">Auto</span>
+                <span className="ml-1.5 text-xs text-neutral-400">
+                  Bild→Vision · Doku→OCR · sonst Text
+                </span>
+              </span>
+              {autoRouter && <Check size={16} className="shrink-0 text-accent" />}
+            </button>
+
             {/* Sidekicks — switch the current chat's profile */}
             {sidekicks.length > 0 &&
               (() => {

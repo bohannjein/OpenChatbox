@@ -15,7 +15,8 @@ export interface Attachment {
   note?: string;
 }
 
-export const ACCEPT = "image/png,image/jpeg,image/webp,image/gif,.txt,.md,.csv,.json,.log,text/*,.pdf";
+export const ACCEPT =
+  "image/png,image/jpeg,image/webp,image/gif,.txt,.md,.csv,.json,.log,text/*,.pdf,.docx,.xlsx,.xlsm,.xls,.pptx";
 
 const TEXT_EXT = /\.(txt|md|markdown|csv|json|log|ya?ml|xml|html?|tsx?|jsx?|py|java|c|cpp|cs|go|rs|rb|php|sh|sql|css)$/i;
 

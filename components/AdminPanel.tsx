@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { fetchModels, modelKey, pullModel } from "@/lib/providers";
+import AdminTerminal from "./AdminTerminal";
+import RolesEditor from "./RolesEditor";
 
 export default function AdminPanel() {
   const providers = useStore((s) => s.providers);
@@ -257,6 +259,16 @@ export default function AdminPanel() {
             );
           })}
         </div>
+      </section>
+
+      {/* Custom user roles */}
+      <section className="border-t border-border-light pt-4 dark:border-border-dark">
+        <RolesEditor />
+      </section>
+
+      {/* Server terminal (admin-only, Ollama HTTP API — no shell) */}
+      <section className="border-t border-border-light pt-4 dark:border-border-dark">
+        <AdminTerminal baseUrl={server?.baseUrl} />
       </section>
     </div>
   );

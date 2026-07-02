@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Brain,
   Shield,
+  Blocks,
   type LucideIcon,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -21,13 +22,14 @@ import { PRESETS } from "@/lib/presets";
 import { DEFAULT_ACCENT, normalizeHex } from "@/lib/branding";
 import { uid } from "@/lib/uid";
 import AdminPanel from "./AdminPanel";
+import PluginsPanel from "./PluginsPanel";
 import SidekickManager from "./SidekickManager";
 import MemoryManager from "./MemoryManager";
 import AccountPanel from "./AccountPanel";
 import type { Provider, ProviderType } from "@/lib/types";
 
 type TestState = { status: "idle" | "loading" | "ok" | "err"; msg?: string };
-type TabId = "account" | "chat" | "ai" | "admin";
+type TabId = "account" | "chat" | "ai" | "admin" | "plugins";
 
 const TABS: { id: TabId; label: string; Icon: LucideIcon; adminOnly?: boolean }[] =
   [
@@ -35,6 +37,7 @@ const TABS: { id: TabId; label: string; Icon: LucideIcon; adminOnly?: boolean }[
     { id: "chat", label: "Chat-Einstellungen", Icon: MessageSquare },
     { id: "ai", label: "KI-Personalisierung", Icon: Brain },
     { id: "admin", label: "Admin-Dashboard", Icon: Shield, adminOnly: true },
+    { id: "plugins", label: "System-Dienste/Plugins", Icon: Blocks, adminOnly: true },
   ];
 
 /** Section wrapper — consistent divider + spacing; first section has no border. */
@@ -558,6 +561,26 @@ export default function SettingsModal() {
                         Werte: <code>2m</code>, <code>30s</code>, <code>0</code>{" "}
                         (sofort), <code>-1</code> (dauerhaft).
                       </p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {[
+                          { v: "2m", l: "2m" },
+                          { v: "30m", l: "30m" },
+                          { v: "-1", l: "Dauerhaft (RAM-Cache)" },
+                        ].map((p) => (
+                          <button
+                            key={p.v}
+                            onClick={() => setOllamaKeepAlive(p.v)}
+                            className={
+                              "rounded-md border px-2 py-1 text-xs transition " +
+                              (ollamaKeepAlive === p.v
+                                ? "border-accent bg-accent/15 text-accent"
+                                : "border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5")
+                            }
+                          >
+                            {p.l}
+                          </button>
+                        ))}
+                      </div>
                     </>
                   )}
                   <p className="mt-2 text-xs text-neutral-400">
@@ -573,6 +596,12 @@ export default function SettingsModal() {
                   <AdminPanel />
                 </Section>
               </>
+            )}
+
+            {activeTab === "plugins" && isAdmin && (
+              <Section>
+                <PluginsPanel />
+              </Section>
             )}
           </div>
         </div>

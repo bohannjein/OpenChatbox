@@ -21,6 +21,7 @@ import { useStore } from "@/lib/store";
 import {
   parseModelKey,
   streamChat,
+  loadAllModels,
   displayName,
   detectCodeBlock,
   extractMemory,
@@ -35,6 +36,11 @@ import type { ChatFile, Message, Role } from "@/lib/types";
 import type { Attachment } from "@/lib/files";
 import { buildShareLink, chatToMarkdown, download } from "@/lib/share";
 import { useClickOutside } from "@/lib/useClickOutside";
+import { useAutoTitle } from "@/lib/useAutoTitle";
+import { routeModelKey, wantsOcr, OCR_SYSTEM_HINT } from "@/lib/modelRouter";
+import { languageConstraint } from "@/lib/langDetect";
+import { detectDocIntent } from "@/lib/docIntent";
+import { useT } from "@/lib/i18n";
 import ModelSwitcher from "./ModelSwitcher";
 import ParamsPopover from "./ParamsPopover";
 import ChatMessage from "./ChatMessage";
@@ -88,6 +94,11 @@ export default function ChatWindow() {
   const activeChatId = useStore((s) => s.activeChatId);
   const providers = useStore((s) => s.providers);
   const selectedModelKey = useStore((s) => s.selectedModelKey);
+  const autoRouter = useStore((s) => s.autoRouter);
+  const routerVisionKey = useStore((s) => s.routerVisionKey);
+  const routerOcrKey = useStore((s) => s.routerOcrKey);
+  const plugins = useStore((s) => s.plugins);
+  const attachGeneratedDoc = useStore((s) => s.attachGeneratedDoc);
   const customInstructions = useStore((s) => s.customInstructions);
   const paramsCfg = useStore((s) => s.params);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
@@ -244,6 +255,10 @@ export default function ChatWindow() {
     setStreamingId(null);
   };
 
+  // Hidden background request that names the chat after the first answer.
+  const autoTitle = useAutoTitle();
+  const t = useT();
+
   /** Resolve the provider + model for a given model key. */
   const resolveModel = (key: string | null) => {
     if (!key) throw new Error("Kein Modell ausgewählt.");
@@ -267,6 +282,33 @@ export default function ChatWindow() {
         "Hintergrundwissen über den Nutzer (nicht erwähnen, nur berücksichtigen):\n" +
           memory.map((m) => `- ${m.text}`).join("\n")
       );
+    // Hochgeladene Dokumente als STRUKTURIERTEN Kontext übergeben (Metadaten +
+    // klar abgegrenzter Inhalt), damit die KI weiß: externe Datei, nicht getippt.
+    const uploads = (chatObj?.files ?? []).filter(
+      (f) => f.source === "upload" && f.content && f.content.trim()
+    );
+    if (uploads.length) {
+      const block = uploads
+        .map(
+          (f, i) =>
+            `[Datei ${i + 1}] Name: "${f.name}" · Typ: ${f.kind}\n` +
+            `<<<DATEI-INHALT\n${f.content!.trim()}\nDATEI-INHALT>>>`
+        )
+        .join("\n\n");
+      parts.push(
+        "Der Nutzer hat externe Datei(en) hochgeladen. Der folgende Inhalt " +
+          "stammt aus diesen Anhängen (nicht vom Nutzer getippt); beziehe dich " +
+          "darauf, wenn relevant:\n\n" +
+          block
+      );
+    }
+
+    // Sprach-Constraint: KI antwortet in der Sprache der letzten Nutzernachricht.
+    const lastUser = [...(chatObj?.messages ?? [])]
+      .reverse()
+      .find((m) => m.role === "user" && m.content.trim());
+    if (lastUser) parts.push(languageConstraint(lastUser.content));
+
     // Aktuelle Client-Systemzeit — damit die KI weiß, welcher Tag heute ist.
     const now = new Date();
     const datum = now.toLocaleDateString("de-DE", {
@@ -292,7 +334,45 @@ export default function ChatWindow() {
     const sk = chatObj?.sidekickId
       ? sidekicks.find((x) => x.id === chatObj.sidekickId)
       : undefined;
-    const effectiveKey = sk?.modelKey || selectedModelKey;
+    let effectiveKey = sk?.modelKey || selectedModelKey;
+
+    // Auto-router: pick vision/OCR/text per turn from the attachments of the
+    // message we're answering. A sidekick's own model always wins.
+    let routeRole: "text" | "vision" | "ocr" = "text";
+    if (autoRouter && !sk) {
+      const idxU = chatObj?.messages.findIndex((m) => m.id === assistantId) ?? -1;
+      const lastUser = [...(chatObj?.messages.slice(0, idxU) ?? [])]
+        .reverse()
+        .find((m) => m.role === "user");
+      const hasImage = !!lastUser?.images?.length;
+      const hasDoc = !!chatObj?.files?.some(
+        (f) =>
+          f.messageId === lastUser?.id &&
+          (f.kind === "pdf" || f.kind === "text" || f.kind === "other")
+      );
+      if (hasImage || hasDoc) {
+        try {
+          const { options } = await loadAllModels(providers);
+          const ocrOn = plugins?.ocrEngine !== false; // admin master-switch
+          const routed = routeModelKey(
+            { textKey: effectiveKey, visionKey: routerVisionKey, ocrKey: routerOcrKey },
+            {
+              hasImage,
+              hasDoc: hasDoc && ocrOn,
+              ocrIntent: ocrOn && wantsOcr(lastUser?.content ?? ""),
+            },
+            options
+          );
+          if (routed.key) {
+            effectiveKey = routed.key;
+            routeRole = routed.role;
+          }
+        } catch {
+          /* routing failed → keep the primary model */
+        }
+      }
+    }
+
     let provider: ReturnType<typeof resolveModel>["provider"];
     let model: string;
     try {
@@ -303,7 +383,11 @@ export default function ChatWindow() {
       return;
     }
 
-    const system = buildSystem(chatId);
+    let system = buildSystem(chatId);
+    // Quick-OCR pipeline: when routed to a vision/OCR model, instruct it to read
+    // & structure the document before answering.
+    if (routeRole === "vision" || routeRole === "ocr")
+      system = (system ? system + "\n\n" : "") + OCR_SYSTEM_HINT;
 
     // Build history = all messages before the assistant message.
     const cur = useStore.getState().chats.find((c) => c.id === chatId);
@@ -408,6 +492,44 @@ export default function ChatWindow() {
     if (c && !c.temporary) router.push(`/c/${chatId}`);
     await generate(chatId, assistantId);
 
+    // After the first complete answer: name the chat via a hidden model call.
+    autoTitle(chatId);
+
+    // Invisible document generator: if the prompt asked for a PDF/Excel and the
+    // admin enabled the service, turn the AI's answer into a real file and
+    // attach it under the message. Fully automatic — no user action needed.
+    const docKind = detectDocIntent(text);
+    if (docKind && plugins?.docGenerator !== false) {
+      const answer =
+        useStore
+          .getState()
+          .chats.find((c) => c.id === chatId)
+          ?.messages.find((m) => m.id === assistantId)?.content ?? "";
+      if (answer.trim()) {
+        try {
+          const res = await fetch("/api/generate-doc", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ kind: docKind, title: text.slice(0, 80), content: answer }),
+          });
+          const d = await res.json();
+          if (res.status === 403) {
+            appendToMessage(chatId, assistantId, `\n\n_(${d.error || "Dienst deaktiviert."})_`);
+          } else if (res.ok && d.dataUrl) {
+            attachGeneratedDoc(chatId, assistantId, {
+              id: crypto.randomUUID(),
+              name: d.name,
+              mime: d.mime,
+              dataUrl: d.dataUrl,
+              size: d.size,
+            });
+          }
+        } catch {
+          /* ignore generation errors */
+        }
+      }
+    }
+
     // Extract durable user facts in the background (non-temporary chats only).
     if (memoryEnabled && text.trim() && !c?.temporary) {
       const chatObj = useStore.getState().chats.find((x) => x.id === chatId);
@@ -474,6 +596,8 @@ export default function ChatWindow() {
   const labelKey = labelSk?.modelKey || selectedModelKey;
   const modelLabel = labelSk
     ? labelSk.name
+    : autoRouter
+    ? "Auto"
     : labelKey
     ? displayName(aliases, labelKey, parseModelKey(labelKey).model)
     : null;
@@ -683,9 +807,7 @@ export default function ChatWindow() {
               streaming={streamingId !== null}
               initialText={chat?.draft ?? ""}
               onDraftChange={(t) => activeChatId && setDraft(activeChatId, t)}
-              placeholder={
-                modelLabel ? `Nachricht an ${modelLabel}…` : "Nachricht senden…"
-              }
+              placeholder={t("input.placeholder")}
             />
 
             <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -747,16 +869,14 @@ export default function ChatWindow() {
             streaming={streamingId !== null}
             initialText={chat?.draft ?? ""}
             onDraftChange={(t) => activeChatId && setDraft(activeChatId, t)}
-            placeholder={
-              modelLabel ? `Nachricht an ${modelLabel}…` : "Nachricht senden…"
-            }
+            placeholder={t("input.placeholder")}
           />
         </>
       )}
 
       {/* Dezenter rechtlicher Hinweis — ganz unten im Chat-Fenster. */}
       <footer className="shrink-0 px-4 pb-2 text-center text-[11px] leading-tight text-neutral-400 dark:text-neutral-500 print:hidden">
-        Eine KI kann Fehler machen. Bitte überprüfe wichtige Informationen.
+        {t("chat.disclaimer")}
       </footer>
       </div>
       </CodePanelContext.Provider>
