@@ -32,37 +32,13 @@ services:
       # the image or git. To store it on a host path instead, set
       # OPENCHATBOX_DATA_DIR and mount that path here.
       - openchatbox-data:/app/data
-    # Lets the server reach an Ollama running on the Docker host:
-    # set the provider Base URL to http://host.docker.internal:11434
+    # Reach an EXISTING Ollama running on the Docker host — Ollama is NOT
+    # bundled/installed by this stack. Set the provider Base URL to
+    # http://host.docker.internal:11434 (or your Ollama server's address).
+    # For RAM caching, set on that Ollama host: OLLAMA_KEEP_ALIVE=-1,
+    # OLLAMA_MAX_LOADED_MODELS, OLLAMA_NUM_PARALLEL.
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  # Ollama alongside OpenChatbox. Point the provider Base URL at
-  # http://ollama:11434 (server-side calls resolve the service name).
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    restart: unless-stopped
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama-data:/root/.ollama
-    environment:
-      # ── RAM-cache & concurrency tuning (large-RAM hosts, e.g. 128 GB) ──
-      # Keep loaded models resident forever → no reload lag on model switch.
-      OLLAMA_KEEP_ALIVE: "-1"
-      # Serve multiple models at once (bounded by RAM). Raise on big-RAM boxes.
-      OLLAMA_MAX_LOADED_MODELS: "${OLLAMA_MAX_LOADED_MODELS:-3}"
-      # Parallel requests per model — prevents long-context requests blocking.
-      OLLAMA_NUM_PARALLEL: "${OLLAMA_NUM_PARALLEL:-4}"
-      # Optional: cap context/queue if needed.
-      # OLLAMA_MAX_QUEUE: "512"
-    # GPU passthrough (uncomment with NVIDIA Container Toolkit):
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]
-
 volumes:
   openchatbox-data:
-  ollama-data:
