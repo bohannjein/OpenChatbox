@@ -25,6 +25,12 @@ export async function POST(req: NextRequest) {
       { status: 401 }
     );
 
+  if (user.blocked)
+    return NextResponse.json(
+      { error: "Konto ist gesperrt. Wende dich an den Administrator." },
+      { status: 403 }
+    );
+
   if (user.twoFactor.enabled) {
     return NextResponse.json({
       twoFactor: true,

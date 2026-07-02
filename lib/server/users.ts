@@ -13,8 +13,15 @@ export interface User {
   /** identity provider: "local" | "entra" | "ad" */
   provider: string;
   twoFactor: { enabled: boolean; secret?: string; pending?: string };
+  /** admin-blocked accounts can't log in */
+  blocked?: boolean;
   createdAt: number;
 }
+
+/** The permanent built-in admin (always present, cannot be deleted/blocked). */
+export const BUILTIN_ADMIN = "administrator";
+export const isBuiltinAdmin = (u: { username: string }) =>
+  u.username.toLowerCase() === BUILTIN_ADMIN;
 
 // Data dir survives restarts; prepared to be swapped for a real DB.
 const FILE = path.join(DATA_DIR, "users.json");
@@ -56,26 +63,41 @@ export function countUsers(): number {
 }
 
 /**
- * True once at least one admin account exists. Drives the first-run setup gate:
- * a fresh install has no admin, so the setup screen is shown until the first
- * admin is created. (There is intentionally no default/seed admin — leaving
- * `administrator/administrator` around would be an obvious security hole.)
+ * Ensure the permanent built-in admin exists (administrator/administrator).
+ * Idempotent; never clobbers a corrupt file (only seeds when readable).
  */
-export function hasAdmin(): boolean {
+export function ensureSeed() {
+  let users: User[];
   try {
-    // No file at all → genuinely fresh install → setup needed.
-    if (!fs.existsSync(FILE)) return false;
-    const users = (JSON.parse(fs.readFileSync(FILE, "utf8")).users as User[]) ?? [];
-    return users.some((u) => u.role === "admin");
+    if (!fs.existsSync(FILE)) users = [];
+    else users = (JSON.parse(fs.readFileSync(FILE, "utf8")).users as User[]) ?? [];
   } catch {
-    // File exists but is unreadable/corrupt: fail CLOSED. Assume an admin may
-    // exist so the setup gate can't be re-opened (and a second admin created)
-    // on an already-provisioned instance due to a transient read error.
-    return true;
+    return; // unreadable/corrupt → don't overwrite
+  }
+  if (!users.some(isBuiltinAdmin)) {
+    const { salt, passHash } = hashPassword(BUILTIN_ADMIN);
+    users.push({
+      id: uid(),
+      username: BUILTIN_ADMIN,
+      passHash,
+      salt,
+      role: "admin",
+      provider: "local",
+      twoFactor: { enabled: false },
+      createdAt: Date.now(),
+    });
+    save(users);
   }
 }
 
+/** An admin always exists now (built-in) → the first-run setup screen is off. */
+export function hasAdmin(): boolean {
+  ensureSeed();
+  return load().some((u) => u.role === "admin");
+}
+
 export function findByUsername(username: string): User | undefined {
+  ensureSeed();
   return load().find(
     (u) => u.username.toLowerCase() === username.trim().toLowerCase()
   );
@@ -135,5 +157,49 @@ export function publicUser(u: User) {
     role: u.role,
     provider: u.provider,
     twoFactorEnabled: u.twoFactor.enabled,
+    blocked: !!u.blocked,
+    builtin: isBuiltinAdmin(u),
   };
+}
+
+/** All users (admin view). */
+export function listUsers() {
+  ensureSeed();
+  return load().map(publicUser);
+}
+
+/** Delete a user (never the built-in admin). */
+export function deleteUser(id: string): boolean {
+  const users = load();
+  const target = users.find((u) => u.id === id);
+  if (!target || isBuiltinAdmin(target)) return false;
+  save(users.filter((u) => u.id !== id));
+  return true;
+}
+
+/** Set a user's role (never demote the built-in admin). */
+export function setUserRole(id: string, role: string): boolean {
+  const users = load();
+  const u = users.find((x) => x.id === id);
+  if (!u || isBuiltinAdmin(u)) return false;
+  updateUser(id, { role: role as User["role"] });
+  return true;
+}
+
+/** Block / unblock a user (never the built-in admin). */
+export function setUserBlocked(id: string, blocked: boolean): boolean {
+  const users = load();
+  const u = users.find((x) => x.id === id);
+  if (!u || isBuiltinAdmin(u)) return false;
+  updateUser(id, { blocked });
+  return true;
+}
+
+/** Admin reset of a user's password. */
+export function adminResetPassword(id: string, newPassword: string): boolean {
+  const users = load();
+  const u = users.find((x) => x.id === id);
+  if (!u || !newPassword || newPassword.length < 6) return false;
+  updateUser(id, hashPassword(newPassword));
+  return true;
 }

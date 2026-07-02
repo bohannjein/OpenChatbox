@@ -23,6 +23,7 @@ import { DEFAULT_ACCENT, normalizeHex } from "@/lib/branding";
 import { uid } from "@/lib/uid";
 import AdminPanel from "./AdminPanel";
 import PluginsPanel from "./PluginsPanel";
+import UserManagement from "./UserManagement";
 import SidekickManager from "./SidekickManager";
 import MemoryManager from "./MemoryManager";
 import AccountPanel from "./AccountPanel";
@@ -306,6 +307,11 @@ export default function SettingsModal() {
 
             {activeTab === "admin" && isAdmin && (
               <>
+                {/* User management */}
+                <Section>
+                  <UserManagement />
+                </Section>
+
                 {/* Branding */}
                 <Section>
                   <h3 className="font-medium">Branding</h3>
