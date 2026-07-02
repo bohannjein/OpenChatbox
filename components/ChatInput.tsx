@@ -6,6 +6,7 @@ import {
   useEffect,
   useCallback,
   useImperativeHandle,
+  useMemo,
   forwardRef,
 } from "react";
 import {
@@ -16,6 +17,9 @@ import {
   X,
   FileText,
   File as FileIcon,
+  Cpu,
+  Sparkles,
+  Globe,
 } from "lucide-react";
 import clsx from "clsx";
 import { useStore } from "@/lib/store";
@@ -26,6 +30,25 @@ import {
   imageDataUrls,
   type Attachment,
 } from "@/lib/files";
+import { loadAllModels, displayName } from "@/lib/providers";
+import { uid } from "@/lib/uid";
+import type { ModelOption } from "@/lib/types";
+
+// Highlight the matched substring in the accent color.
+function highlightMatch(text: string, q: string) {
+  if (!q) return text;
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  if (i < 0) return text;
+  return (
+    <>
+      {text.slice(0, i)}
+      <span className="font-semibold text-accent">
+        {text.slice(i, i + q.length)}
+      </span>
+      {text.slice(i + q.length)}
+    </>
+  );
+}
 
 export interface ChatInputHandle {
   setText: (t: string) => void;
@@ -33,7 +56,11 @@ export interface ChatInputHandle {
 }
 
 interface Props {
-  onSend: (text: string, images?: string[]) => void;
+  onSend: (
+    text: string,
+    images?: string[],
+    attachments?: Attachment[]
+  ) => void;
   onStop: () => void;
   streaming: boolean;
   disabled?: boolean;
@@ -61,12 +88,55 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
   ref
 ) {
   const prompts = useStore((s) => s.prompts);
+  const toggleWebSearch = useStore((s) => s.toggleWebSearch);
+  const webSearchEnabled = useStore((s) => s.webSearchEnabled);
+  const providers = useStore((s) => s.providers);
+  const aliases = useStore((s) => s.aliases);
+  const selectModel = useStore((s) => s.selectModel);
+  const activeChatId = useStore((s) => s.activeChatId);
+  const setChatSidekick = useStore((s) => s.setChatSidekick);
+  const [modelOpts, setModelOpts] = useState<ModelOption[]>([]);
+  useEffect(() => {
+    loadAllModels(providers).then((r) => setModelOpts(r.options));
+  }, [providers]);
   const [value, setValue] = useState(initialText ?? "");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
   const [picIdx, setPicIdx] = useState(0);
+  const [menuClosed, setMenuClosed] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Slash commands (keyboard-driven). Enter runs them, Tab completes the name.
+  const COMMANDS = useMemo(
+    () => [
+      {
+        cmd: "/file",
+        label: "Datei hochladen",
+        Icon: Paperclip,
+        run: () => fileRef.current?.click(),
+      },
+      {
+        cmd: "/model",
+        label: "Modell wählen",
+        Icon: Cpu,
+        run: () => window.dispatchEvent(new Event("openModelSwitcher")),
+      },
+      {
+        cmd: "/sidekick",
+        label: "Sidekick wechseln / erstellen",
+        Icon: Sparkles,
+        run: () => window.dispatchEvent(new Event("openModelSwitcher")),
+      },
+      {
+        cmd: "/search",
+        label: "Internetsuche umschalten",
+        Icon: Globe,
+        run: () => toggleWebSearch(),
+      },
+    ],
+    [toggleWebSearch]
+  );
 
   useImperativeHandle(ref, () => ({
     setText: (t) => {
@@ -90,49 +160,193 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
     onDraftChange?.(v);
   };
 
-  // "/" picker
+  // "/" menu: commands + prompt templates, filtered by the text after "/"
   const slashQuery =
     value.startsWith("/") && !value.includes("\n") ? value.slice(1) : null;
-  const filtered =
-    slashQuery != null
-      ? prompts.filter(
-          (p) =>
-            p.title.toLowerCase().includes(slashQuery.toLowerCase()) ||
-            (p.shortcut ?? "").toLowerCase().includes(slashQuery.toLowerCase())
+  const q = (slashQuery ?? "").toLowerCase();
+  type Item =
+    | { type: "cmd"; cmd: (typeof COMMANDS)[number] }
+    | { type: "prompt"; prompt: (typeof prompts)[number] }
+    | { type: "model"; option: ModelOption };
+
+  // "/model <query>" → inline model autocomplete
+  const modelMode = slashQuery != null && /^model\s/i.test(slashQuery);
+  const modelQuery = modelMode ? slashQuery!.replace(/^model\s*/i, "") : "";
+  const nameOf = (o: ModelOption) => displayName(aliases, o.key, o.model);
+
+  const items: Item[] = modelMode
+    ? modelOpts
+        .filter(
+          (o) =>
+            nameOf(o).toLowerCase().includes(modelQuery.toLowerCase()) ||
+            o.model.toLowerCase().includes(modelQuery.toLowerCase())
         )
-      : [];
+        .slice(0, 30)
+        .map((o) => ({ type: "model" as const, option: o }))
+    : slashQuery == null
+    ? []
+    : [
+        ...COMMANDS.filter(
+          (c) =>
+            c.cmd.slice(1).startsWith(q) || c.label.toLowerCase().includes(q)
+        ).map((c) => ({ type: "cmd" as const, cmd: c })),
+        ...prompts
+          .filter(
+            (p) =>
+              p.title.toLowerCase().includes(q) ||
+              (p.shortcut ?? "").toLowerCase().includes(q)
+          )
+          .map((p) => ({ type: "prompt" as const, prompt: p })),
+      ];
+  const pickerOpen = slashQuery != null && items.length > 0 && !menuClosed;
+
+  // ghost preview: remaining chars of the top model match
+  const topModel =
+    modelMode && items[0]?.type === "model" ? items[0].option : null;
+  const ghost =
+    topModel && modelQuery
+      ? (() => {
+          const n = nameOf(topModel);
+          return n.toLowerCase().startsWith(modelQuery.toLowerCase())
+            ? n.slice(modelQuery.length)
+            : "";
+        })()
+      : "";
 
   useEffect(() => {
-    setPickerOpen(slashQuery != null && filtered.length > 0);
     setPicIdx(0);
-  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+    setMenuClosed(false);
+  }, [value]);
 
-  const applyPrompt = (content: string) => {
-    changeValue(content);
-    setPickerOpen(false);
+  const caretEnd = (text: string) =>
     requestAnimationFrame(() => {
       const el = taRef.current;
       if (el) {
         el.focus();
-        el.setSelectionRange(content.length, content.length);
+        el.setSelectionRange(text.length, text.length);
       }
     });
+
+  const applyPrompt = (content: string) => {
+    changeValue(content);
+    setMenuClosed(true);
+    caretEnd(content);
+  };
+
+  // Tab → complete the command name into the field ("/mo" → "/model ")
+  const completeCommand = (cmd: string) => {
+    const text = cmd + " ";
+    changeValue(text);
+    caretEnd(text);
+  };
+
+  // Enter → run the command's action, then clear the slash text
+  const runCommand = (c: (typeof COMMANDS)[number]) => {
+    changeValue("");
+    setMenuClosed(true);
+    c.run();
+    requestAnimationFrame(() => taRef.current?.focus());
+  };
+
+  // Modell wählen: sofort im Hintergrund wechseln (wie Klick im Dropdown),
+  // Sidekick des Chats lösen, Textfeld leeren.
+  const applyModel = (o: ModelOption) => {
+    selectModel(o.key);
+    if (activeChatId) setChatSidekick(activeChatId, null);
+    changeValue("");
+    setMenuClosed(true);
+    requestAnimationFrame(() => taRef.current?.focus());
+  };
+
+  const chooseItem = (it: Item, viaTab: boolean) => {
+    if (it.type === "model") return applyModel(it.option);
+    if (it.type === "prompt") return applyPrompt(it.prompt.content);
+    if (viaTab) completeCommand(it.cmd.cmd);
+    else runCommand(it.cmd);
   };
 
   const addFiles = async (files: FileList | null) => {
-    if (!files) return;
-    const processed = await Promise.all(Array.from(files).map(processFile));
+    if (!files || files.length === 0) return;
+    const list = Array.from(files);
+    // allSettled: one unreadable/corrupt file must not drop the others (and
+    // must not surface as an unhandled rejection — callers don't await this).
+    const results = await Promise.allSettled(list.map(processFile));
+    const processed: Attachment[] = results.map((r, i) =>
+      r.status === "fulfilled"
+        ? r.value
+        : {
+            id: uid(),
+            name: list[i]?.name ?? "Datei",
+            size: list[i]?.size ?? 0,
+            kind: "other",
+            note: "Datei konnte nicht verarbeitet werden.",
+          }
+    );
     setAttachments((a) => [...a, ...processed]);
   };
   const removeAttachment = (id: string) =>
     setAttachments((a) => a.filter((x) => x.id !== id));
+
+  // Drag & Drop: ganze Eingabebox ist Ablagezone.
+  const onDragOver = (e: React.DragEvent) => {
+    // nur auf Dateien reagieren (nicht auf markierten Text etc.)
+    if (!Array.from(e.dataTransfer.types).includes("Files")) return;
+    // Immer als Drop-Ziel beanspruchen — auch wenn disabled — damit der Browser
+    // die Datei nicht öffnet/navigiert und den Chat verwirft.
+    e.preventDefault();
+    if (!disabled && !dragActive) setDragActive(true);
+  };
+  const onDragLeave = (e: React.DragEvent) => {
+    // Kind-Elemente lösen leave aus — ignorieren, solange Cursor in der Box bleibt.
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    setDragActive(false);
+  };
+  const onDrop = (e: React.DragEvent) => {
+    if (!Array.from(e.dataTransfer.types).includes("Files")) return;
+    e.preventDefault();
+    setDragActive(false);
+    if (disabled) return;
+    addFiles(e.dataTransfer.files);
+  };
+
+  // Riesen-Paste (>2000 Zeichen) → als Text-Datei anhängen statt ins Feld.
+  const PASTE_LIMIT = 2000;
+  const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    // Eingefügte Dateien/Bilder (Screenshot aus Zwischenablage) → als Anhang.
+    const files = e.clipboardData.files;
+    if (files && files.length > 0) {
+      e.preventDefault();
+      addFiles(files);
+      return;
+    }
+    const text = e.clipboardData.getData("text");
+    if (text && text.length > PASTE_LIMIT) {
+      e.preventDefault();
+      const n =
+        attachments.filter((a) => a.name.startsWith("eingefügter_text")).length;
+      setAttachments((a) => [
+        ...a,
+        {
+          id: uid(),
+          name: n ? `eingefügter_text_${n + 1}.txt` : "eingefügter_text.txt",
+          size: text.length,
+          kind: "text",
+          text,
+        },
+      ]);
+    }
+  };
 
   const submit = () => {
     const text = value.trim();
     if ((!text && attachments.length === 0) || streaming) return;
     const finalText = buildPromptWithAttachments(text, attachments);
     const images = imageDataUrls(attachments);
-    onSend(finalText || "(Datei angehängt)", images.length ? images : undefined);
+    onSend(
+      finalText || "(Datei angehängt)",
+      images.length ? images : undefined,
+      attachments.length ? attachments : undefined
+    );
     setValue("");
     onDraftChange?.("");
     setAttachments([]);
@@ -142,7 +356,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
     if (pickerOpen) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setPicIdx((i) => Math.min(i + 1, filtered.length - 1));
+        setPicIdx((i) => Math.min(i + 1, items.length - 1));
         return;
       }
       if (e.key === "ArrowUp") {
@@ -150,15 +364,29 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
         setPicIdx((i) => Math.max(i - 1, 0));
         return;
       }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        chooseItem(items[picIdx], true); // complete name into field
+        return;
+      }
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        applyPrompt(filtered[picIdx].content);
+        chooseItem(items[picIdx], false); // execute / insert
+        return;
+      }
+      if (e.key === " " && modelMode) {
+        // im Modell-Modus bestätigt Leertaste; sonst normal tippen
+        // (damit man "/model " überhaupt eingeben kann)
+        e.preventDefault();
+        chooseItem(items[picIdx], false);
         return;
       }
       if (e.key === "Escape") {
-        setPickerOpen(false);
+        e.preventDefault();
+        setMenuClosed(true);
         return;
       }
+      // sonstige Tasten (Buchstaben) filtern normal weiter — Menü bleibt offen
     }
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
@@ -174,49 +402,112 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
       )}
     >
       <div className="relative">
-        {/* Animated multicolor AI glow (start screen) — fades out smoothly */}
+        {/* Animated multicolor AI glow (start screen) — fades out smoothly.
+            Colors are fixed neon (independent of the accent color). */}
         <div
           aria-hidden
           className={clsx(
-            "pointer-events-none absolute -inset-0.5 rounded-[26px] bg-gradient-to-r from-fuchsia-500 via-blue-500 to-cyan-400 bg-[length:200%_200%] blur-md transition-opacity duration-700",
-            glow
-              ? "opacity-40 [animation:glow-pulse_3s_ease-in-out_infinite,gradient-x_8s_linear_infinite]"
-              : "opacity-0"
+            "pointer-events-none absolute -inset-2 transition-opacity duration-700",
+            glow ? "opacity-100" : "opacity-0"
           )}
-        />
-        {/* "/" prompt picker */}
+        >
+          <div className="ai-glow absolute inset-0" />
+        </div>
+        {/* "/" command + prompt menu */}
         {pickerOpen && (
-          <div className="absolute bottom-full left-0 z-40 mb-2 w-full overflow-hidden rounded-xl border border-border-light bg-white shadow-xl dark:border-border-dark dark:bg-sidebar-dark">
+          <div className="absolute bottom-full left-0 z-40 mb-2 max-h-72 w-full overflow-y-auto menu-panel">
             <div className="flex items-center gap-1.5 border-b border-border-light px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:border-border-dark">
-              <BookText size={13} /> Prompt-Bibliothek
-            </div>
-            {filtered.map((p, i) => (
-              <button
-                key={p.id}
-                onMouseEnter={() => setPicIdx(i)}
-                onClick={() => applyPrompt(p.content)}
-                className={clsx(
-                  "flex w-full flex-col items-start px-3 py-2 text-left transition",
-                  i === picIdx
-                    ? "bg-neutral-200/70 dark:bg-white/10"
-                    : "hover:bg-neutral-100 dark:hover:bg-white/5"
-                )}
-              >
-                <span className="text-sm font-medium">{p.title}</span>
-                <span className="line-clamp-1 text-xs text-neutral-500">
-                  {p.content.replace(/\s+/g, " ").trim()}
+              <BookText size={13} />{" "}
+              {modelMode
+                ? "Modell wählen · ↑↓ · Tab/⏎ wechselt"
+                : "Befehle & Vorlagen · ↑↓ · Tab · ⏎"}
+              {modelMode && ghost && (
+                <span className="ml-auto normal-case text-neutral-400">
+                  Tab → <span className="text-neutral-500">{modelQuery}</span>
+                  {ghost}
                 </span>
-              </button>
-            ))}
+              )}
+            </div>
+            {items.map((it, i) =>
+              it.type === "model" ? (
+                <button
+                  key={it.option.key}
+                  onMouseEnter={() => setPicIdx(i)}
+                  onClick={() => chooseItem(it, false)}
+                  className={clsx(
+                    "flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition",
+                    i === picIdx
+                      ? "bg-neutral-200/70 dark:bg-white/10"
+                      : "hover:bg-neutral-100 dark:hover:bg-white/5"
+                  )}
+                >
+                  <span className="min-w-0 truncate font-mono text-sm">
+                    {highlightMatch(nameOf(it.option), modelQuery)}
+                  </span>
+                  <span className="shrink-0 text-xs text-neutral-400">
+                    {it.option.providerName}
+                  </span>
+                </button>
+              ) : it.type === "cmd" ? (
+                <button
+                  key={it.cmd.cmd}
+                  onMouseEnter={() => setPicIdx(i)}
+                  onClick={() => chooseItem(it, false)}
+                  className={clsx(
+                    "flex w-full items-center gap-2 px-3 py-2 text-left transition",
+                    i === picIdx
+                      ? "bg-neutral-200/70 dark:bg-white/10"
+                      : "hover:bg-neutral-100 dark:hover:bg-white/5"
+                  )}
+                >
+                  <it.cmd.Icon size={15} className="shrink-0 text-accent" />
+                  <span className="font-mono text-sm font-medium">
+                    {it.cmd.cmd}
+                  </span>
+                  <span className="truncate text-xs text-neutral-500">
+                    {it.cmd.label}
+                  </span>
+                </button>
+              ) : (
+                <button
+                  key={it.prompt.id}
+                  onMouseEnter={() => setPicIdx(i)}
+                  onClick={() => chooseItem(it, false)}
+                  className={clsx(
+                    "flex w-full flex-col items-start px-3 py-2 text-left transition",
+                    i === picIdx
+                      ? "bg-neutral-200/70 dark:bg-white/10"
+                      : "hover:bg-neutral-100 dark:hover:bg-white/5"
+                  )}
+                >
+                  <span className="text-sm font-medium">{it.prompt.title}</span>
+                  <span className="line-clamp-1 text-xs text-neutral-500">
+                    {it.prompt.content.replace(/\s+/g, " ").trim()}
+                  </span>
+                </button>
+              )
+            )}
           </div>
         )}
 
         <div
+          onDragOver={onDragOver}
+          onDragEnter={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
           className={clsx(
-            "relative rounded-3xl border border-border-light bg-white p-2 shadow-sm transition focus-within:border-neutral-400 dark:border-border-dark dark:bg-bubble-dark dark:focus-within:border-neutral-500",
+            "relative rounded-3xl border bg-white p-2 shadow-sm transition focus-within:border-neutral-400 dark:bg-bubble-dark dark:focus-within:border-neutral-500",
+            dragActive
+              ? "border-accent ring-2 ring-accent/40"
+              : "border-border-light dark:border-border-dark",
             disabled && "opacity-60"
           )}
         >
+          {dragActive && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-3xl bg-accent/10 text-sm font-medium text-accent backdrop-blur-[1px]">
+              <Paperclip size={16} /> Dateien hier ablegen
+            </div>
+          )}
           {/* Attachment tiles (inside the box, above the textarea) */}
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2 px-1 pb-2 pt-1">
@@ -272,6 +563,23 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
             >
               <Paperclip size={18} />
             </button>
+            <button
+              onClick={() => toggleWebSearch()}
+              disabled={disabled}
+              title={
+                webSearchEnabled
+                  ? "Internetsuche: an"
+                  : "Internetsuche: aus"
+              }
+              className={clsx(
+                "mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition disabled:opacity-40",
+                webSearchEnabled
+                  ? "bg-accent/15 text-accent"
+                  : "text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
+              )}
+            >
+              <Globe size={18} />
+            </button>
 
             <textarea
               ref={taRef}
@@ -280,7 +588,8 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
               disabled={disabled}
               onChange={(e) => changeValue(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder={placeholder ?? "Nachricht senden…  ( / für Prompts )"}
+              onPaste={onPaste}
+              placeholder={placeholder ?? "Nachricht senden…  ( / für Befehle )"}
               className="max-h-60 flex-1 resize-none bg-transparent px-2 py-2 leading-6 outline-none placeholder:text-neutral-400 disabled:cursor-not-allowed"
             />
 
@@ -288,7 +597,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
               <button
                 onClick={onStop}
                 title="Generierung stoppen"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-white transition hover:bg-neutral-700 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+                className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-white transition hover:bg-neutral-700 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
               >
                 <Square size={16} fill="currentColor" />
               </button>
@@ -297,7 +606,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
                 onClick={submit}
                 disabled={(!value.trim() && attachments.length === 0) || disabled}
                 title="Senden"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-white transition hover:bg-neutral-700 disabled:opacity-30 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+                className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-white transition hover:bg-neutral-700 disabled:opacity-30 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
               >
                 <ArrowUp size={18} />
               </button>

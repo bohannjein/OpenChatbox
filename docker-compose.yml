@@ -1,0 +1,48 @@
+# OpenChatbox — single-service deployment.
+#   1) cp .env.example .env  &&  edit AUTH_SECRET
+#   2) docker compose up -d --build
+# Data (admin account, server config) persists in the named volume below.
+
+services:
+  openchatbox:
+    image: bohannjein/openchatbox:latest
+    build:
+      context: .
+    container_name: openchatbox
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # REQUIRED — session signing key. Generate: openssl rand -hex 32
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      NODE_ENV: production
+      # Optional SSO (Microsoft Entra / OIDC) — see .env.example.
+      ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
+      ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-}
+      ENTRA_CLIENT_SECRET: ${ENTRA_CLIENT_SECRET:-}
+      OIDC_AUTHORIZE_URL: ${OIDC_AUTHORIZE_URL:-}
+      OIDC_TOKEN_URL: ${OIDC_TOKEN_URL:-}
+    volumes:
+      # Runtime state (admin account + config) — lives in the volume, never in
+      # the image or git. To store it on a host path instead, set
+      # OPENCHATBOX_DATA_DIR and mount that path here.
+      - openchatbox-data:/app/data
+    # Lets the server reach an Ollama running on the Docker host:
+    # set the provider Base URL to http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Optional: run Ollama alongside OpenChatbox. Point the provider Base URL at
+  # http://ollama:11434 (server-side calls resolve the service name).
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: ollama
+  #   restart: unless-stopped
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama-data:/root/.ollama
+
+volumes:
+  openchatbox-data:
+  # ollama-data:

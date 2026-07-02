@@ -2,18 +2,49 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { X, Trash2, Loader2, CheckCircle2, XCircle, Plus } from "lucide-react";
+import {
+  X,
+  Trash2,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Plus,
+  User,
+  MessageSquare,
+  Brain,
+  Shield,
+  type LucideIcon,
+} from "lucide-react";
 import { useStore } from "@/lib/store";
 import { fetchModels } from "@/lib/providers";
 import { PRESETS } from "@/lib/presets";
+import { DEFAULT_ACCENT, normalizeHex } from "@/lib/branding";
+import { uid } from "@/lib/uid";
+import AdminPanel from "./AdminPanel";
+import SidekickManager from "./SidekickManager";
+import MemoryManager from "./MemoryManager";
+import AccountPanel from "./AccountPanel";
 import type { Provider, ProviderType } from "@/lib/types";
 
-const uid = () =>
-  typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2);
-
 type TestState = { status: "idle" | "loading" | "ok" | "err"; msg?: string };
+type TabId = "account" | "chat" | "ai" | "admin";
+
+const TABS: { id: TabId; label: string; Icon: LucideIcon; adminOnly?: boolean }[] =
+  [
+    { id: "account", label: "Mein Konto", Icon: User },
+    { id: "chat", label: "Chat-Einstellungen", Icon: MessageSquare },
+    { id: "ai", label: "KI-Personalisierung", Icon: Brain },
+    { id: "admin", label: "Admin-Dashboard", Icon: Shield, adminOnly: true },
+  ];
+
+/** Section wrapper — consistent divider + spacing; first section has no border. */
+function Section({ children }: { children: React.ReactNode }) {
+  return (
+    <section className="border-t border-border-light pt-6 first:border-0 first:pt-0 dark:border-border-dark">
+      {children}
+    </section>
+  );
+}
 
 export default function SettingsModal() {
   const open = useStore((s) => s.settingsOpen);
@@ -27,10 +58,30 @@ export default function SettingsModal() {
   const prompts = useStore((s) => s.prompts);
   const upsertPrompt = useStore((s) => s.upsertPrompt);
   const removePrompt = useStore((s) => s.removePrompt);
+  const accentColor = useStore((s) => s.accentColor);
+  const setAccentColor = useStore((s) => s.setAccentColor);
+  const logoUrl = useStore((s) => s.logoUrl);
+  const setLogoUrl = useStore((s) => s.setLogoUrl);
+  const appName = useStore((s) => s.appName);
+  const setAppName = useStore((s) => s.setAppName);
+  const codeSplitEnabled = useStore((s) => s.codeSplitEnabled);
+  const setCodeSplitEnabled = useStore((s) => s.setCodeSplitEnabled);
+  const codeSplitThreshold = useStore((s) => s.codeSplitThreshold);
+  const setCodeSplitThreshold = useStore((s) => s.setCodeSplitThreshold);
+  const ollamaKeepAlive = useStore((s) => s.ollamaKeepAlive);
+  const setOllamaKeepAlive = useStore((s) => s.setOllamaKeepAlive);
+  const vramManaged = useStore((s) => s.vramManaged);
+  const setVramManaged = useStore((s) => s.setVramManaged);
+  const authUser = useStore((s) => s.authUser);
 
   const [tests, setTests] = useState<Record<string, TestState>>({});
+  const [tab, setTab] = useState<TabId>("account");
 
   if (!open) return null;
+
+  const isAdmin = authUser?.role === "admin";
+  const visibleTabs = TABS.filter((t) => !t.adminOnly || isAdmin);
+  const activeTab = visibleTabs.some((t) => t.id === tab) ? tab : "account";
 
   const update = (p: Provider, patch: Partial<Provider>) =>
     upsertProvider({ ...p, ...patch });
@@ -65,7 +116,7 @@ export default function SettingsModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border-light bg-white shadow-2xl dark:border-border-dark dark:bg-sidebar-dark">
+      <div className="flex h-[85vh] max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border-light bg-white shadow-2xl dark:border-border-dark dark:bg-sidebar-dark">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border-light px-5 py-3 dark:border-border-dark">
           <h2 className="text-lg font-semibold">Einstellungen</h2>
@@ -77,272 +128,453 @@ export default function SettingsModal() {
           </button>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 space-y-6 overflow-y-auto p-5">
-          <section>
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <h3 className="font-medium">Provider & API-Endpunkte</h3>
-                <p className="text-sm text-neutral-500">
-                  Ollama (lokal) oder OpenAI-kompatible APIs (Hugging Face TGI,
-                  vLLM, OpenAI…). Alles im Browser gespeichert.
-                </p>
-              </div>
-              <select
-                value=""
-                onChange={(e) => {
-                  if (e.target.value !== "") addFromPreset(Number(e.target.value));
-                  e.target.value = "";
-                }}
-                className="flex shrink-0 items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover"
-                title="Anbieter aus Vorlage hinzufügen"
-              >
-                <option value="">+ Anbieter hinzufügen</option>
-                {PRESETS.map((p, i) => (
-                  <option key={p.name} value={i} className="text-black">
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-3">
-              {providers.map((p) => {
-                const t = tests[p.id] ?? { status: "idle" };
-                return (
-                  <div
-                    key={p.id}
-                    className="rounded-xl border border-border-light p-3 dark:border-border-dark"
-                  >
-                    <div className="flex items-center gap-2">
-                      <label className="flex cursor-pointer items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={p.enabled}
-                          onChange={(e) =>
-                            update(p, { enabled: e.target.checked })
-                          }
-                          className="h-4 w-4 accent-[#10a37f]"
-                        />
-                      </label>
-                      <input
-                        value={p.name}
-                        onChange={(e) => update(p, { name: e.target.value })}
-                        placeholder="Anzeigename"
-                        className="min-w-0 flex-1 rounded-lg border border-border-light bg-transparent px-2 py-1.5 text-sm outline-none focus:border-accent dark:border-border-dark"
-                      />
-                      <select
-                        value={p.type}
-                        onChange={(e) =>
-                          update(p, { type: e.target.value as ProviderType })
-                        }
-                        className="rounded-lg border border-border-light bg-transparent px-2 py-1.5 text-sm outline-none focus:border-accent dark:border-border-dark dark:bg-sidebar-dark"
-                      >
-                        <option value="ollama">Ollama</option>
-                        <option value="openai">OpenAI-kompatibel</option>
-                        <option value="anthropic">Anthropic</option>
-                      </select>
-                      <button
-                        onClick={() => removeProvider(p.id)}
-                        className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
-                        title="Provider entfernen"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-
-                    <div className="mt-2 grid gap-2">
-                      <div>
-                        <label className="text-xs text-neutral-500">
-                          Base-URL
-                        </label>
-                        <input
-                          value={p.baseUrl}
-                          onChange={(e) =>
-                            update(p, { baseUrl: e.target.value })
-                          }
-                          placeholder={
-                            p.type === "ollama"
-                              ? "http://localhost:11434"
-                              : "https://api.openai.com/v1"
-                          }
-                          className="w-full rounded-lg border border-border-light bg-transparent px-2 py-1.5 font-mono text-sm outline-none focus:border-accent dark:border-border-dark"
-                        />
-                      </div>
-                      {p.type !== "ollama" && (
-                        <div>
-                          <label className="text-xs text-neutral-500">
-                            API-Key
-                          </label>
-                          <input
-                            type="password"
-                            value={p.apiKey ?? ""}
-                            onChange={(e) =>
-                              update(p, { apiKey: e.target.value })
-                            }
-                            placeholder="sk-… / API-Key des Anbieters"
-                            className="w-full rounded-lg border border-border-light bg-transparent px-2 py-1.5 font-mono text-sm outline-none focus:border-accent dark:border-border-dark"
-                          />
-                        </div>
-                      )}
-                      <div>
-                        <label className="text-xs text-neutral-500">
-                          Modelle manuell (optional, Komma-getrennt) — nötig bei
-                          Anbietern ohne Modell-Liste
-                        </label>
-                        <input
-                          value={(p.manualModels ?? []).join(", ")}
-                          onChange={(e) =>
-                            update(p, {
-                              manualModels: e.target.value
-                                .split(",")
-                                .map((s) => s.trim())
-                                .filter(Boolean),
-                            })
-                          }
-                          placeholder="z. B. gpt-4o, claude-sonnet-4-5, sonar-pro"
-                          className="w-full rounded-lg border border-border-light bg-transparent px-2 py-1.5 font-mono text-sm outline-none focus:border-accent dark:border-border-dark"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-2 flex items-center gap-3">
-                      <button
-                        onClick={() => test(p)}
-                        className="rounded-lg border border-border-light px-3 py-1 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
-                      >
-                        Verbindung testen
-                      </button>
-                      {t.status === "loading" && (
-                        <span className="flex items-center gap-1 text-sm text-neutral-500">
-                          <Loader2 size={14} className="animate-spin" /> teste…
-                        </span>
-                      )}
-                      {t.status === "ok" && (
-                        <span className="flex items-center gap-1 text-sm text-accent">
-                          <CheckCircle2 size={14} /> {t.msg}
-                        </span>
-                      )}
-                      {t.status === "err" && (
-                        <span
-                          className="flex items-center gap-1 truncate text-sm text-red-500"
-                          title={t.msg}
-                        >
-                          <XCircle size={14} /> {t.msg}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Custom instructions */}
-          <section className="border-t border-border-light pt-4 dark:border-border-dark">
-            <h3 className="font-medium">Benutzerdefinierte Anweisungen</h3>
-            <p className="mb-2 text-sm text-neutral-500">
-              Dauerhafte Rolle/Regeln für das Modell — wird jeder Unterhaltung
-              als System-Prompt vorangestellt.
-            </p>
-            <textarea
-              value={customInstructions}
-              onChange={(e) => setCustomInstructions(e.target.value)}
-              rows={3}
-              placeholder="z. B. Antworte immer auf Deutsch und fasse dich kurz."
-              className="w-full resize-y rounded-lg border border-border-light bg-transparent px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark"
-            />
-          </section>
-
-          {/* Prompt library */}
-          <section className="border-t border-border-light pt-4 dark:border-border-dark">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <h3 className="font-medium">Prompt-Bibliothek</h3>
-                <p className="text-sm text-neutral-500">
-                  Firmen-Vorlagen — im Chat per „/" aufrufbar.
-                </p>
-              </div>
+        <div className="flex min-h-0 flex-1">
+          {/* Tab sidebar */}
+          <nav className="w-52 shrink-0 space-y-0.5 overflow-y-auto border-r border-border-light p-2 dark:border-border-dark">
+            {visibleTabs.map(({ id, label, Icon }) => (
               <button
-                onClick={() =>
-                  upsertPrompt({
-                    id: uid(),
-                    title: "Neue Vorlage",
-                    shortcut: "",
-                    content: "",
-                  })
-                }
-                className="flex shrink-0 items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover"
+                key={id}
+                onClick={() => setTab(id)}
+                className={clsx(
+                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
+                  activeTab === id
+                    ? "bg-neutral-200 font-medium dark:bg-white/10"
+                    : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-white/5"
+                )}
               >
-                <Plus size={15} /> Hinzufügen
+                <Icon size={16} className="shrink-0" />
+                {label}
               </button>
-            </div>
+            ))}
+          </nav>
 
-            <div className="space-y-3">
-              {prompts.map((p) => (
-                <div
-                  key={p.id}
-                  className="rounded-xl border border-border-light p-3 dark:border-border-dark"
-                >
-                  <div className="flex items-center gap-2">
-                    <input
-                      value={p.title}
-                      onChange={(e) =>
-                        upsertPrompt({ ...p, title: e.target.value })
-                      }
-                      placeholder="Titel"
-                      className="min-w-0 flex-1 rounded-lg border border-border-light bg-transparent px-2 py-1.5 text-sm outline-none focus:border-accent dark:border-border-dark"
-                    />
-                    <input
-                      value={p.shortcut ?? ""}
-                      onChange={(e) =>
-                        upsertPrompt({ ...p, shortcut: e.target.value })
-                      }
-                      placeholder="/kürzel"
-                      className="w-28 rounded-lg border border-border-light bg-transparent px-2 py-1.5 font-mono text-sm outline-none focus:border-accent dark:border-border-dark"
-                    />
+          {/* Content */}
+          <div className="min-w-0 flex-1 space-y-6 overflow-y-auto p-5">
+            {activeTab === "account" && (
+              <Section>
+                <AccountPanel />
+              </Section>
+            )}
+
+            {activeTab === "chat" && (
+              <>
+                <Section>
+                  <h3 className="font-medium">Benutzerdefinierte Anweisungen</h3>
+                  <p className="mb-2 text-sm text-neutral-500">
+                    Dauerhafte Rolle/Regeln für das Modell — wird jeder
+                    Unterhaltung als System-Prompt vorangestellt.
+                  </p>
+                  <textarea
+                    value={customInstructions}
+                    onChange={(e) => setCustomInstructions(e.target.value)}
+                    rows={3}
+                    placeholder="z. B. Antworte immer auf Deutsch und fasse dich kurz."
+                    className="input-base w-full resize-y px-3 py-2"
+                  />
+                </Section>
+
+                <Section>
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <h3 className="font-medium">Prompt-Bibliothek</h3>
+                      <p className="text-sm text-neutral-500">
+                        Firmen-Vorlagen — im Chat per „/" aufrufbar.
+                      </p>
+                    </div>
                     <button
-                      onClick={() => removePrompt(p.id)}
-                      className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
-                      title="Vorlage entfernen"
+                      onClick={() =>
+                        upsertPrompt({
+                          id: uid(),
+                          title: "Neue Vorlage",
+                          shortcut: "",
+                          content: "",
+                        })
+                      }
+                      className="flex shrink-0 items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover"
                     >
-                      <Trash2 size={16} />
+                      <Plus size={15} /> Hinzufügen
                     </button>
                   </div>
-                  <textarea
-                    value={p.content}
-                    onChange={(e) =>
-                      upsertPrompt({ ...p, content: e.target.value })
-                    }
-                    rows={2}
-                    placeholder="Prompt-Text…"
-                    className="mt-2 w-full resize-y rounded-lg border border-border-light bg-transparent px-2 py-1.5 text-sm outline-none focus:border-accent dark:border-border-dark"
-                  />
-                </div>
-              ))}
-            </div>
-          </section>
+                  <div className="space-y-3">
+                    {prompts.map((p) => (
+                      <div
+                        key={p.id}
+                        className="rounded-xl border border-border-light p-3 dark:border-border-dark"
+                      >
+                        <div className="flex items-center gap-2">
+                          <input
+                            value={p.title}
+                            onChange={(e) =>
+                              upsertPrompt({ ...p, title: e.target.value })
+                            }
+                            placeholder="Titel"
+                            className="min-w-0 flex-1 input-base"
+                          />
+                          <input
+                            value={p.shortcut ?? ""}
+                            onChange={(e) =>
+                              upsertPrompt({ ...p, shortcut: e.target.value })
+                            }
+                            placeholder="/kürzel"
+                            className="w-28 input-base font-mono"
+                          />
+                          <button
+                            onClick={() => removePrompt(p.id)}
+                            className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
+                            title="Vorlage entfernen"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                        <textarea
+                          value={p.content}
+                          onChange={(e) =>
+                            upsertPrompt({ ...p, content: e.target.value })
+                          }
+                          rows={2}
+                          placeholder="Prompt-Text…"
+                          className="mt-2 w-full resize-y input-base"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </Section>
 
-          {/* Danger zone */}
-          <section className="border-t border-border-light pt-4 dark:border-border-dark">
-            <h3 className="font-medium text-red-600 dark:text-red-400">
-              Verlauf löschen
-            </h3>
-            <p className="mb-2 text-sm text-neutral-500">
-              Entfernt alle Chats aus dem LocalStorage. Nicht umkehrbar.
-            </p>
-            <button
-              onClick={() => {
-                if (confirm("Wirklich alle Chats löschen?")) clearAllChats();
-              }}
-              className={clsx(
-                "rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-50",
-                "dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40"
-              )}
-            >
-              Alle Chats löschen
-            </button>
-          </section>
+                <Section>
+                  <h3 className="font-medium">Code-Splitscreen</h3>
+                  <p className="mb-2 text-sm text-neutral-500">
+                    Lange Codeblöcke öffnen sich automatisch in einem Panel
+                    rechts.
+                  </p>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={codeSplitEnabled}
+                      onChange={(e) => setCodeSplitEnabled(e.target.checked)}
+                      className="h-4 w-4 accent-[rgb(var(--accent))]"
+                    />
+                    Aktiviert
+                  </label>
+                  <div className="mt-2 flex items-center gap-2 text-sm">
+                    <span className="text-neutral-500">Ab</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={codeSplitThreshold}
+                      onChange={(e) =>
+                        setCodeSplitThreshold(Number(e.target.value))
+                      }
+                      className="w-20 input-base"
+                    />
+                    <span className="text-neutral-500">Zeilen</span>
+                  </div>
+                </Section>
+
+                <Section>
+                  <h3 className="font-medium text-red-600 dark:text-red-400">
+                    Verlauf löschen
+                  </h3>
+                  <p className="mb-2 text-sm text-neutral-500">
+                    Entfernt alle Chats aus dem LocalStorage. Nicht umkehrbar.
+                  </p>
+                  <button
+                    onClick={() => {
+                      if (confirm("Wirklich alle Chats löschen?"))
+                        clearAllChats();
+                    }}
+                    className="rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40"
+                  >
+                    Alle Chats löschen
+                  </button>
+                </Section>
+              </>
+            )}
+
+            {activeTab === "ai" && (
+              <>
+                <Section>
+                  <SidekickManager />
+                </Section>
+                <Section>
+                  <MemoryManager />
+                </Section>
+              </>
+            )}
+
+            {activeTab === "admin" && isAdmin && (
+              <>
+                {/* Branding */}
+                <Section>
+                  <h3 className="font-medium">Branding</h3>
+                  <p className="mb-3 text-sm text-neutral-500">
+                    Akzentfarbe, Firmenlogo und App-Name für die gesamte
+                    Oberfläche.
+                  </p>
+                  <label className="mb-1 block text-xs text-neutral-500">
+                    Akzentfarbe
+                  </label>
+                  <div className="mb-4 flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={normalizeHex(accentColor)}
+                      onChange={(e) => setAccentColor(e.target.value)}
+                      title="Akzentfarbe wählen"
+                      className="h-9 w-12 cursor-pointer rounded-lg border border-border-light bg-transparent dark:border-border-dark"
+                    />
+                    <input
+                      value={accentColor}
+                      onChange={(e) => setAccentColor(e.target.value)}
+                      placeholder={DEFAULT_ACCENT}
+                      className="w-28 input-base font-mono"
+                    />
+                    <button
+                      onClick={() => setAccentColor(DEFAULT_ACCENT)}
+                      className="rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
+                    >
+                      Zurücksetzen (Türkis)
+                    </button>
+                    <span
+                      className="ml-auto h-6 w-6 rounded-full ring-1 ring-black/10"
+                      style={{ backgroundColor: normalizeHex(accentColor) }}
+                    />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-xs text-neutral-500">
+                        App-Name (Platzhalter, wenn kein Logo)
+                      </label>
+                      <input
+                        value={appName}
+                        onChange={(e) => setAppName(e.target.value)}
+                        placeholder="OpenChatbox"
+                        className="w-full input-base"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-neutral-500">
+                        Logo-Bild-URL (optional)
+                      </label>
+                      <input
+                        value={logoUrl}
+                        onChange={(e) => setLogoUrl(e.target.value)}
+                        placeholder="https://…/logo.png"
+                        className="w-full input-base font-mono"
+                      />
+                    </div>
+                  </div>
+                </Section>
+
+                {/* Providers */}
+                <Section>
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <h3 className="font-medium">Provider & API-Endpunkte</h3>
+                      <p className="text-sm text-neutral-500">
+                        Ollama (lokal) oder OpenAI-kompatible APIs (Hugging Face
+                        TGI, vLLM, OpenAI…).
+                      </p>
+                    </div>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value !== "")
+                          addFromPreset(Number(e.target.value));
+                        e.target.value = "";
+                      }}
+                      className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover"
+                      title="Anbieter aus Vorlage hinzufügen"
+                    >
+                      <option value="">+ Anbieter hinzufügen</option>
+                      {PRESETS.map((p, i) => (
+                        <option key={p.name} value={i} className="text-black">
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-3">
+                    {providers.map((p) => {
+                      const t = tests[p.id] ?? { status: "idle" };
+                      return (
+                        <div
+                          key={p.id}
+                          className="rounded-xl border border-border-light p-3 dark:border-border-dark"
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={p.enabled}
+                              onChange={(e) =>
+                                update(p, { enabled: e.target.checked })
+                              }
+                              className="h-4 w-4 accent-[rgb(var(--accent))]"
+                            />
+                            <input
+                              value={p.name}
+                              onChange={(e) =>
+                                update(p, { name: e.target.value })
+                              }
+                              placeholder="Anzeigename"
+                              className="min-w-0 flex-1 input-base"
+                            />
+                            <select
+                              value={p.type}
+                              onChange={(e) =>
+                                update(p, {
+                                  type: e.target.value as ProviderType,
+                                })
+                              }
+                              className="input-base dark:bg-sidebar-dark"
+                            >
+                              <option value="ollama">Ollama</option>
+                              <option value="openai">OpenAI-kompatibel</option>
+                              <option value="anthropic">Anthropic</option>
+                            </select>
+                            <button
+                              onClick={() => removeProvider(p.id)}
+                              className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
+                              title="Provider entfernen"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                          <div className="mt-2 grid gap-2">
+                            <div>
+                              <label className="text-xs text-neutral-500">
+                                Base-URL
+                              </label>
+                              <input
+                                value={p.baseUrl}
+                                onChange={(e) =>
+                                  update(p, { baseUrl: e.target.value })
+                                }
+                                placeholder={
+                                  p.type === "ollama"
+                                    ? "http://localhost:11434"
+                                    : "https://api.openai.com/v1"
+                                }
+                                className="w-full input-base font-mono"
+                              />
+                            </div>
+                            {p.type !== "ollama" && (
+                              <div>
+                                <label className="text-xs text-neutral-500">
+                                  API-Key
+                                </label>
+                                <input
+                                  type="password"
+                                  value={p.apiKey ?? ""}
+                                  onChange={(e) =>
+                                    update(p, { apiKey: e.target.value })
+                                  }
+                                  placeholder="sk-… / API-Key des Anbieters"
+                                  className="w-full input-base font-mono"
+                                />
+                              </div>
+                            )}
+                            <div>
+                              <label className="text-xs text-neutral-500">
+                                Modelle manuell (optional, Komma-getrennt)
+                              </label>
+                              <input
+                                value={(p.manualModels ?? []).join(", ")}
+                                onChange={(e) =>
+                                  update(p, {
+                                    manualModels: e.target.value
+                                      .split(",")
+                                      .map((s) => s.trim())
+                                      .filter(Boolean),
+                                  })
+                                }
+                                placeholder="z. B. gpt-4o, claude-sonnet-4-5, sonar-pro"
+                                className="w-full input-base font-mono"
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-2 flex items-center gap-3">
+                            <button
+                              onClick={() => test(p)}
+                              className="rounded-lg border border-border-light px-3 py-1 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
+                            >
+                              Verbindung testen
+                            </button>
+                            {t.status === "loading" && (
+                              <span className="flex items-center gap-1 text-sm text-neutral-500">
+                                <Loader2 size={14} className="animate-spin" />{" "}
+                                teste…
+                              </span>
+                            )}
+                            {t.status === "ok" && (
+                              <span className="flex items-center gap-1 text-sm text-accent">
+                                <CheckCircle2 size={14} /> {t.msg}
+                              </span>
+                            )}
+                            {t.status === "err" && (
+                              <span
+                                className="flex items-center gap-1 truncate text-sm text-red-500"
+                                title={t.msg}
+                              >
+                                <XCircle size={14} /> {t.msg}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Section>
+
+                {/* Performance / VRAM */}
+                <Section>
+                  <h3 className="font-medium">Performance & VRAM</h3>
+                  <p className="mb-2 text-sm text-neutral-500">
+                    Steuert, wie schnell Ollama Modelle aus dem VRAM entlädt
+                    (GPU im Multi-User-Betrieb teilen). Alleinnutzung? Einfach
+                    aus lassen.
+                  </p>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={vramManaged}
+                      onChange={(e) => setVramManaged(e.target.checked)}
+                      className="h-4 w-4 accent-[rgb(var(--accent))]"
+                    />
+                    VRAM-Management aktiv
+                  </label>
+                  {vramManaged && (
+                    <>
+                      <div className="mt-2 flex items-center gap-2 text-sm">
+                        <span className="text-neutral-500">
+                          Modell entladen nach (keep_alive)
+                        </span>
+                        <input
+                          value={ollamaKeepAlive}
+                          onChange={(e) => setOllamaKeepAlive(e.target.value)}
+                          placeholder="2m"
+                          className="w-24 input-base font-mono"
+                        />
+                      </div>
+                      <p className="mt-1 text-xs text-neutral-400">
+                        Werte: <code>2m</code>, <code>30s</code>, <code>0</code>{" "}
+                        (sofort), <code>-1</code> (dauerhaft).
+                      </p>
+                    </>
+                  )}
+                  <p className="mt-2 text-xs text-neutral-400">
+                    Aus = Ollama-Default (Modell bleibt geladen). Max. Tokens
+                    (num_predict) pro Chat über die Parameter. Server-seitig
+                    optional: <code>OLLAMA_NUM_PARALLEL=1</code>,{" "}
+                    <code>OLLAMA_MAX_LOADED_MODELS=1</code>.
+                  </p>
+                </Section>
+
+                {/* Ollama pull + model aliases/favorites */}
+                <Section>
+                  <AdminPanel />
+                </Section>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="border-t border-border-light px-5 py-3 text-right dark:border-border-dark">

@@ -1,3 +1,5 @@
+import { uid } from "./uid";
+
 export type AttachmentKind = "image" | "text" | "pdf" | "other";
 
 export interface Attachment {
@@ -12,11 +14,6 @@ export interface Attachment {
   /** true if extraction failed / unsupported */
   note?: string;
 }
-
-const uid = () =>
-  typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2);
 
 export const ACCEPT = "image/png,image/jpeg,image/webp,image/gif,.txt,.md,.csv,.json,.log,text/*,.pdf";
 

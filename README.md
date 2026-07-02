@@ -1,4 +1,4 @@
-# Chatbot UI
+# OpenChatbox
 
 Selbstgehostete Chat-Oberfläche im ChatGPT-Look. Next.js (App Router) + Tailwind
 + Zustand. Streaming, Markdown mit Code-Kopierbutton, Modell-Switcher, Dark/Light,

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { SlidersHorizontal, RotateCcw } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useClickOutside } from "@/lib/useClickOutside";
 
 export default function ParamsPopover() {
   const params = useStore((s) => s.params);
@@ -10,14 +11,7 @@ export default function ParamsPopover() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
+  useClickOutside(ref, () => setOpen(false));
 
   return (
     <div className="relative" ref={ref}>
@@ -30,7 +24,7 @@ export default function ParamsPopover() {
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-40 mt-1 w-72 rounded-xl border border-border-light bg-white p-4 shadow-xl dark:border-border-dark dark:bg-sidebar-dark">
+        <div className="absolute left-0 top-full z-40 mt-1 w-72 menu-panel p-4">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
               Parameter
@@ -114,7 +108,7 @@ function Slider({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-[#10a37f]"
+        className="w-full accent-[rgb(var(--accent))]"
       />
       <span className="text-xs text-neutral-400">{hint}</span>
     </div>

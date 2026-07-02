@@ -13,7 +13,14 @@ export default function SharePage() {
   useEffect(() => {
     // theme
     try {
-      const s = JSON.parse(localStorage.getItem("chatbot-ui-store") || "{}");
+      // Store is namespaced per user (key = "openchatbox-store::" + uid).
+      const uid = localStorage.getItem("nexus-uid") || "anon";
+      const s = JSON.parse(
+        localStorage.getItem(`openchatbox-store::${uid}`) ||
+          localStorage.getItem(`chatbot-ui-store::${uid}`) ||
+          localStorage.getItem("chatbot-ui-store") ||
+          "{}"
+      );
       if (s?.state?.theme === "dark")
         document.documentElement.classList.add("dark");
     } catch {

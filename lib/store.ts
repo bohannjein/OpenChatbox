@@ -1,21 +1,21 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { uid } from "./uid";
 import type {
+  AuthUser,
   Chat,
+  ChatFile,
   Feedback,
   GenParams,
+  MemoryFact,
   Message,
   PromptTemplate,
   Provider,
   Role,
+  Sidekick,
 } from "./types";
 
 export type Theme = "light" | "dark";
-
-const uid = () =>
-  typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2);
 
 const now = () => Date.now();
 
@@ -72,21 +72,61 @@ const defaultParams = (): GenParams => ({
  * localStorage wrapper that never throws. A QuotaExceededError (e.g. very long
  * chat history) must not brick the app by making every state write throw.
  */
+// Per-user namespace: chats/settings are scoped to the logged-in user id
+// (set at login). Prepared for a real DB; today separates users on one browser.
+const activeUid = () => {
+  try {
+    return localStorage.getItem("nexus-uid") || "anon";
+  } catch {
+    return "anon";
+  }
+};
+const nsKey = (name: string) => `${name}::${activeUid()}`;
+
+// Legacy persist-store name (pre-OpenChatbox rebrand). Read-migrated on access
+// so existing users keep their chats/settings after the key was renamed.
+const LEGACY_STORE_KEY = "chatbot-ui-store";
+
 const safeStorage = {
   getItem: (name: string): string | null => {
     try {
-      return localStorage.getItem(name);
+      const v = localStorage.getItem(nsKey(name));
+      if (v !== null) return v;
+      // Migration 1 — namespaced legacy key (build that already namespaced but
+      // used the old store name): adopt into the new key and drop the old one.
+      const nsLegacy = localStorage.getItem(nsKey(LEGACY_STORE_KEY));
+      if (nsLegacy !== null) {
+        try {
+          localStorage.setItem(nsKey(name), nsLegacy);
+          localStorage.removeItem(nsKey(LEGACY_STORE_KEY));
+        } catch {
+          /* ignore quota/write errors — still return the legacy value */
+        }
+        return nsLegacy;
+      }
+      // Migration 2 — plain, non-namespaced legacy key from the original build
+      // (no per-user namespacing existed then). Copy, do NOT delete: it is not
+      // uid-scoped and may still seed the real user's namespace after login.
+      const plainLegacy = localStorage.getItem(LEGACY_STORE_KEY);
+      if (plainLegacy !== null) {
+        try {
+          localStorage.setItem(nsKey(name), plainLegacy);
+        } catch {
+          /* ignore */
+        }
+        return plainLegacy;
+      }
+      return null;
     } catch {
       return null;
     }
   },
   setItem: (name: string, value: string): void => {
     try {
-      localStorage.setItem(name, value);
+      localStorage.setItem(nsKey(name), value);
     } catch {
-      // quota exceeded / private mode — drop persistence rather than crash
       try {
-        localStorage.removeItem(name);
+        localStorage.removeItem(nsKey(name));
       } catch {
         /* ignore */
       }
@@ -94,7 +134,7 @@ const safeStorage = {
   },
   removeItem: (name: string): void => {
     try {
-      localStorage.removeItem(name);
+      localStorage.removeItem(nsKey(name));
     } catch {
       /* ignore */
     }
@@ -112,17 +152,47 @@ interface State {
   /** global incognito switch: new chats are temporary while on. */
   incognito: boolean;
   theme: Theme;
+  // branding
+  accentColor: string;
+  logoUrl: string;
+  appName: string;
+  // model management
+  favorites: string[]; // model keys pinned to top
+  aliases: Record<string, string>; // model key → friendly display name
+  // code splitscreen
+  codeSplitEnabled: boolean;
+  codeSplitThreshold: number;
+  /** VRAM-Management an/aus (aus = Ollama-Default, kein keep_alive gesetzt) */
+  vramManaged: boolean;
+  /** Ollama keep_alive (VRAM-Freigabe), z.B. "2m", "30s", "0", "-1" */
+  ollamaKeepAlive: string;
+  // sidekicks + memory
+  sidekicks: Sidekick[];
+  memory: MemoryFact[];
+  memoryEnabled: boolean;
+  /** internet search toggle (client flag) */
+  webSearchEnabled: boolean;
+  toggleWebSearch: () => void;
+  // auth (transient, not persisted)
+  authUser: AuthUser | null;
+  setAuthUser: (u: AuthUser | null) => void;
   settingsOpen: boolean;
+  searchOpen: boolean;
+  setSearchOpen: (v: boolean) => void;
   sidebarOpen: boolean;
 
   // chat actions
-  newChat: (temporary?: boolean) => string;
+  newChat: (temporary?: boolean, sidekickId?: string) => string;
   deleteChat: (id: string) => void;
   selectChat: (id: string) => void;
   renameChat: (id: string, title: string) => void;
+  keepChat: (id: string) => void;
+  setChatTemporary: (id: string, val: boolean) => void;
+  togglePinChat: (id: string) => void;
   clearAllChats: () => void;
   setDraft: (id: string, draft: string) => void;
   setIncognito: (v: boolean) => void;
+  addChatFiles: (chatId: string, files: ChatFile[]) => void;
 
   addMessage: (
     chatId: string,
@@ -155,6 +225,33 @@ interface State {
   // system / params
   setCustomInstructions: (v: string) => void;
   setParams: (patch: Partial<GenParams>) => void;
+
+  // branding
+  setAccentColor: (id: string) => void;
+  setLogoUrl: (url: string) => void;
+  setAppName: (name: string) => void;
+
+  // model management
+  toggleFavorite: (key: string) => void;
+  setAlias: (key: string, name: string) => void;
+
+  // code splitscreen
+  setCodeSplitEnabled: (v: boolean) => void;
+  setCodeSplitThreshold: (n: number) => void;
+  setOllamaKeepAlive: (v: string) => void;
+  setVramManaged: (v: boolean) => void;
+
+  // sidekicks
+  upsertSidekick: (s: Sidekick) => void;
+  removeSidekick: (id: string) => void;
+  setChatSidekick: (chatId: string, sidekickId: string | null) => void;
+
+  // memory
+  addMemory: (text: string) => void;
+  updateMemory: (id: string, text: string) => void;
+  removeMemory: (id: string) => void;
+  clearMemory: () => void;
+  setMemoryEnabled: (v: boolean) => void;
 
   // ui
   setTheme: (t: Theme) => void;
@@ -191,25 +288,53 @@ export const useStore = create<State>()(
       params: defaultParams(),
       incognito: false,
       theme: "dark",
+      accentColor: "#10a37f",
+      logoUrl: "",
+      appName: "OpenChatbox",
+      favorites: [],
+      aliases: {},
+      codeSplitEnabled: true,
+      codeSplitThreshold: 15,
+      vramManaged: true,
+      ollamaKeepAlive: "2m",
+      sidekicks: [],
+      memory: [],
+      memoryEnabled: true,
+      webSearchEnabled: false,
+      toggleWebSearch: () =>
+        set((s) => ({ webSearchEnabled: !s.webSearchEnabled })),
+      authUser: null,
+      setAuthUser: (authUser) => set({ authUser }),
       settingsOpen: false,
+      searchOpen: false,
+      setSearchOpen: (searchOpen) => set({ searchOpen }),
       sidebarOpen: true,
 
-      newChat: (temporary) => {
-        const temp = temporary ?? get().incognito;
+      newChat: (temporary, sidekickId) => {
+        const s = get();
+        // leaving a temporary chat → discard it + turn incognito back off
+        const leavingTemp = !!s.chats.find((c) => c.id === s.activeChatId)
+          ?.temporary;
+        const incognito = leavingTemp ? false : s.incognito;
+        const temp = temporary ?? incognito;
+        const sk = sidekickId
+          ? s.sidekicks.find((x) => x.id === sidekickId)
+          : undefined;
         const chat: Chat = {
           id: uid(),
-          title: temp ? "Temporärer Chat" : "Neuer Chat",
+          title: sk ? sk.name : temp ? "Temporärer Chat" : "Neuer Chat",
           messages: [],
-          modelKey: get().selectedModelKey ?? undefined,
+          modelKey: (sk?.modelKey || s.selectedModelKey) ?? undefined,
           temporary: temp,
+          sidekickId: sk?.id,
           createdAt: now(),
           updatedAt: now(),
         };
-        set((s) => ({
-          // prune the chat we're leaving if it was empty & draftless
+        set({
           chats: [chat, ...pruneEmpty(s.chats, s.activeChatId)],
           activeChatId: chat.id,
-        }));
+          incognito,
+        });
         return chat.id;
       },
 
@@ -226,9 +351,15 @@ export const useStore = create<State>()(
       selectChat: (id) =>
         set((s) => {
           if (id === s.activeChatId) return {};
-          // leaving current chat: drop it if empty & draftless (auto-cleanup)
+          const leavingTemp = !!s.chats.find((c) => c.id === s.activeChatId)
+            ?.temporary;
+          // leaving: drop if empty/draftless OR temporary (auto-cleanup)
           const chats = pruneEmpty(s.chats, s.activeChatId, id);
-          return { chats, activeChatId: id };
+          return {
+            chats,
+            activeChatId: id,
+            incognito: leavingTemp ? false : s.incognito,
+          };
         }),
 
       setDraft: (id, draft) =>
@@ -238,10 +369,53 @@ export const useStore = create<State>()(
 
       setIncognito: (incognito) => set({ incognito }),
 
+      addChatFiles: (chatId, files) =>
+        set((s) => ({
+          chats: s.chats.map((c) =>
+            c.id === chatId
+              ? { ...c, files: [...(c.files ?? []), ...files] }
+              : c
+          ),
+        })),
+
       renameChat: (id, title) =>
         set((s) => ({
           chats: s.chats.map((c) =>
             c.id === id ? { ...c, title, updatedAt: now() } : c
+          ),
+        })),
+
+      keepChat: (id) =>
+        set((s) => ({
+          chats: s.chats.map((c) => {
+            if (c.id !== id) return c;
+            const firstUser = c.messages.find((m) => m.role === "user");
+            const title =
+              c.title === "Temporärer Chat" && firstUser
+                ? deriveTitle(firstUser.content)
+                : c.title;
+            return { ...c, temporary: false, title, updatedAt: now() };
+          }),
+        })),
+
+      setChatTemporary: (id, val) =>
+        set((s) => ({
+          chats: s.chats.map((c) =>
+            c.id === id
+              ? {
+                  ...c,
+                  temporary: val,
+                  title: val ? "Temporärer Chat" : c.title,
+                  updatedAt: now(),
+                }
+              : c
+          ),
+        })),
+
+      togglePinChat: (id) =>
+        set((s) => ({
+          chats: s.chats.map((c) =>
+            c.id === id ? { ...c, pinned: !c.pinned, updatedAt: now() } : c
           ),
         })),
 
@@ -400,6 +574,72 @@ export const useStore = create<State>()(
         set({ customInstructions }),
       setParams: (patch) => set((s) => ({ params: { ...s.params, ...patch } })),
 
+      setAccentColor: (accentColor) => set({ accentColor }),
+      setLogoUrl: (logoUrl) => set({ logoUrl }),
+      setAppName: (appName) => set({ appName }),
+
+      toggleFavorite: (key) =>
+        set((s) => ({
+          favorites: s.favorites.includes(key)
+            ? s.favorites.filter((k) => k !== key)
+            : [...s.favorites, key],
+        })),
+      setAlias: (key, name) =>
+        set((s) => {
+          const aliases = { ...s.aliases };
+          if (name.trim()) aliases[key] = name.trim();
+          else delete aliases[key];
+          return { aliases };
+        }),
+
+      setCodeSplitEnabled: (codeSplitEnabled) => set({ codeSplitEnabled }),
+      setCodeSplitThreshold: (codeSplitThreshold) =>
+        set({ codeSplitThreshold: Math.max(1, codeSplitThreshold || 15) }),
+      setOllamaKeepAlive: (ollamaKeepAlive) =>
+        set({ ollamaKeepAlive: ollamaKeepAlive.trim() || "2m" }),
+      setVramManaged: (vramManaged) => set({ vramManaged }),
+
+      upsertSidekick: (sk) =>
+        set((s) => ({
+          sidekicks: s.sidekicks.some((x) => x.id === sk.id)
+            ? s.sidekicks.map((x) => (x.id === sk.id ? sk : x))
+            : [...s.sidekicks, sk],
+        })),
+      removeSidekick: (id) =>
+        set((s) => ({ sidekicks: s.sidekicks.filter((x) => x.id !== id) })),
+      setChatSidekick: (chatId, sidekickId) =>
+        set((s) => ({
+          chats: s.chats.map((c) =>
+            c.id === chatId
+              ? { ...c, sidekickId: sidekickId ?? undefined, updatedAt: now() }
+              : c
+          ),
+        })),
+
+      addMemory: (text) =>
+        set((s) => {
+          const t = text.trim();
+          if (!t) return {};
+          if (s.memory.some((m) => m.text.toLowerCase() === t.toLowerCase()))
+            return {}; // dedupe
+          return {
+            memory: [
+              ...s.memory,
+              { id: uid(), text: t, createdAt: now() },
+            ],
+          };
+        }),
+      updateMemory: (id, text) =>
+        set((s) => ({
+          memory: s.memory.map((m) =>
+            m.id === id ? { ...m, text: text.trim() } : m
+          ),
+        })),
+      removeMemory: (id) =>
+        set((s) => ({ memory: s.memory.filter((m) => m.id !== id) })),
+      clearMemory: () => set({ memory: [] }),
+      setMemoryEnabled: (memoryEnabled) => set({ memoryEnabled }),
+
       setTheme: (theme) => set({ theme }),
       toggleTheme: () =>
         set((s) => ({ theme: s.theme === "dark" ? "light" : "dark" })),
@@ -407,7 +647,7 @@ export const useStore = create<State>()(
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
     }),
     {
-      name: "chatbot-ui-store",
+      name: "openchatbox-store",
       version: 2,
       // localStorage-backed, but tolerant of quota errors (see safeStorage).
       storage: createJSONStorage(() => safeStorage),
@@ -419,6 +659,7 @@ export const useStore = create<State>()(
           .map((c) => ({
             ...c,
             messages: c.messages.map(({ images, ...m }) => m),
+            files: c.files?.map(({ dataUrl, ...f }) => f),
           })),
         activeChatId: s.activeChatId,
         providers: s.providers,
@@ -427,6 +668,19 @@ export const useStore = create<State>()(
         customInstructions: s.customInstructions,
         params: s.params,
         theme: s.theme,
+        accentColor: s.accentColor,
+        logoUrl: s.logoUrl,
+        appName: s.appName,
+        favorites: s.favorites,
+        aliases: s.aliases,
+        codeSplitEnabled: s.codeSplitEnabled,
+        codeSplitThreshold: s.codeSplitThreshold,
+        vramManaged: s.vramManaged,
+        ollamaKeepAlive: s.ollamaKeepAlive,
+        sidekicks: s.sidekicks,
+        memory: s.memory,
+        memoryEnabled: s.memoryEnabled,
+        webSearchEnabled: s.webSearchEnabled,
       }),
       migrate: (persisted, version) => {
         const s = persisted as Partial<State>;
@@ -469,6 +723,8 @@ function pruneEmpty(
   if (!leavingId || leavingId === keepId) return chats;
   return chats.filter((c) => {
     if (c.id !== leavingId) return true;
+    // temporary chats are discarded whenever left (unless explicitly kept)
+    if (c.temporary) return false;
     const empty = c.messages.length === 0 && !(c.draft && c.draft.trim());
     return !empty;
   });

@@ -27,17 +27,13 @@ const config: Config = {
           dark: "#2f2f2f",
         },
         accent: {
-          DEFAULT: "#10a37f",
-          hover: "#0e8e6d",
+          DEFAULT: "rgb(var(--accent) / <alpha-value>)",
+          hover: "rgb(var(--accent-hover) / <alpha-value>)",
         },
       },
       fontFamily: {
         sans: [
-          "ui-sans-serif",
-          "system-ui",
-          "-apple-system",
-          "Segoe UI",
-          "Roboto",
+          "Helvetica Neue",
           "Helvetica",
           "Arial",
           "sans-serif",

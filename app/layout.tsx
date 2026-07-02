@@ -3,8 +3,8 @@ import "./globals.css";
 import AppRoot from "@/components/AppRoot";
 
 export const metadata: Metadata = {
-  title: "Chatbot UI",
-  description: "Self-hosted Chat-Oberfläche (Ollama & OpenAI-kompatibel)",
+  title: "OpenChatbox",
+  description: "Self-hosted KI-Chat (Ollama & OpenAI-kompatibel)",
 };
 
 export const viewport: Viewport = {
@@ -17,7 +17,14 @@ export const viewport: Viewport = {
 const themeScript = `
 (function(){
   try {
-    var s = JSON.parse(localStorage.getItem('chatbot-ui-store') || '{}');
+    // Store is namespaced per user: key = 'openchatbox-store::' + uid.
+    // Mirror nsKey() so light-mode users don't get a dark flash on load.
+    var uid = localStorage.getItem('nexus-uid') || 'anon';
+    var raw = localStorage.getItem('openchatbox-store::' + uid)
+      || localStorage.getItem('chatbot-ui-store::' + uid)
+      || localStorage.getItem('chatbot-ui-store')
+      || '{}';
+    var s = JSON.parse(raw);
     var t = (s.state && s.state.theme) || 'dark';
     if (t === 'dark') document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');

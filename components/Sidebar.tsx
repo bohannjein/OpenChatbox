@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import clsx from "clsx";
 import {
   Plus,
@@ -14,25 +14,34 @@ import {
   Pencil,
   Check,
   X,
-  Ghost,
+  Pin,
+  PinOff,
+  Search,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { SidekickAvatar } from "./SidekickIcon";
+import type { Chat } from "@/lib/types";
 
 export default function Sidebar() {
   const router = useRouter();
+  const pathname = usePathname();
   const allChats = useStore((s) => s.chats);
   const chats = allChats.filter((c) => !c.temporary);
   const activeChatId = useStore((s) => s.activeChatId);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const theme = useStore((s) => s.theme);
-  const incognito = useStore((s) => s.incognito);
-  const setIncognito = useStore((s) => s.setIncognito);
+  const logoUrl = useStore((s) => s.logoUrl);
+  const appName = useStore((s) => s.appName);
+  const sidekicks = useStore((s) => s.sidekicks);
+  const newChat = useStore((s) => s.newChat);
   const deleteChat = useStore((s) => s.deleteChat);
   const renameChat = useStore((s) => s.renameChat);
+  const togglePinChat = useStore((s) => s.togglePinChat);
   const toggleTheme = useStore((s) => s.toggleTheme);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
 
+  const setSearchOpen = useStore((s) => s.setSearchOpen);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
@@ -51,35 +60,197 @@ export default function Sidebar() {
   };
 
   const startNewChat = () => {
-    router.push("/");
+    // Already on "/" (e.g. a temp chat) → create directly (router.push no-op there).
+    if (pathname === "/") newChat();
+    else router.push("/");
     if (window.innerWidth < 768) setSidebarOpen(false);
+  };
+
+  const startSidekick = (id: string) => {
+    const cid = newChat(false, id);
+    router.push(`/c/${cid}`);
+    if (window.innerWidth < 768) setSidebarOpen(false);
+  };
+
+  const pinned = chats.filter((c) => c.pinned);
+  const rest = chats.filter((c) => !c.pinned);
+
+  const chatRow = (c: Chat) => {
+    const active = c.id === activeChatId;
+    const editing = editingId === c.id;
+    return (
+      <div
+        key={c.id}
+        className={clsx(
+          "group mb-0.5 flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition",
+          active
+            ? "bg-neutral-200 dark:bg-white/10"
+            : "hover:bg-neutral-200/60 dark:hover:bg-white/5"
+        )}
+      >
+        {c.pinned ? (
+          <Pin size={15} className="shrink-0 text-accent" />
+        ) : (
+          <MessageSquare size={16} className="shrink-0 text-neutral-500" />
+        )}
+        {editing ? (
+          <>
+            <input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitEdit();
+                if (e.key === "Escape") setEditingId(null);
+              }}
+              className="min-w-0 flex-1 rounded bg-transparent outline-none ring-1 ring-accent"
+            />
+            <button
+              onClick={commitEdit}
+              className="text-neutral-500 hover:text-accent"
+            >
+              <Check size={15} />
+            </button>
+            <button
+              onClick={() => setEditingId(null)}
+              className="text-neutral-500 hover:text-red-500"
+            >
+              <X size={15} />
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => onSelect(c.id)}
+              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+              title={c.title}
+            >
+              <span className="min-w-0 flex-1 truncate">{c.title}</span>
+              {c.draft && c.draft.trim() && (
+                <span className="shrink-0 rounded bg-amber-200 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                  Entwurf
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => togglePinChat(c.id)}
+              className={clsx(
+                "shrink-0 transition",
+                c.pinned
+                  ? "text-accent"
+                  : "text-neutral-400 opacity-0 hover:text-neutral-700 group-hover:opacity-100 dark:hover:text-neutral-200"
+              )}
+              title={c.pinned ? "Lösen" : "Anpinnen"}
+            >
+              {c.pinned ? <PinOff size={14} /> : <Pin size={14} />}
+            </button>
+            <button
+              onClick={() => startEdit(c.id, c.title)}
+              className="shrink-0 text-neutral-400 opacity-0 transition hover:text-neutral-700 group-hover:opacity-100 dark:hover:text-neutral-200"
+              title="Umbenennen"
+            >
+              <Pencil size={14} />
+            </button>
+            <button
+              onClick={() => deleteChat(c.id)}
+              className="shrink-0 text-neutral-400 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
+              title="Löschen"
+            >
+              <Trash2 size={14} />
+            </button>
+          </>
+        )}
+      </div>
+    );
   };
 
   return (
     <aside
       className={clsx(
-        "z-30 flex h-dvh w-72 flex-col border-r border-border-light bg-sidebar-light dark:border-border-dark dark:bg-sidebar-dark print:hidden",
-        "fixed inset-y-0 left-0 transition-transform duration-200 md:static md:translate-x-0",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full md:hidden"
+        "z-30 h-dvh shrink-0 overflow-hidden border-r border-border-light bg-sidebar-light dark:border-border-dark dark:bg-sidebar-dark print:hidden",
+        "fixed inset-y-0 left-0 md:static",
+        "transition-[width,transform] duration-300 ease-in-out motion-reduce:transition-none",
+        sidebarOpen
+          ? "w-72 translate-x-0"
+          : "w-72 -translate-x-full md:w-0 md:translate-x-0"
       )}
     >
-      {/* Header */}
-      <div className="flex items-center gap-2 p-3">
-        <button
-          onClick={startNewChat}
-          className="flex flex-1 items-center gap-2 rounded-lg border border-border-light bg-white px-3 py-2 text-sm font-medium transition hover:bg-neutral-100 dark:border-border-dark dark:bg-transparent dark:hover:bg-white/5"
-        >
-          <Plus size={16} />
-          Neuer Chat
-        </button>
-        <button
-          onClick={() => setSidebarOpen(false)}
-          title="Sidebar einklappen"
-          className="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/5"
-        >
-          <PanelLeftClose size={18} />
-        </button>
-      </div>
+      {/* fixed-width inner content — clipped by the animating aside width */}
+      <div className="flex h-full w-72 flex-col">
+        {/* Top bar — branding + toggle, same height as the main chat header */}
+        <div className="flex shrink-0 items-center gap-2 px-3 py-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt={appName || "Logo"}
+                className="max-h-7 max-w-[75%] object-contain"
+              />
+            ) : (
+              <span className="flex min-w-0 items-center gap-2 text-base font-bold tracking-tight">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent text-white">
+                  {(appName || "C").trim().charAt(0).toUpperCase()}
+                </span>
+                <span className="truncate">{appName || "OpenChatbox"}</span>
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            title="Sidebar einklappen"
+            className="shrink-0 rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/5"
+          >
+            <PanelLeftClose size={18} />
+          </button>
+        </div>
+
+        {/* Neuer Chat */}
+        <div className="flex items-center gap-2 px-3 pb-2">
+          <button
+            onClick={startNewChat}
+            className="flex flex-1 items-center gap-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-sm font-semibold text-accent transition hover:bg-accent/20"
+          >
+            <Plus size={16} />
+            Neuer Chat
+          </button>
+        </div>
+
+        {/* Global chat search trigger (opens Spotlight-style modal) */}
+        <div className="px-3 pb-2">
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="flex w-full items-center gap-2 rounded-lg border border-border-light px-2.5 py-1.5 text-sm text-neutral-500 transition hover:bg-neutral-200/60 dark:border-border-dark dark:hover:bg-white/5"
+          >
+            <Search size={14} className="shrink-0" />
+            <span className="flex-1 text-left">Chats durchsuchen…</span>
+            <kbd className="shrink-0 rounded border border-border-light px-1 text-[10px] dark:border-border-dark">
+              ⌘K
+            </kbd>
+          </button>
+        </div>
+
+      {/* Meine Sidekicks */}
+      {sidekicks.length > 0 && (
+        <div className="px-2 pb-2">
+          <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+            Meine Sidekicks
+          </div>
+          {sidekicks.map((sk) => (
+            <button
+              key={sk.id}
+              onClick={() => startSidekick(sk.id)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-neutral-200/60 dark:hover:bg-white/5"
+              title={sk.name}
+            >
+              <SidekickAvatar icon={sk.icon} color={sk.color} size={22} />
+              <span className="min-w-0 flex-1 truncate text-left">
+                {sk.name}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Chat list */}
       <nav className="flex-1 overflow-y-auto px-2 py-1">
@@ -88,96 +259,25 @@ export default function Sidebar() {
             Noch keine Chats.
           </p>
         )}
-        {chats.map((c) => {
-          const active = c.id === activeChatId;
-          const editing = editingId === c.id;
-          return (
-            <div
-              key={c.id}
-              className={clsx(
-                "group mb-0.5 flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition",
-                active
-                  ? "bg-neutral-200 dark:bg-white/10"
-                  : "hover:bg-neutral-200/60 dark:hover:bg-white/5"
-              )}
-            >
-              <MessageSquare
-                size={16}
-                className="shrink-0 text-neutral-500"
-              />
-              {editing ? (
-                <>
-                  <input
-                    autoFocus
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") commitEdit();
-                      if (e.key === "Escape") setEditingId(null);
-                    }}
-                    className="min-w-0 flex-1 rounded bg-transparent outline-none ring-1 ring-accent"
-                  />
-                  <button onClick={commitEdit} className="text-neutral-500 hover:text-accent">
-                    <Check size={15} />
-                  </button>
-                  <button onClick={() => setEditingId(null)} className="text-neutral-500 hover:text-red-500">
-                    <X size={15} />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => onSelect(c.id)}
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                    title={c.title}
-                  >
-                    <span className="min-w-0 flex-1 truncate">{c.title}</span>
-                    {c.draft && c.draft.trim() && (
-                      <span className="shrink-0 rounded bg-amber-200 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
-                        Entwurf
-                      </span>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => startEdit(c.id, c.title)}
-                    className="shrink-0 text-neutral-400 opacity-0 transition hover:text-neutral-700 group-hover:opacity-100 dark:hover:text-neutral-200"
-                    title="Umbenennen"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    onClick={() => deleteChat(c.id)}
-                    className="shrink-0 text-neutral-400 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
-                    title="Löschen"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </>
-              )}
+
+        {pinned.length > 0 && (
+          <div className="mb-2">
+            <div className="flex items-center gap-1 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+              <Pin size={11} /> Angepinnt
             </div>
-          );
-        })}
+            {pinned.map(chatRow)}
+          </div>
+        )}
+        {pinned.length > 0 && rest.length > 0 && (
+          <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+            Chats
+          </div>
+        )}
+        {rest.map(chatRow)}
       </nav>
 
       {/* Footer */}
       <div className="border-t border-border-light p-2 dark:border-border-dark">
-        <button
-          onClick={() => {
-            const next = !incognito;
-            setIncognito(next);
-            router.push("/");
-            if (window.innerWidth < 768) setSidebarOpen(false);
-          }}
-          className={clsx(
-            "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition",
-            incognito
-              ? "bg-accent/15 text-accent"
-              : "hover:bg-neutral-200/60 dark:hover:bg-white/5"
-          )}
-        >
-          <Ghost size={16} />
-          Temporärer Chat {incognito ? "(an)" : ""}
-        </button>
         <button
           onClick={toggleTheme}
           className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-neutral-200/60 dark:hover:bg-white/5"
@@ -192,6 +292,7 @@ export default function Sidebar() {
           <Settings size={16} />
           Einstellungen
         </button>
+      </div>
       </div>
     </aside>
   );

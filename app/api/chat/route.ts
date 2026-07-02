@@ -55,10 +55,19 @@ export async function POST(req: NextRequest) {
           model,
           messages: msgs,
           stream: true,
+          // VRAM-Schutz (Multi-User): keep_alive nur wenn Management aktiv.
+          // Aus → Feld weglassen → Ollama-Default (Modell bleibt geladen).
+          ...(body.keepAlive || process.env.OLLAMA_KEEP_ALIVE
+            ? {
+                keep_alive:
+                  body.keepAlive || process.env.OLLAMA_KEEP_ALIVE,
+              }
+            : {}),
           options: {
             ...(temperature != null ? { temperature } : {}),
             ...(topP != null ? { top_p: topP } : {}),
-            ...(maxTokens != null ? { num_predict: maxTokens } : {}),
+            // harte Obergrenze, damit ein Request nicht endlos VRAM/Compute hält
+            num_predict: maxTokens ?? 2048,
           },
         }),
         signal: req.signal,
@@ -211,8 +220,9 @@ function asReasoning(v: unknown): string {
 }
 
 /** Encode one NDJSON stream event: content ("c") or reasoning ("r"). */
+const encoder = new TextEncoder();
 function evt(t: "c" | "r", v: string): Uint8Array {
-  return new TextEncoder().encode(JSON.stringify({ t, v }) + "\n");
+  return encoder.encode(JSON.stringify({ t, v }) + "\n");
 }
 
 /** Split a raw text buffer into complete lines; returns [lines, rest]. */

@@ -28,10 +28,32 @@ export interface Chat {
   modelKey?: string;
   /** temporary (Inkognito) chat: never persisted, not shown in history. */
   temporary?: boolean;
+  /** pinned to the top of the sidebar. */
+  pinned?: boolean;
+  /** id of the Sidekick profile this chat runs under (optional). */
+  sidekickId?: string;
   /** unsent input text, restored when returning to this chat. */
   draft?: string;
+  /** archive of files uploaded to / generated in this chat. */
+  files?: ChatFile[];
   createdAt: number;
   updatedAt: number;
+}
+
+/** A file tracked in a chat's archive (upload or AI-generated). */
+export interface ChatFile {
+  id: string;
+  /** id of the message this file belongs to (for jumpback). */
+  messageId: string;
+  name: string;
+  kind: "image" | "text" | "code" | "pdf" | "other";
+  source: "upload" | "generated";
+  /** images: data URL. */
+  dataUrl?: string;
+  /** text/code: raw content. */
+  content?: string;
+  language?: string;
+  createdAt: number;
 }
 
 /** Reusable prompt template (company prompt library). */
@@ -41,6 +63,35 @@ export interface PromptTemplate {
   /** shorthand for the "/" quick-picker */
   shortcut?: string;
   content: string;
+}
+
+/** A specialized assistant profile (like Gemini Gems). */
+export interface Sidekick {
+  id: string;
+  name: string;
+  /** vector icon id (see SIDEKICK_ICONS) */
+  icon: string;
+  /** pastel color id (see SIDEKICK_COLORS) */
+  color: string;
+  /** assigned base model key (providerId::model); empty = use current selection */
+  modelKey: string;
+  systemPrompt: string;
+}
+
+/** A durable fact about the user (user memory). */
+export interface MemoryFact {
+  id: string;
+  text: string;
+  createdAt: number;
+}
+
+/** Logged-in user as returned by /api/auth/session (transient, not persisted). */
+export interface AuthUser {
+  id: string;
+  username: string;
+  role: string;
+  provider: string;
+  twoFactorEnabled: boolean;
 }
 
 /** Generation parameters passed through to the provider. */
@@ -100,4 +151,6 @@ export interface ChatRequest extends ProviderRequest {
   model: string;
   messages: ChatMessagePayload[];
   params?: GenParams;
+  /** Ollama keep_alive (VRAM-Freigabe), z.B. "2m". */
+  keepAlive?: string;
 }

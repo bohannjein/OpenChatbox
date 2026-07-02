@@ -2,8 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Wiederkehrende UI-Muster (Utilities im Markup überschreiben diese Defaults,
+   z. B. px-3 statt px-2). */
+@layer components {
+  /* Standard-Textfeld / -Select / -Textarea (Settings, Panels) */
+  .input-base {
+    @apply rounded-lg border border-border-light bg-transparent px-2 py-1.5 text-sm outline-none focus:border-accent dark:border-border-dark;
+  }
+  /* Schwebendes Dropdown- / Menü-Panel */
+  .menu-panel {
+    @apply rounded-xl border border-border-light bg-white shadow-xl dark:border-border-dark dark:bg-sidebar-dark;
+  }
+}
+
 :root {
   color-scheme: light;
+  /* dynamic accent (RGB channels) — overridden at runtime from settings */
+  --accent: 16 163 127;
+  --accent-hover: 14 142 109;
 }
 
 .dark {
@@ -16,7 +32,7 @@ body {
 }
 
 body {
-  @apply bg-main-light text-neutral-900 dark:bg-main-dark dark:text-neutral-100;
+  @apply bg-main-light font-sans text-neutral-900 dark:bg-main-dark dark:text-neutral-100;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -72,6 +88,71 @@ body {
 .hljs-tag,
 .hljs-name {
   color: #8ddb8c;
+}
+
+/* Bunter, weicher AI-Glow (unabhängig von der Akzentfarbe).
+   Neon-Farben ziehen gleichmäßig um das Textfeld — kein Wackeln.
+   Der Gradient-Winkel wird animiert (kein Element-Transform → keine Lücken). */
+@property --ai-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+/* Incognito (temporärer Chat): tiefschwarz, Akzent = Weiß, Glow = Weiß */
+.incognito {
+  --accent: 255 255 255;
+  --accent-hover: 226 226 226;
+  background: #000 !important;
+  color: #fff;
+}
+.incognito .ai-glow {
+  background: conic-gradient(
+    from var(--ai-angle),
+    #ffffff,
+    rgba(255, 255, 255, 0.15),
+    #ffffff,
+    rgba(255, 255, 255, 0.45),
+    #ffffff
+  ) !important;
+  filter: blur(26px) !important;
+  opacity: 0.35;
+}
+
+.ai-glow {
+  background: conic-gradient(
+    from var(--ai-angle),
+    #ff29c3,
+    #8b5bff,
+    #1fd6ee,
+    #ffab2e,
+    #ff7a1a,
+    #b46bff,
+    #ff5ad8,
+    #ff29c3
+  );
+  filter: blur(26px) saturate(1.15);
+  opacity: 0.4;
+  animation: ai-glow-rotate 11s linear infinite;
+}
+/* zweite, weichere Schicht: dezenter Safran/Orange-Halo */
+.ai-glow::after {
+  content: "";
+  position: absolute;
+  inset: -25%;
+  border-radius: 9999px;
+  background:
+    radial-gradient(closest-side, rgba(255, 171, 46, 0.30), transparent 72%),
+    radial-gradient(closest-side, rgba(255, 122, 26, 0.22), transparent 78%);
+  filter: blur(34px);
+  pointer-events: none;
+}
+.incognito .ai-glow::after {
+  display: none;
+}
+@keyframes ai-glow-rotate {
+  to {
+    --ai-angle: 360deg;
+  }
 }
 
 /* Markdown prose spacing */
