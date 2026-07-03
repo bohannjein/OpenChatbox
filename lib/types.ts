@@ -2,6 +2,16 @@ export type Role = "system" | "user" | "assistant";
 
 export type Feedback = "up" | "down" | null;
 
+/** Live Auto-mode pipeline stage shown as a status badge while streaming. */
+export type PipelineStage =
+  | "ocr"
+  | "answer"
+  | "coding"
+  | "reasoning"
+  | "text"
+  | "vision"
+  | "imagegen";
+
 export interface Message {
   id: string;
   role: Role;
@@ -20,6 +30,9 @@ export interface Message {
   feedback?: Feedback;
   /** assistant only: auto-generated downloadable files (PDF/Excel export). */
   docs?: GeneratedDoc[];
+  /** assistant only, transient: current Auto-pipeline stage (live badge).
+   *  Cleared when streaming finishes; stripped on persist. */
+  pipeline?: PipelineStage;
 }
 
 /** A backend-generated, downloadable file attached under an assistant answer. */

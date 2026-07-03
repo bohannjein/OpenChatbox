@@ -34,6 +34,32 @@ const STRINGS = {
   },
   "chat.model": { de: "Modell", en: "Model" },
   "chat.pickModel": { de: "Wähle oben ein Modell, um zu starten.", en: "Pick a model above to start." },
+  // Auto-pipeline live status badges + hints.
+  "pipeline.ocr": {
+    de: "OCR-Modell analysiert Dokument…",
+    en: "OCR model is analysing the document…",
+  },
+  "pipeline.answer": {
+    de: "Allrounder formuliert Antwort…",
+    en: "Allrounder is composing the answer…",
+  },
+  "pipeline.vision": {
+    de: "Vision-Modell liest Dokument…",
+    en: "Vision model is reading the document…",
+  },
+  "pipeline.coding": {
+    de: "Coding-Modell arbeitet…",
+    en: "Coding model is working…",
+  },
+  "pipeline.reasoning": {
+    de: "Reasoning-Modell denkt nach…",
+    en: "Reasoning model is thinking…",
+  },
+  "pipeline.text": { de: "Modell antwortet…", en: "Model is answering…" },
+  "pipeline.imagegenHint": {
+    de: "🎨 Bildgenerierung ist noch nicht verfügbar. Dieses System kann Bilder lesen und analysieren, aber (noch) keine neuen Bilder erzeugen.",
+    en: "🎨 Image generation is not available yet. This system can read and analyse images, but cannot (yet) create new ones.",
+  },
 } satisfies Record<string, Entry>;
 
 export type StringKey = keyof typeof STRINGS;

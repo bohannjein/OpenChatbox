@@ -39,7 +39,13 @@ import type { Attachment } from "@/lib/files";
 import { buildShareLink, chatToMarkdown, download } from "@/lib/share";
 import { useClickOutside } from "@/lib/useClickOutside";
 import { useAutoTitle } from "@/lib/useAutoTitle";
-import { routeModelKey, OCR_SYSTEM_HINT } from "@/lib/modelRouter";
+import { OCR_SYSTEM_HINT } from "@/lib/modelRouter";
+import {
+  planPipeline,
+  OCR_EXTRACT_ONLY,
+  buildOcrContext,
+  type PipelinePlan,
+} from "@/lib/autoPipeline";
 import { languageConstraint } from "@/lib/langDetect";
 import {
   parseDocBlocks,
@@ -117,6 +123,7 @@ export default function ChatWindow() {
   const appendToMessage = useStore((s) => s.appendToMessage);
   const appendReasoning = useStore((s) => s.appendReasoning);
   const setMessageContent = useStore((s) => s.setMessageContent);
+  const setMessagePipeline = useStore((s) => s.setMessagePipeline);
   const startRegenerate = useStore((s) => s.startRegenerate);
   const finalizeVariant = useStore((s) => s.finalizeVariant);
   const editUserMessage = useStore((s) => s.editUserMessage);
@@ -380,16 +387,22 @@ export default function ChatWindow() {
     const sk = chatObj?.sidekickId
       ? sidekicks.find((x) => x.id === chatObj.sidekickId)
       : undefined;
-    let effectiveKey = sk?.modelKey || selectedModelKey;
+    const effectiveKey = sk?.modelKey || selectedModelKey;
 
-    // Auto-router: pick vision/OCR/text per turn from the attachments of the
-    // message we're answering. A sidekick's own model always wins.
-    let routeRole: "text" | "coding" | "reasoning" | "vision" = "text";
+    // The user message we are answering (routing signals come from its content
+    // and attachments).
+    const idxU = chatObj?.messages.findIndex((m) => m.id === assistantId) ?? -1;
+    const lastUser = [...(chatObj?.messages.slice(0, idxU) ?? [])]
+      .reverse()
+      .find((m) => m.role === "user");
+
+    // Build the Auto-mode pipeline plan. A sidekick's own model always wins →
+    // single call, no routing.
+    let plan: PipelinePlan = {
+      scenario: "text",
+      steps: effectiveKey ? [{ role: "text", key: effectiveKey }] : [],
+    };
     if (autoRouter && !sk) {
-      const idxU = chatObj?.messages.findIndex((m) => m.id === assistantId) ?? -1;
-      const lastUser = [...(chatObj?.messages.slice(0, idxU) ?? [])]
-        .reverse()
-        .find((m) => m.role === "user");
       const hasImage = !!lastUser?.images?.length;
       const ocrOn = plugins?.ocrEngine !== false; // admin master-switch
       const hasDoc =
@@ -400,11 +413,10 @@ export default function ChatWindow() {
             (f.kind === "pdf" || f.kind === "text" || f.kind === "other")
         );
       try {
-        // Scan the prompt (Coding/Reasoning keywords, image→Vision) → category model.
         const { options } = await loadAllModels(providers);
-        const routed = routeModelKey(
+        plan = planPipeline(
           {
-            standardKey: effectiveKey,
+            standardKey: routerModels.standard || effectiveKey,
             coding: routerModels.coding,
             reasoning: routerModels.reasoning,
             vision: routerModels.vision,
@@ -412,51 +424,58 @@ export default function ChatWindow() {
           { hasImage, hasDoc, text: lastUser?.content ?? "" },
           options
         );
-        if (routed.key) {
-          effectiveKey = routed.key;
-          routeRole = routed.role;
-        }
       } catch {
-        /* routing failed → keep the primary model */
+        /* routing failed → fall back to a single call on the primary model */
       }
     }
 
-    let provider: ReturnType<typeof resolveModel>["provider"];
-    let model: string;
-    try {
-      ({ provider, model } = resolveModel(effectiveKey));
-    } catch (e) {
-      setError((e as Error).message);
-      setMessageContent(chatId, assistantId, `⚠️ ${(e as Error).message}`);
+    // Szenario B — image generation. Not supported yet (Ollama can't generate
+    // images); tell the user instead of failing silently. No model runs.
+    if (plan.scenario === "imagegen") {
+      setMessageContent(chatId, assistantId, t("pipeline.imagegenHint"));
       return;
     }
 
-    let system = buildSystem(chatId);
-    // Quick-OCR pipeline: when routed to a vision/OCR model, instruct it to read
-    // & structure the document before answering.
-    if (routeRole === "vision")
-      system = (system ? system + "\n\n" : "") + OCR_SYSTEM_HINT;
-
-    // Build history = all messages before the assistant message.
-    const cur = useStore.getState().chats.find((c) => c.id === chatId);
-    const idx = cur?.messages.findIndex((m) => m.id === assistantId) ?? -1;
-    const prior = idx >= 0 ? cur!.messages.slice(0, idx) : [];
-    const history: { role: Role; content: string; images?: string[] }[] = [
-      ...(system
-        ? [{ role: "system" as Role, content: system }]
-        : []),
-      ...prior.map((m) => ({
-        role: m.role,
-        content: m.content,
-        ...(m.images && m.images.length ? { images: m.images } : {}),
-      })),
-    ].filter((m) => m.role === "system" || m.content.trim() || m.images);
+    // Always keep at least one runnable step.
+    if (plan.steps.length === 0 && effectiveKey)
+      plan.steps = [{ role: "text", key: effectiveKey }];
+    if (plan.steps.length === 0) {
+      const msg = "Kein Modell ausgewählt.";
+      setError(msg);
+      setMessageContent(chatId, assistantId, `⚠️ ${msg}`);
+      return;
+    }
 
     setStreamingId(assistantId);
     const ac = new AbortController();
     abortRef.current = ac;
 
-    try {
+    // Run one model of the pipeline: resolve key → build history → stream.
+    // `stripImages` drops attachments from history (for text-only answer models).
+    const runModel = async (
+      modelKey: string,
+      system: string,
+      opts: {
+        stripImages: boolean;
+        onContent: (t: string) => void;
+        onReasoning: (t: string) => void;
+      }
+    ) => {
+      const { provider, model } = resolveModel(modelKey);
+      const cur = useStore.getState().chats.find((c) => c.id === chatId);
+      const idx = cur?.messages.findIndex((m) => m.id === assistantId) ?? -1;
+      const prior = idx >= 0 ? cur!.messages.slice(0, idx) : [];
+      const history: { role: Role; content: string; images?: string[] }[] = [
+        ...(system ? [{ role: "system" as Role, content: system }] : []),
+        ...prior.map((m) => ({
+          role: m.role,
+          content: m.content,
+          ...(!opts.stripImages && m.images && m.images.length
+            ? { images: m.images }
+            : {}),
+        })),
+      ].filter((m) => m.role === "system" || m.content.trim() || m.images);
+
       await streamChat(
         {
           type: provider.type,
@@ -467,12 +486,64 @@ export default function ChatWindow() {
           params: paramsCfg,
           keepAlive: vramManaged ? ollamaKeepAlive : undefined,
         },
-        (t, text) =>
-          t === "r"
-            ? appendReasoning(chatId, assistantId, text)
-            : appendToMessage(chatId, assistantId, text),
+        (tt, text) =>
+          tt === "r" ? opts.onReasoning(text) : opts.onContent(text),
         ac.signal
       );
+    };
+
+    try {
+      if (
+        plan.steps.length === 2 &&
+        plan.steps[0].role === "ocr" &&
+        plan.steps[1].role === "answer"
+      ) {
+        // Szenario A — OCR chain. Stage 1: a vision model extracts the raw text
+        // of the attachment (blind, no answer). Stage 2: the answer model
+        // formulates the reply using that text as invisible context.
+        setMessagePipeline(chatId, assistantId, "ocr");
+        let extracted = "";
+        await runModel(plan.steps[0].key, OCR_EXTRACT_ONLY, {
+          stripImages: false,
+          onContent: (x) => {
+            extracted += x;
+          },
+          onReasoning: () => {},
+        });
+
+        if (extracted.trim()) {
+          setMessagePipeline(chatId, assistantId, "answer");
+          const base = buildSystem(chatId);
+          const sys = (base ? base + "\n\n" : "") + buildOcrContext(extracted);
+          await runModel(plan.steps[1].key, sys, {
+            stripImages: true, // text answer model — don't forward raw images
+            onContent: (x) => appendToMessage(chatId, assistantId, x),
+            onReasoning: (x) => appendReasoning(chatId, assistantId, x),
+          });
+        } else {
+          // OCR produced nothing → single vision call reads the image AND answers.
+          setMessagePipeline(chatId, assistantId, "vision");
+          const base = buildSystem(chatId);
+          const sys = (base ? base + "\n\n" : "") + OCR_SYSTEM_HINT;
+          await runModel(plan.steps[0].key, sys, {
+            stripImages: false,
+            onContent: (x) => appendToMessage(chatId, assistantId, x),
+            onReasoning: (x) => appendReasoning(chatId, assistantId, x),
+          });
+        }
+      } else {
+        // Single-model call: text / coding / reasoning / single-vision fallback.
+        const step = plan.steps[0];
+        setMessagePipeline(chatId, assistantId, step.role);
+        let sys = buildSystem(chatId);
+        if (step.role === "vision")
+          sys = (sys ? sys + "\n\n" : "") + OCR_SYSTEM_HINT;
+        await runModel(step.key, sys, {
+          stripImages: false,
+          onContent: (x) => appendToMessage(chatId, assistantId, x),
+          onReasoning: (x) => appendReasoning(chatId, assistantId, x),
+        });
+      }
     } catch (e) {
       if ((e as Error)?.name !== "AbortError") {
         const msg = e instanceof Error ? e.message : String(e);
@@ -485,6 +556,7 @@ export default function ChatWindow() {
           setMessageContent(chatId, assistantId, `⚠️ Fehler: ${msg}`);
       }
     } finally {
+      setMessagePipeline(chatId, assistantId, undefined);
       finalizeVariant(chatId, assistantId);
       // archive AI-generated code blocks as downloadable files
       const finalMsg = useStore

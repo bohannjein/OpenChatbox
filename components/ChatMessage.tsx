@@ -19,12 +19,28 @@ import {
   FileSpreadsheet,
   FileType,
   FileText,
+  Search,
+  Loader2,
+  Code,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Markdown from "./Markdown";
 import { useStore } from "@/lib/store";
 import { copyText } from "@/lib/clipboard";
 import { download } from "@/lib/share";
-import type { Message } from "@/lib/types";
+import { useT, type StringKey } from "@/lib/i18n";
+import type { Message, PipelineStage } from "@/lib/types";
+
+/** Live Auto-pipeline stage → badge icon + i18n label. */
+const PIPELINE_BADGE: Record<PipelineStage, { Icon: LucideIcon; key: StringKey }> = {
+  ocr: { Icon: Search, key: "pipeline.ocr" },
+  answer: { Icon: Brain, key: "pipeline.answer" },
+  vision: { Icon: Search, key: "pipeline.vision" },
+  coding: { Icon: Code, key: "pipeline.coding" },
+  reasoning: { Icon: Brain, key: "pipeline.reasoning" },
+  text: { Icon: Loader2, key: "pipeline.text" },
+  imagegen: { Icon: Loader2, key: "pipeline.text" },
+};
 
 export default function ChatMessage({
   chatId,
@@ -42,6 +58,7 @@ export default function ChatMessage({
   const setActiveVariant = useStore((s) => s.setActiveVariant);
   const setFeedback = useStore((s) => s.setFeedback);
   const chatFiles = useStore((s) => s.chats.find((c) => c.id === chatId)?.files);
+  const t = useT();
 
   // Non-image uploads attached to this message (images already render inline).
   const attachments = (chatFiles ?? []).filter(
@@ -235,9 +252,28 @@ export default function ChatMessage({
               )}
             </div>
           )}
+          {streaming && message.pipeline && !message.content && (
+            <div className="mb-3 flex items-center gap-2 rounded-xl border border-border-light px-3 py-2 text-sm text-neutral-500 dark:border-border-dark">
+              {(() => {
+                const { Icon } = PIPELINE_BADGE[message.pipeline];
+                return (
+                  <Icon
+                    size={15}
+                    className={clsx(
+                      "shrink-0 text-accent",
+                      Icon === Loader2 && "animate-spin"
+                    )}
+                  />
+                );
+              })()}
+              <span className="animate-pulse font-medium">
+                {t(PIPELINE_BADGE[message.pipeline].key)}
+              </span>
+            </div>
+          )}
           {message.content ? (
             <Markdown content={message.content} />
-          ) : streaming && !message.reasoning ? (
+          ) : streaming && !message.reasoning && !message.pipeline ? (
             <span className="inline-block h-4 w-2 animate-blink bg-neutral-500 align-middle" />
           ) : null}
           {streaming && message.content && (

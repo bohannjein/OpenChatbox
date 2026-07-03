@@ -268,15 +268,18 @@ export default function AdminPanel() {
         <h3 className="font-medium">Auto-Modus — Kategorie-Routing</h3>
         <p className="mb-3 text-sm text-neutral-500">
           Weise Kategorien ein Modell aus dem Ollama-Pool zu. Im „Auto"-Modus
-          wählt das Backend anhand von Keywords automatisch. Ohne Treffer greift
-          das aktuell gewählte Standard-Modell.
+          wählt das System anhand von Anhang &amp; Keywords automatisch. Bei
+          Bild/Scan liest zuerst das Vision-Modell den Text aus, danach
+          formuliert das Standard-Modell die Antwort. Ohne Treffer greift das
+          Standard-Modell (bzw. das aktuell gewählte Modell).
         </p>
         <div className="space-y-2">
           {(
             [
+              ["standard", "Standard / Allrounder-Groß", "Haupt-Antwortmodell; auch Stufe 2 der OCR-Kette"],
               ["coding", "Coding", "Keywords: skript, python, code, bug, funktion …"],
               ["reasoning", "Reasoning / Math", "Keywords: rechne, logik, beweise, gleichung …"],
-              ["vision", "Vision", "bei Bildern & Dokumenten"],
+              ["vision", "Vision / OCR", "liest Bilder & Scans (Stufe 1 der OCR-Kette)"],
             ] as const
           ).map(([cat, label, hint]) => (
             <div key={cat} className="flex items-center gap-2">

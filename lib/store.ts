@@ -10,6 +10,7 @@ import type {
   GenParams,
   MemoryFact,
   Message,
+  PipelineStage,
   PromptTemplate,
   Provider,
   Role,
@@ -163,7 +164,13 @@ interface State {
   selectedModelKey: string | null;
   // Auto model-router: when on, route each turn to a category model automatically.
   autoRouter: boolean;
-  routerModels: { coding: string | null; reasoning: string | null; vision: string | null };
+  routerModels: {
+    coding: string | null;
+    reasoning: string | null;
+    vision: string | null;
+    /** Standard / Allrounder-Groß — the answer model (also stage 2 of the OCR chain). */
+    standard: string | null;
+  };
   prompts: PromptTemplate[];
   customInstructions: string;
   params: GenParams;
@@ -233,6 +240,11 @@ interface State {
   appendToMessage: (chatId: string, msgId: string, delta: string) => void;
   appendReasoning: (chatId: string, msgId: string, delta: string) => void;
   setMessageContent: (chatId: string, msgId: string, content: string) => void;
+  setMessagePipeline: (
+    chatId: string,
+    msgId: string,
+    stage: PipelineStage | undefined
+  ) => void;
   truncateAfter: (chatId: string, msgId: string) => void;
   editUserMessage: (chatId: string, msgId: string, content: string) => void;
 
@@ -250,7 +262,7 @@ interface State {
   selectModel: (key: string) => void;
   setAutoRouter: (v: boolean) => void;
   setRouterModel: (
-    category: "coding" | "reasoning" | "vision",
+    category: "coding" | "reasoning" | "vision" | "standard",
     key: string | null
   ) => void;
 
@@ -332,7 +344,7 @@ export const useStore = create<State>()(
       providers: defaultProviders(),
       selectedModelKey: null,
       autoRouter: false,
-      routerModels: { coding: null, reasoning: null, vision: null },
+      routerModels: { coding: null, reasoning: null, vision: null, standard: null },
       prompts: defaultPrompts(),
       customInstructions: "",
       params: defaultParams(),
@@ -532,6 +544,14 @@ export const useStore = create<State>()(
           chats: patchMessage(s.chats, chatId, msgId, (m) => ({
             ...m,
             content,
+          })),
+        })),
+
+      setMessagePipeline: (chatId, msgId, stage) =>
+        set((s) => ({
+          chats: patchMessage(s.chats, chatId, msgId, (m) => ({
+            ...m,
+            pipeline: stage,
           })),
         })),
 
@@ -789,7 +809,7 @@ export const useStore = create<State>()(
     }),
     {
       name: "openchatbox-store",
-      version: 4,
+      version: 5,
       // localStorage-backed, but tolerant of quota errors (see safeStorage).
       storage: createJSONStorage(() => safeStorage),
       // persist everything except transient UI flags + temporary chats.
@@ -799,7 +819,7 @@ export const useStore = create<State>()(
           .filter((c) => !c.temporary)
           .map((c) => ({
             ...c,
-            messages: c.messages.map(({ images, docs, ...m }) => m),
+            messages: c.messages.map(({ images, docs, pipeline, ...m }) => m),
             files: c.files?.map(({ dataUrl, ...f }) => f),
           })),
         activeChatId: s.activeChatId,
@@ -861,7 +881,13 @@ export const useStore = create<State>()(
               coding: null,
               reasoning: null,
               vision: legacy.routerVisionKey ?? null,
+              standard: null,
             };
+        }
+        if (version < 5) {
+          // Agentic pipeline: add the "standard"/answer model slot.
+          if (s.routerModels && (s.routerModels as { standard?: string | null }).standard === undefined)
+            s.routerModels = { ...s.routerModels, standard: null };
         }
         return s as State;
       },
