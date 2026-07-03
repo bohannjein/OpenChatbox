@@ -42,7 +42,6 @@ import { useAutoTitle } from "@/lib/useAutoTitle";
 import { routeModelKey, OCR_SYSTEM_HINT } from "@/lib/modelRouter";
 import { languageConstraint } from "@/lib/langDetect";
 import {
-  detectDocIntent,
   parseDocBlocks,
   stripDocBlocks,
   extractHtmlDoc,
@@ -557,19 +556,24 @@ export default function ChatWindow() {
       // only in their thinking trace.
       const src = reasoning ? `${answer}\n\n${reasoning}` : answer;
 
+      // ONLY the model's generated document goes into the file — never the
+      // prompt or thinking text. So jobs come strictly from an extracted
+      // generate-file/HTML block; no whole-answer dump.
       const blocks = parseDocBlocks(src);
       const html = blocks.length ? null : extractHtmlDoc(src);
-      const intentKind = detectDocIntent(text);
-      // Guarantee a document for explicit requests even if the model ignored the
-      // format → render whatever text it produced.
-      const forced = !blocks.length && !html && (isDocumentRequest(text) || !!intentKind);
       const jobs: { kind: "pdf" | "xlsx"; content: string }[] = blocks.length
         ? blocks
         : html
         ? [{ kind: "pdf", content: html }]
-        : forced
-        ? [{ kind: intentKind ?? "pdf", content: answer || reasoning }]
         : [];
+
+      if (!jobs.length && isDocumentRequest(text)) {
+        appendToMessage(
+          chatId,
+          assistantId,
+          "\n\n_⚠️ Es wurde kein Dokument im erwarteten Format erzeugt — bitte erneut versuchen._"
+        );
+      }
 
       if (jobs.length) {
         // Clean the visible answer (strip any leaked doc block / raw HTML).
