@@ -42,109 +42,170 @@ const isTableSep = (l: string) => /^\s*\|?[\s:|-]+\|?\s*$/.test(l);
 const splitRow = (l: string) =>
   l.trim().replace(/^\||\|$/g, "").split("|").map((c) => inline(c.trim()));
 
+type Block =
+  | { t: "title"; text: string }
+  | { t: "h"; level: number; text: string }
+  | { t: "p"; text: string }
+  | { t: "li"; text: string }
+  | { t: "table"; rows: string[][] }
+  | { t: "space" };
+
+const H_SIZES = [17, 14, 12.5, 11.5]; // h1..h4
+
+/** Parse Markdown into a flat block list. */
+function parseBlocks(title: string, content: string): Block[] {
+  const b: Block[] = [];
+  if (title) b.push({ t: "title", text: title });
+  const src = (content || "").split("\n");
+  for (let i = 0; i < src.length; i++) {
+    const l = src[i].trim();
+    if (!l) {
+      b.push({ t: "space" });
+      continue;
+    }
+    if (isTableRow(l)) {
+      const rows: string[][] = [];
+      while (i < src.length && isTableRow(src[i].trim())) {
+        if (!isTableSep(src[i].trim())) rows.push(splitRow(src[i]));
+        i++;
+      }
+      i--;
+      if (rows.length) b.push({ t: "table", rows });
+      continue;
+    }
+    const h = /^(#{1,4})\s+(.*)$/.exec(l);
+    if (h) {
+      b.push({ t: "h", level: h[1].length, text: inline(h[2]) });
+      continue;
+    }
+    const li = /^([-*]|\d+\.)\s+(.*)$/.exec(l);
+    if (li) {
+      const marker = /^\d+\./.test(li[1]) ? li[1] : "•";
+      b.push({ t: "li", text: `${marker} ${inline(li[2])}` });
+      continue;
+    }
+    b.push({ t: "p", text: inline(l) });
+  }
+  return b;
+}
+
 /**
- * Render Markdown (headings, lists, tables, paragraphs) into a PDF via pdf-lib.
- * Standard fonts embed without external .afm files → works in the bundled
- * standalone/Docker server.
+ * Render Markdown (headings, lists, tables, paragraphs) into a nicely typeset
+ * PDF via pdf-lib. Auto-fits to a SINGLE A4 page by scaling font sizes/spacing
+ * (down to ~0.6×); only spills to more pages when even that won't fit.
  */
 export async function generatePdf(title: string, content: string): Promise<Buffer> {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const maxWidth = A4[0] - MARGIN * 2;
+
+  const M = 56;
+  const [W, H] = A4;
+  const usableW = W - M * 2;
+  const usableH = H - M * 2;
+  const blocks = parseBlocks(title, content);
+  const INK = rgb(0.13, 0.15, 0.18);
+  const HEAD = rgb(0.1, 0.11, 0.13);
+  const ACCENT = rgb(0.06, 0.64, 0.5);
+
+  // Estimate total height at a scale (wrap at the scaled size).
+  const measure = (s: number): number => {
+    let h = 0;
+    for (const blk of blocks) {
+      if (blk.t === "space") h += 6 * s;
+      else if (blk.t === "title") {
+        const sz = 22 * s;
+        h += wrap(winAnsi(blk.text), bold, sz, usableW).length * sz * 1.25 + 12 * s;
+      } else if (blk.t === "h") {
+        const sz = H_SIZES[blk.level - 1] * s;
+        h += 6 * s + wrap(winAnsi(blk.text), bold, sz, usableW).length * sz * 1.3;
+      } else if (blk.t === "li") {
+        const sz = 10.5 * s;
+        h += wrap(winAnsi(blk.text), font, sz, usableW - 14).length * sz * 1.4;
+      } else if (blk.t === "table") {
+        h += blk.rows.length * 9.5 * s * 1.9 + 8 * s;
+      } else {
+        const sz = 10.5 * s;
+        h += wrap(winAnsi(blk.text), font, sz, usableW).length * sz * 1.5;
+      }
+    }
+    return h;
+  };
+
+  const est = measure(1);
+  const scale = est <= usableH ? 1 : Math.max(0.6, usableH / est);
 
   let page = pdf.addPage(A4);
-  let y = A4[1] - MARGIN;
-  const need = (h: number) => {
-    if (y - h < MARGIN) {
+  let y = H - M;
+  const need = (dh: number) => {
+    if (y - dh < M) {
       page = pdf.addPage(A4);
-      y = A4[1] - MARGIN;
+      y = H - M;
     }
   };
-  const line = (text: string, size: number, f: PDFFont, x = MARGIN, gap = 1.45) => {
-    for (const ln of wrap(winAnsi(text), f, size, maxWidth - (x - MARGIN))) {
-      need(size * gap);
-      if (ln) page.drawText(ln, { x, y, size, font: f, color: rgb(0.12, 0.12, 0.12) });
-      y -= size * gap;
+  const draw = (text: string, sz: number, f: PDFFont, x: number, gap: number, color = INK) => {
+    for (const ln of wrap(winAnsi(text), f, sz, usableW - (x - M))) {
+      need(sz * gap);
+      if (ln) page.drawText(ln, { x, y, size: sz, font: f, color });
+      y -= sz * gap;
     }
   };
-
-  const table = (rows: string[][]) => {
+  const drawTable = (rows: string[][]) => {
     const cols = Math.max(...rows.map((r) => r.length));
-    const cw = maxWidth / cols;
-    const size = 10;
+    const cw = usableW / cols;
+    const sz = 9.5 * scale;
+    const rowH = sz * 1.9;
     rows.forEach((r, ri) => {
-      need(size * 1.6);
+      need(rowH);
+      if (ri === 0)
+        page.drawRectangle({
+          x: M,
+          y: y - rowH + sz,
+          width: usableW,
+          height: rowH,
+          color: rgb(0.95, 0.96, 0.97),
+        });
       const f = ri === 0 ? bold : font;
       for (let c = 0; c < cols; c++) {
-        const cell = winAnsi(r[c] ?? "");
-        let txt = cell;
-        while (txt && font.widthOfTextAtSize(txt, size) > cw - 8)
-          txt = txt.slice(0, -1);
-        page.drawText(txt === cell ? cell : txt + "…", {
-          x: MARGIN + c * cw + 2,
-          y,
-          size,
-          font: f,
-          color: rgb(0.12, 0.12, 0.12),
-        });
+        let cell = winAnsi(r[c] ?? "");
+        while (cell && font.widthOfTextAtSize(cell, sz) > cw - 8) cell = cell.slice(0, -1);
+        page.drawText(cell, { x: M + c * cw + 4, y: y - sz, size: sz, font: f, color: INK });
       }
-      y -= size * 1.1;
-      // rule under the header row
+      y -= rowH;
       page.drawLine({
-        start: { x: MARGIN, y: y + 4 },
-        end: { x: MARGIN + maxWidth, y: y + 4 },
+        start: { x: M, y: y + sz * 0.6 },
+        end: { x: M + usableW, y: y + sz * 0.6 },
         thickness: ri === 0 ? 0.8 : 0.3,
-        color: rgb(0.8, 0.8, 0.8),
+        color: rgb(0.78, 0.8, 0.82),
       });
-      y -= 4;
     });
-    y -= 6;
+    y -= 8 * scale;
   };
 
-  if (title) {
-    line(title, 20, bold);
-    y -= 6;
-  }
-
-  const src = (content || "").split("\n");
-  for (let i = 0; i < src.length; i++) {
-    const raw = src[i];
-    const l = raw.trim();
-
-    if (!l) {
-      y -= 6;
-      continue;
+  for (const blk of blocks) {
+    if (blk.t === "space") y -= 6 * scale;
+    else if (blk.t === "title") {
+      const sz = 22 * scale;
+      draw(blk.text, sz, bold, M, 1.25, HEAD);
+      y -= 3 * scale;
+      page.drawLine({
+        start: { x: M, y: y + 2 },
+        end: { x: M + usableW, y: y + 2 },
+        thickness: 1.2,
+        color: ACCENT,
+      });
+      y -= 10 * scale;
+    } else if (blk.t === "h") {
+      y -= 6 * scale;
+      draw(blk.text, H_SIZES[blk.level - 1] * scale, bold, M, 1.3, HEAD);
+      y -= 2 * scale;
+    } else if (blk.t === "li") {
+      draw(blk.text, 10.5 * scale, font, M + 6, 1.4);
+    } else if (blk.t === "table") {
+      drawTable(blk.rows);
+    } else {
+      draw(blk.text, 10.5 * scale, font, M, 1.5);
     }
-    // Table block
-    if (isTableRow(l)) {
-      const block: string[][] = [];
-      while (i < src.length && isTableRow(src[i].trim())) {
-        if (!isTableSep(src[i].trim())) block.push(splitRow(src[i]));
-        i++;
-      }
-      i--;
-      if (block.length) table(block);
-      continue;
-    }
-    // Headings
-    const h = /^(#{1,4})\s+(.*)$/.exec(l);
-    if (h) {
-      const sizes = [20, 16, 13, 12];
-      y -= 4;
-      line(inline(h[2]), sizes[h[1].length - 1], bold);
-      y -= 2;
-      continue;
-    }
-    // Bullet / numbered list
-    const b = /^([-*]|\d+\.)\s+(.*)$/.exec(l);
-    if (b) {
-      const marker = /^\d+\./.test(b[1]) ? b[1] : "•";
-      line(`${marker} ${inline(b[2])}`, 11, font, MARGIN + 12);
-      continue;
-    }
-    // Paragraph
-    line(inline(l), 11, font);
   }
 
   return Buffer.from(await pdf.save());

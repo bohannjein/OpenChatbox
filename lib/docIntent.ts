@@ -96,7 +96,10 @@ export const HTML_DOC_INSTRUCTION =
   "dieses Codeblocks:\n" +
   "```generate-file:pdf\n<html>… dein HTML …</html>\n```\n" +
   "Schreibe sonst KEINEN weiteren Text und KEINE weiteren Codeblocks. Das HTML " +
-  "erscheint dem Nutzer NICHT — er sieht nur deinen Satz und die fertige PDF.";
+  "erscheint dem Nutzer NICHT — er sieht nur deinen Satz und die fertige PDF.\n" +
+  "Gestalte es professionell und KOMPAKT, sodass es möglichst auf EINE A4-Seite " +
+  "passt (klarer Titel, Abschnitte, Tabellen; keine überflüssige Prosa, keine " +
+  "Wiederholungen). Nur wenn der Inhalt es zwingend erfordert, nutze mehr Platz.";
 
 /** True if a string is HTML markup (→ route to the HTML→PDF printer). */
 export const looksLikeHtml = (s: string) =>
