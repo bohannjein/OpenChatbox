@@ -51,6 +51,7 @@ import {
   HTML_DOC_INSTRUCTION,
 } from "@/lib/docIntent";
 import { useT } from "@/lib/i18n";
+import { uid } from "@/lib/uid";
 import ModelSwitcher from "./ModelSwitcher";
 import ParamsPopover from "./ParamsPopover";
 import ChatMessage from "./ChatMessage";
@@ -493,7 +494,7 @@ export default function ChatWindow() {
       const blocks = finalMsg ? listCodeBlocks(finalMsg.content) : [];
       if (blocks.length) {
         const files: ChatFile[] = blocks.map((b, i) => ({
-          id: crypto.randomUUID(),
+          id: uid(),
           messageId: assistantId,
           name: `code-${Date.now().toString().slice(-5)}-${i + 1}.${langToExt(
             b.lang
@@ -522,7 +523,7 @@ export default function ChatWindow() {
     // track uploads in the chat's file archive
     if (attachments && attachments.length) {
       const files: ChatFile[] = attachments.map((a) => ({
-        id: crypto.randomUUID(),
+        id: uid(),
         messageId: userId,
         name: a.name,
         kind: a.kind,
@@ -587,7 +588,7 @@ export default function ChatWindow() {
             const d = await res.json().catch(() => ({}));
             if (res.ok && d.dataUrl) {
               attachGeneratedDoc(chatId, assistantId, {
-                id: crypto.randomUUID(),
+                id: uid(),
                 name: d.name,
                 mime: d.mime,
                 dataUrl: d.dataUrl,
