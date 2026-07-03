@@ -17,6 +17,5 @@ DEPLOY.md
 docker-compose.yml
 Dockerfile
 .dockerignore
-scripts
 .vscode
 .idea
