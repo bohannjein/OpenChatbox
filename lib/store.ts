@@ -285,6 +285,8 @@ interface State {
   renameWorkspace: (id: string, name: string) => void;
   deleteWorkspace: (id: string) => void;
   switchWorkspace: (id: string) => void;
+  /** add/update a workspace from the server (invites, cross-device sync) */
+  upsertWorkspace: (ws: { id: string; name: string }) => void;
   setChatSidekick: (chatId: string, sidekickId: string | null) => void;
 
   // memory
@@ -721,6 +723,21 @@ export const useStore = create<State>()(
           s.workspaces.some((w) => w.id === id)
             ? { activeWorkspaceId: id }
             : {}
+        ),
+      upsertWorkspace: (ws) =>
+        set((s) =>
+          s.workspaces.some((w) => w.id === ws.id)
+            ? {
+                workspaces: s.workspaces.map((w) =>
+                  w.id === ws.id ? { ...w, name: ws.name } : w
+                ),
+              }
+            : {
+                workspaces: [
+                  ...s.workspaces,
+                  { id: ws.id, name: ws.name, createdAt: now() },
+                ],
+              }
         ),
       setChatSidekick: (chatId, sidekickId) =>
         set((s) => ({

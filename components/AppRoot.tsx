@@ -38,11 +38,13 @@ export default function AppRoot() {
   const setSearchOpen = useStore((s) => s.setSearchOpen);
   const lang = useStore((s) => s.lang);
   const setLang = useStore((s) => s.setLang);
+  const upsertWorkspace = useStore((s) => s.upsertWorkspace);
 
   const prevPath = useRef<string | null>(null);
   const isAuthRoute =
     pathname.startsWith("/login") || pathname.startsWith("/share");
   const isSetupRoute = pathname.startsWith("/setup");
+  const isJoinRoute = pathname.startsWith("/join-workspace");
 
   // First-run gate: null = unknown (still checking), true = must run setup.
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null);
@@ -59,7 +61,7 @@ export default function AppRoot() {
   // Runs on the app + /login (funnel new operators to setup), but NOT on
   // /setup (self-checks) or /share (public read-only viewer must stay open).
   useEffect(() => {
-    if (isSetupRoute || pathname.startsWith("/share")) return;
+    if (isSetupRoute || isJoinRoute || pathname.startsWith("/share")) return;
     fetch("/api/setup")
       .then((r) => r.json())
       .then(({ needsSetup }) => {
@@ -82,19 +84,26 @@ export default function AppRoot() {
     return () => window.removeEventListener("keydown", h);
   }, [setSearchOpen]);
 
-  // Load enabled server plugins (admin master-switches) for the current session.
+  // Load enabled server plugins + workspaces the user is a member of.
   useEffect(() => {
-    if (isAuthRoute || isSetupRoute) return;
+    if (isAuthRoute || isSetupRoute || isJoinRoute) return;
     fetch("/api/config")
       .then((r) => r.json())
       .then((d) => d?.plugins && setPluginFlags(d.plugins))
+      .catch(() => {});
+    // Server is the source of truth for workspace membership (invites) → merge.
+    fetch("/api/workspaces")
+      .then((r) => r.json())
+      .then((d) => {
+        for (const w of d?.workspaces ?? []) upsertWorkspace({ id: w.id, name: w.name });
+      })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   // Load session; ensure the per-user storage namespace matches the user.
   useEffect(() => {
-    if (isAuthRoute || isSetupRoute) return;
+    if (isAuthRoute || isSetupRoute || isJoinRoute) return;
     fetch("/api/auth/session")
       .then((r) => r.json())
       .then(({ user }) => {
@@ -170,7 +179,7 @@ export default function AppRoot() {
   // state update and can bounce back to the previous chat.
 
   // On /login, /share and /setup the route's own page renders; shell stays hidden.
-  if (isAuthRoute || isSetupRoute) return null;
+  if (isAuthRoute || isSetupRoute || isJoinRoute) return null;
 
   if (!mounted) {
     return <div className="h-dvh w-full bg-main-light dark:bg-main-dark" />;

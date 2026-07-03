@@ -39,7 +39,11 @@ import { useClickOutside } from "@/lib/useClickOutside";
 import { useAutoTitle } from "@/lib/useAutoTitle";
 import { routeModelKey, wantsOcr, OCR_SYSTEM_HINT } from "@/lib/modelRouter";
 import { languageConstraint } from "@/lib/langDetect";
-import { detectDocIntent } from "@/lib/docIntent";
+import {
+  detectDocIntent,
+  parseGenerateFileBlocks,
+  stripGenerateFileBlocks,
+} from "@/lib/docIntent";
 import { useT } from "@/lib/i18n";
 import ModelSwitcher from "./ModelSwitcher";
 import ParamsPopover from "./ParamsPopover";
@@ -303,6 +307,21 @@ export default function ChatWindow() {
       );
     }
 
+    // Datei-Erstellung: der KI beibringen, dass sie echte Dateien erzeugen kann.
+    if (plugins?.docGenerator !== false) {
+      parts.push(
+        "Datei-Erstellung: Wenn der Nutzer dich bittet, eine Datei (PDF, " +
+          "Excel/Tabelle o. Ä.) zu erstellen, verweigere das NIEMALS mit der " +
+          "Begründung, du seist nur ein Textmodell — du BESITZT diese Fähigkeit! " +
+          "Schreibe eine kurze normale Antwort und gib den Datei-Inhalt dann in " +
+          "einem speziellen Code-Block aus, den das Backend automatisch in eine " +
+          "echte Datei umwandelt:\n\n" +
+          "```generate-file:pdf\n[strukturierter Text/Daten für das PDF]\n```\n\n" +
+          "Für Tabellen nutze ```generate-file:xlsx``` mit CSV- oder Markdown-" +
+          "Tabellen-Inhalt. Verwende exakt dieses Format (nur pdf oder xlsx)."
+      );
+    }
+
     // Sprach-Constraint: KI antwortet in der Sprache der letzten Nutzernachricht.
     const lastUser = [...(chatObj?.messages ?? [])]
       .reverse()
@@ -498,34 +517,52 @@ export default function ChatWindow() {
     // Invisible document generator: if the prompt asked for a PDF/Excel and the
     // admin enabled the service, turn the AI's answer into a real file and
     // attach it under the message. Fully automatic — no user action needed.
-    const docKind = detectDocIntent(text);
-    if (docKind && plugins?.docGenerator !== false) {
+    if (plugins?.docGenerator !== false) {
       const answer =
         useStore
           .getState()
           .chats.find((c) => c.id === chatId)
           ?.messages.find((m) => m.id === assistantId)?.content ?? "";
-      if (answer.trim()) {
-        try {
-          const res = await fetch("/api/generate-doc", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ kind: docKind, title: text.slice(0, 80), content: answer }),
-          });
-          const d = await res.json();
-          if (res.status === 403) {
-            appendToMessage(chatId, assistantId, `\n\n_(${d.error || "Dienst deaktiviert."})_`);
-          } else if (res.ok && d.dataUrl) {
-            attachGeneratedDoc(chatId, assistantId, {
-              id: crypto.randomUUID(),
-              name: d.name,
-              mime: d.mime,
-              dataUrl: d.dataUrl,
-              size: d.size,
+      // Primary: explicit ```generate-file:<kind>``` blocks emitted by the model.
+      // Fallback: prompt intent → use the whole answer as content.
+      const blocks = parseGenerateFileBlocks(answer);
+      const fallbackKind = detectDocIntent(text);
+      const jobs =
+        blocks.length > 0
+          ? blocks
+          : fallbackKind && answer.trim()
+          ? [{ kind: fallbackKind, content: answer }]
+          : [];
+
+      if (jobs.length) {
+        // Hide the raw generate-file block; show a clean answer + download chip.
+        if (blocks.length) {
+          const cleaned = stripGenerateFileBlocks(answer);
+          setMessageContent(chatId, assistantId, cleaned || "Datei erstellt.");
+        }
+        for (const job of jobs) {
+          try {
+            const res = await fetch("/api/generate-doc", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ kind: job.kind, title: text.slice(0, 80), content: job.content }),
             });
+            const d = await res.json();
+            if (res.status === 403) {
+              appendToMessage(chatId, assistantId, `\n\n_(${d.error || "Dienst deaktiviert."})_`);
+              break;
+            } else if (res.ok && d.dataUrl) {
+              attachGeneratedDoc(chatId, assistantId, {
+                id: crypto.randomUUID(),
+                name: d.name,
+                mime: d.mime,
+                dataUrl: d.dataUrl,
+                size: d.size,
+              });
+            }
+          } catch {
+            /* ignore generation errors */
           }
-        } catch {
-          /* ignore generation errors */
         }
       }
     }

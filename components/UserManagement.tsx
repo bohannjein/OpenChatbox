@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, Trash2, Lock, Unlock, KeyRound, Loader2 } from "lucide-react";
+import { Users, Trash2, Lock, Unlock, KeyRound, Loader2, UserPlus } from "lucide-react";
 import clsx from "clsx";
 
 type U = {
@@ -20,6 +20,7 @@ export default function UserManagement() {
   const [users, setUsers] = useState<U[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [nu, setNu] = useState({ username: "", password: "", role: "user" });
 
   const load = async () => {
     try {
@@ -54,6 +55,30 @@ export default function UserManagement() {
     }
   };
 
+  const createUser = async () => {
+    if (!nu.username.trim() || nu.password.length < 6) {
+      setErr("Benutzername und Passwort (min. 6 Zeichen) nötig.");
+      return;
+    }
+    setBusy("create");
+    setErr(null);
+    try {
+      const r = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create", ...nu }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Fehler");
+      setUsers(d.users);
+      setNu({ username: "", password: "", role: "user" });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const resetPw = (u: U) => {
     const pw = window.prompt(`Neues Passwort für "${u.username}" (min. 6 Zeichen):`);
     if (pw && pw.length >= 6) act(u.id, "resetPassword", pw);
@@ -73,6 +98,42 @@ export default function UserManagement() {
         Rollen vergeben, Konten sperren, Passwörter zurücksetzen oder löschen.
       </p>
       {err && <div className="mb-2 text-sm text-red-500">⚠ {err}</div>}
+
+      {/* Create account */}
+      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border-light p-2 dark:border-border-dark">
+        <input
+          value={nu.username}
+          onChange={(e) => setNu({ ...nu, username: e.target.value })}
+          placeholder="Benutzername"
+          className="input-base min-w-0 flex-1 py-1"
+        />
+        <input
+          type="password"
+          value={nu.password}
+          onChange={(e) => setNu({ ...nu, password: e.target.value })}
+          placeholder="Passwort"
+          className="input-base min-w-0 flex-1 py-1"
+        />
+        <select
+          value={nu.role}
+          onChange={(e) => setNu({ ...nu, role: e.target.value })}
+          className="input-base w-28 py-1 text-xs"
+        >
+          {ROLES.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={createUser}
+          disabled={busy !== null}
+          className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-40"
+        >
+          <UserPlus size={15} /> Anlegen
+        </button>
+      </div>
+
       {!users ? (
         <Loader2 size={16} className="animate-spin text-neutral-400" />
       ) : (

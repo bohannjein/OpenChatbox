@@ -15,6 +15,8 @@ export interface Workspace {
   ownerId: string;
   /** user ids with access (owner is always included) */
   members: string[];
+  /** UUID invite token → /join-workspace/[token] */
+  inviteToken: string;
   createdAt: number;
 }
 
@@ -45,11 +47,43 @@ export function createWorkspace(name: string, ownerId: string): Workspace {
     name: name.trim() || "Workspace",
     ownerId,
     members: [ownerId],
+    inviteToken: crypto.randomUUID(),
     createdAt: Date.now(),
   };
   all.push(ws);
   save(all);
   return ws;
+}
+
+/** Look up a workspace by its invite token. */
+export function findByInvite(token: string): Workspace | null {
+  if (!token) return null;
+  return load().find((w) => w.inviteToken === token) ?? null;
+}
+
+/**
+ * Add a user to the workspace behind an invite token. Returns the workspace
+ * (already-a-member is a no-op success), or null if the token is invalid.
+ */
+export function joinByInvite(token: string, userId: string): Workspace | null {
+  const all = load();
+  const i = all.findIndex((w) => w.inviteToken === token);
+  if (i < 0) return null;
+  if (!all[i].members.includes(userId)) {
+    all[i].members.push(userId);
+    save(all);
+  }
+  return all[i];
+}
+
+/** Rotate the invite token (owner only) to revoke old links. */
+export function rotateInvite(id: string, ownerId: string): Workspace | null {
+  const all = load();
+  const i = all.findIndex((w) => w.id === id && w.ownerId === ownerId);
+  if (i < 0) return null;
+  all[i].inviteToken = crypto.randomUUID();
+  save(all);
+  return all[i];
 }
 
 export function setMembers(id: string, ownerId: string, members: string[]) {

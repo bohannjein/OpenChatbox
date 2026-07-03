@@ -1,0 +1,117 @@
+// OpenChatbox — target server-side persistence model.
+//
+// SQLite lives in the persistent /data volume (DATABASE_URL=file:/data/openchatbox.db);
+// swap `provider` to "postgresql" for Postgres. Migration path from the current
+// file/localStorage store. STRICT MULTI-TENANCY: every user-owned row carries
+// `userId` and ALL queries must filter by it. Workspace-shared rows are gated by
+// WorkspaceMember membership.
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String   @id @default(uuid())
+  username         String   @unique
+  passHash         String
+  salt             String
+  role             String   @default("user") // admin | poweruser | user | <custom role id>
+  provider         String   @default("local") // local | entra | ad
+  blocked          Boolean  @default(false)
+  twoFactorEnabled Boolean  @default(false)
+  twoFactorSecret  String?
+  createdAt        DateTime @default(now())
+
+  chats           Chat[]
+  sidekicks       Sidekick[]
+  memberships     WorkspaceMember[]
+  ownedWorkspaces Workspace[]       @relation("WorkspaceOwner")
+  setting         Setting?
+}
+
+// Per-user client settings (providers, params, prompts, aliases, branding, …)
+// stored as one JSON blob — cross-device, container-persistent.
+model Setting {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data      String   @default("{}")
+  updatedAt DateTime @updatedAt
+}
+
+model Workspace {
+  id          String   @id @default(uuid())
+  name        String
+  ownerId     String
+  owner       User     @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  inviteToken String   @unique @default(uuid()) // → /join-workspace/[inviteToken]
+  createdAt   DateTime @default(now())
+
+  members   WorkspaceMember[]
+  chats     Chat[]
+  sidekicks Sidekick[]
+}
+
+model WorkspaceMember {
+  workspaceId String
+  userId      String
+  role        String    @default("member") // owner | member
+  joinedAt    DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+  @@index([userId])
+}
+
+model Chat {
+  id          String     @id @default(uuid())
+  userId      String // owner — strict tenancy filter
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String? // null = personal space
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  title       String
+  modelKey    String?
+  sidekickId  String?
+  temporary   Boolean    @default(false)
+  pinned      Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  messages Message[]
+
+  @@index([userId])
+  @@index([workspaceId])
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  role      String // system | user | assistant
+  content   String
+  reasoning String?
+  images    String? // JSON array of data URLs / blob refs
+  createdAt DateTime @default(now())
+
+  @@index([chatId])
+}
+
+model Sidekick {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId  String?
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  name         String
+  icon         String
+  color        String
+  modelKey     String     @default("")
+  systemPrompt String     @default("")
+
+  @@index([userId])
+}
