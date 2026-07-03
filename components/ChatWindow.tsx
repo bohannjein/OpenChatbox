@@ -39,7 +39,7 @@ import type { Attachment } from "@/lib/files";
 import { buildShareLink, chatToMarkdown, download } from "@/lib/share";
 import { useClickOutside } from "@/lib/useClickOutside";
 import { useAutoTitle } from "@/lib/useAutoTitle";
-import { routeModelKey, wantsOcr, OCR_SYSTEM_HINT } from "@/lib/modelRouter";
+import { routeModelKey, OCR_SYSTEM_HINT } from "@/lib/modelRouter";
 import { languageConstraint } from "@/lib/langDetect";
 import {
   detectDocIntent,
@@ -101,8 +101,7 @@ export default function ChatWindow() {
   const providers = useStore((s) => s.providers);
   const selectedModelKey = useStore((s) => s.selectedModelKey);
   const autoRouter = useStore((s) => s.autoRouter);
-  const routerVisionKey = useStore((s) => s.routerVisionKey);
-  const routerOcrKey = useStore((s) => s.routerOcrKey);
+  const routerModels = useStore((s) => s.routerModels);
   const plugins = useStore((s) => s.plugins);
   const attachGeneratedDoc = useStore((s) => s.attachGeneratedDoc);
   const customInstructions = useStore((s) => s.customInstructions);
@@ -374,38 +373,40 @@ export default function ChatWindow() {
 
     // Auto-router: pick vision/OCR/text per turn from the attachments of the
     // message we're answering. A sidekick's own model always wins.
-    let routeRole: "text" | "vision" | "ocr" = "text";
+    let routeRole: "text" | "coding" | "reasoning" | "vision" = "text";
     if (autoRouter && !sk) {
       const idxU = chatObj?.messages.findIndex((m) => m.id === assistantId) ?? -1;
       const lastUser = [...(chatObj?.messages.slice(0, idxU) ?? [])]
         .reverse()
         .find((m) => m.role === "user");
       const hasImage = !!lastUser?.images?.length;
-      const hasDoc = !!chatObj?.files?.some(
-        (f) =>
-          f.messageId === lastUser?.id &&
-          (f.kind === "pdf" || f.kind === "text" || f.kind === "other")
-      );
-      if (hasImage || hasDoc) {
-        try {
-          const { options } = await loadAllModels(providers);
-          const ocrOn = plugins?.ocrEngine !== false; // admin master-switch
-          const routed = routeModelKey(
-            { textKey: effectiveKey, visionKey: routerVisionKey, ocrKey: routerOcrKey },
-            {
-              hasImage,
-              hasDoc: hasDoc && ocrOn,
-              ocrIntent: ocrOn && wantsOcr(lastUser?.content ?? ""),
-            },
-            options
-          );
-          if (routed.key) {
-            effectiveKey = routed.key;
-            routeRole = routed.role;
-          }
-        } catch {
-          /* routing failed → keep the primary model */
+      const ocrOn = plugins?.ocrEngine !== false; // admin master-switch
+      const hasDoc =
+        ocrOn &&
+        !!chatObj?.files?.some(
+          (f) =>
+            f.messageId === lastUser?.id &&
+            (f.kind === "pdf" || f.kind === "text" || f.kind === "other")
+        );
+      try {
+        // Scan the prompt (Coding/Reasoning keywords, image→Vision) → category model.
+        const { options } = await loadAllModels(providers);
+        const routed = routeModelKey(
+          {
+            standardKey: effectiveKey,
+            coding: routerModels.coding,
+            reasoning: routerModels.reasoning,
+            vision: routerModels.vision,
+          },
+          { hasImage, hasDoc, text: lastUser?.content ?? "" },
+          options
+        );
+        if (routed.key) {
+          effectiveKey = routed.key;
+          routeRole = routed.role;
         }
+      } catch {
+        /* routing failed → keep the primary model */
       }
     }
 
@@ -422,7 +423,7 @@ export default function ChatWindow() {
     let system = buildSystem(chatId);
     // Quick-OCR pipeline: when routed to a vision/OCR model, instruct it to read
     // & structure the document before answering.
-    if (routeRole === "vision" || routeRole === "ocr")
+    if (routeRole === "vision")
       system = (system ? system + "\n\n" : "") + OCR_SYSTEM_HINT;
 
     // Build history = all messages before the assistant message.

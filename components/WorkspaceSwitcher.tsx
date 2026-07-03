@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Plus, Check, Trash2, Layers, Link2 } from "lucide-react";
+import { ChevronDown, Plus, Check, Trash2, Layers, Share2, Copy } from "lucide-react";
 import { useStore, DEFAULT_WORKSPACE_ID } from "@/lib/store";
 import { useClickOutside } from "@/lib/useClickOutside";
+import Modal from "./Modal";
 
 /** Compact workspace selector: switch, create, delete (never the default). */
 export default function WorkspaceSwitcher() {
@@ -18,6 +19,7 @@ export default function WorkspaceSwitcher() {
   const [name, setName] = useState("");
   const [tokens, setTokens] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState<string | null>(null);
+  const [shareWs, setShareWs] = useState<{ id: string; name: string; token: string } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   // Load invite tokens for the user's server workspaces when the menu opens.
@@ -113,18 +115,15 @@ export default function WorkspaceSwitcher() {
                   <Check size={15} className="shrink-0 text-accent" />
                 )}
               </button>
-              {tokens[w.id] && (
+              {w.id !== DEFAULT_WORKSPACE_ID && tokens[w.id] && (
                 <button
-                  onClick={() => copyInvite(w.id)}
-                  title="Einladungslink kopieren"
-                  className={
-                    "shrink-0 rounded p-1 transition group-hover:opacity-100 " +
-                    (copied === w.id
-                      ? "text-emerald-500 opacity-100"
-                      : "text-neutral-400 opacity-0 hover:text-accent")
+                  onClick={() =>
+                    setShareWs({ id: w.id, name: w.name, token: tokens[w.id] })
                   }
+                  title="Workspace teilen"
+                  className="shrink-0 rounded p-1 text-neutral-400 opacity-0 transition hover:text-accent group-hover:opacity-100"
                 >
-                  {copied === w.id ? <Check size={13} /> : <Link2 size={13} />}
+                  <Share2 size={13} />
                 </button>
               )}
               {w.id !== DEFAULT_WORKSPACE_ID && (
@@ -171,6 +170,34 @@ export default function WorkspaceSwitcher() {
             )}
           </div>
         </div>
+      )}
+
+      {shareWs && (
+        <Modal onClose={() => setShareWs(null)}>
+          <div className="flex items-center gap-2">
+            <Share2 size={18} className="text-accent" />
+            <h2 className="text-lg font-bold">Workspace teilen</h2>
+          </div>
+          <p className="mt-1 text-sm text-neutral-500">
+            Sende diesen Link an Teammitglieder — wer eingeloggt ist und ihn
+            öffnet, wird Mitglied von „{shareWs.name}".
+          </p>
+          <div className="mt-4 flex items-center gap-2">
+            <input
+              readOnly
+              value={`${location.origin}/join-workspace/${shareWs.token}`}
+              onFocus={(e) => e.currentTarget.select()}
+              className="min-w-0 flex-1 input-base font-mono text-xs"
+            />
+            <button
+              onClick={() => copyInvite(shareWs.id)}
+              className="flex shrink-0 items-center gap-1 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
+            >
+              {copied === shareWs.id ? <Check size={14} /> : <Copy size={14} />}
+              {copied === shareWs.id ? "Kopiert" : "Kopieren"}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );

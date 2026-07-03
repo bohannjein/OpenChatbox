@@ -161,10 +161,9 @@ interface State {
   activeChatId: string | null;
   providers: Provider[];
   selectedModelKey: string | null;
-  // Auto model-router: when on, route each turn to vision/OCR/text automatically.
+  // Auto model-router: when on, route each turn to a category model automatically.
   autoRouter: boolean;
-  routerVisionKey: string | null;
-  routerOcrKey: string | null;
+  routerModels: { coding: string | null; reasoning: string | null; vision: string | null };
   prompts: PromptTemplate[];
   customInstructions: string;
   params: GenParams;
@@ -250,7 +249,10 @@ interface State {
   removeProvider: (id: string) => void;
   selectModel: (key: string) => void;
   setAutoRouter: (v: boolean) => void;
-  setRouterModel: (role: "vision" | "ocr", key: string | null) => void;
+  setRouterModel: (
+    category: "coding" | "reasoning" | "vision",
+    key: string | null
+  ) => void;
 
   // prompts
   upsertPrompt: (p: PromptTemplate) => void;
@@ -330,8 +332,7 @@ export const useStore = create<State>()(
       providers: defaultProviders(),
       selectedModelKey: null,
       autoRouter: false,
-      routerVisionKey: null,
-      routerOcrKey: null,
+      routerModels: { coding: null, reasoning: null, vision: null },
       prompts: defaultPrompts(),
       customInstructions: "",
       params: defaultParams(),
@@ -625,8 +626,8 @@ export const useStore = create<State>()(
         set((s) => ({ providers: s.providers.filter((p) => p.id !== id) })),
       selectModel: (key) => set({ selectedModelKey: key }),
       setAutoRouter: (autoRouter) => set({ autoRouter }),
-      setRouterModel: (role, key) =>
-        set(role === "vision" ? { routerVisionKey: key } : { routerOcrKey: key }),
+      setRouterModel: (category, key) =>
+        set((s) => ({ routerModels: { ...s.routerModels, [category]: key } })),
 
       upsertPrompt: (p) =>
         set((s) => ({
@@ -788,7 +789,7 @@ export const useStore = create<State>()(
     }),
     {
       name: "openchatbox-store",
-      version: 3,
+      version: 4,
       // localStorage-backed, but tolerant of quota errors (see safeStorage).
       storage: createJSONStorage(() => safeStorage),
       // persist everything except transient UI flags + temporary chats.
@@ -805,8 +806,7 @@ export const useStore = create<State>()(
         providers: s.providers,
         selectedModelKey: s.selectedModelKey,
         autoRouter: s.autoRouter,
-        routerVisionKey: s.routerVisionKey,
-        routerOcrKey: s.routerOcrKey,
+        routerModels: s.routerModels,
         prompts: s.prompts,
         customInstructions: s.customInstructions,
         params: s.params,
@@ -852,6 +852,16 @@ export const useStore = create<State>()(
           if (!Array.isArray(s.workspaces) || s.workspaces.length === 0)
             s.workspaces = defaultWorkspaces();
           if (!s.activeWorkspaceId) s.activeWorkspaceId = DEFAULT_WORKSPACE_ID;
+        }
+        if (version < 4) {
+          // Auto-router moved from vision/ocr keys to a category map.
+          const legacy = s as unknown as { routerVisionKey?: string | null };
+          if (!s.routerModels)
+            s.routerModels = {
+              coding: null,
+              reasoning: null,
+              vision: legacy.routerVisionKey ?? null,
+            };
         }
         return s as State;
       },

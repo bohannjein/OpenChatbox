@@ -22,6 +22,7 @@ import { useStore, inWorkspace } from "@/lib/store";
 import { SidekickAvatar } from "./SidekickIcon";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import AsciiSpinner from "./AsciiSpinner";
+import Modal from "./Modal";
 import { useT } from "@/lib/i18n";
 import type { Chat } from "@/lib/types";
 
@@ -50,6 +51,7 @@ export default function Sidebar() {
   const setSearchOpen = useStore((s) => s.setSearchOpen);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<Chat | null>(null);
 
   const startEdit = (id: string, title: string) => {
     setEditingId(id);
@@ -165,7 +167,7 @@ export default function Sidebar() {
               <Pencil size={14} />
             </button>
             <button
-              onClick={() => deleteChat(c.id)}
+              onClick={() => setPendingDelete(c)}
               className="shrink-0 text-neutral-400 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
               title="Löschen"
             >
@@ -178,6 +180,7 @@ export default function Sidebar() {
   };
 
   return (
+    <>
     <aside
       className={clsx(
         "z-30 h-dvh shrink-0 overflow-hidden border-r border-border-light bg-sidebar-light dark:border-border-dark dark:bg-sidebar-dark print:hidden",
@@ -304,5 +307,33 @@ export default function Sidebar() {
       </div>
       </div>
     </aside>
+
+      {pendingDelete && (
+        <Modal onClose={() => setPendingDelete(null)}>
+          <h2 className="text-lg font-bold">Chat löschen?</h2>
+          <p className="mt-2 text-sm text-neutral-500">
+            Auch Prompts, Antworten, Feedback und von dir erstellte Inhalte
+            werden aus deinem Aktivitätsverlauf gelöscht.
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              onClick={() => setPendingDelete(null)}
+              className="rounded-lg border border-border-light px-4 py-2 text-sm font-medium transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
+            >
+              Abbrechen
+            </button>
+            <button
+              onClick={() => {
+                deleteChat(pendingDelete.id);
+                setPendingDelete(null);
+              }}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
+            >
+              Löschen
+            </button>
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }

@@ -22,6 +22,8 @@ export default function AdminPanel() {
   const toggleFavorite = useStore((s) => s.toggleFavorite);
   const aliases = useStore((s) => s.aliases);
   const setAlias = useStore((s) => s.setAlias);
+  const routerModels = useStore((s) => s.routerModels);
+  const setRouterModel = useStore((s) => s.setRouterModel);
 
   const ollamaProviders = useMemo(
     () => providers.filter((p) => p.type === "ollama"),
@@ -258,6 +260,47 @@ export default function AdminPanel() {
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* Auto-router: category → model mapping */}
+      <section className="border-t border-border-light pt-4 dark:border-border-dark">
+        <h3 className="font-medium">Auto-Modus — Kategorie-Routing</h3>
+        <p className="mb-3 text-sm text-neutral-500">
+          Weise Kategorien ein Modell aus dem Ollama-Pool zu. Im „Auto"-Modus
+          wählt das Backend anhand von Keywords automatisch. Ohne Treffer greift
+          das aktuell gewählte Standard-Modell.
+        </p>
+        <div className="space-y-2">
+          {(
+            [
+              ["coding", "Coding", "Keywords: skript, python, code, bug, funktion …"],
+              ["reasoning", "Reasoning / Math", "Keywords: rechne, logik, beweise, gleichung …"],
+              ["vision", "Vision", "bei Bildern & Dokumenten"],
+            ] as const
+          ).map(([cat, label, hint]) => (
+            <div key={cat} className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium">{label}</div>
+                <div className="truncate text-xs text-neutral-400">{hint}</div>
+              </div>
+              <select
+                value={routerModels[cat] ?? ""}
+                onChange={(e) => setRouterModel(cat, e.target.value || null)}
+                className="input-base w-48 py-1 text-xs"
+              >
+                <option value="">— Standard —</option>
+                {models.map((m) => {
+                  const key = modelKey(server!.id, m);
+                  return (
+                    <option key={key} value={key}>
+                      {aliases[key] || m}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          ))}
         </div>
       </section>
 
