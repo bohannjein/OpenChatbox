@@ -185,6 +185,8 @@ interface State {
   // code splitscreen
   codeSplitEnabled: boolean;
   codeSplitThreshold: number;
+  /** persisted width (px) of the right splitscreen panel */
+  codeSplitWidth: number;
   /** VRAM-Management an/aus (aus = Ollama-Default, kein keep_alive gesetzt) */
   vramManaged: boolean;
   /** Ollama keep_alive (VRAM-Freigabe), z.B. "2m", "30s", "0", "-1" */
@@ -273,6 +275,7 @@ interface State {
   // code splitscreen
   setCodeSplitEnabled: (v: boolean) => void;
   setCodeSplitThreshold: (n: number) => void;
+  setCodeSplitWidth: (n: number) => void;
   setOllamaKeepAlive: (v: string) => void;
   setVramManaged: (v: boolean) => void;
 
@@ -343,6 +346,7 @@ export const useStore = create<State>()(
       aliases: {},
       codeSplitEnabled: true,
       codeSplitThreshold: 15,
+      codeSplitWidth: 560,
       vramManaged: true,
       ollamaKeepAlive: "2m",
       sidekicks: [],
@@ -658,6 +662,8 @@ export const useStore = create<State>()(
       setCodeSplitEnabled: (codeSplitEnabled) => set({ codeSplitEnabled }),
       setCodeSplitThreshold: (codeSplitThreshold) =>
         set({ codeSplitThreshold: Math.max(1, codeSplitThreshold || 15) }),
+      setCodeSplitWidth: (codeSplitWidth) =>
+        set({ codeSplitWidth: Math.round(codeSplitWidth) || 560 }),
       setOllamaKeepAlive: (ollamaKeepAlive) =>
         set({ ollamaKeepAlive: ollamaKeepAlive.trim() || "2m" }),
       setVramManaged: (vramManaged) => set({ vramManaged }),
@@ -813,6 +819,7 @@ export const useStore = create<State>()(
         aliases: s.aliases,
         codeSplitEnabled: s.codeSplitEnabled,
         codeSplitThreshold: s.codeSplitThreshold,
+        codeSplitWidth: s.codeSplitWidth,
         vramManaged: s.vramManaged,
         ollamaKeepAlive: s.ollamaKeepAlive,
         sidekicks: s.sidekicks,

@@ -16,6 +16,7 @@ import {
   Sparkles,
   FolderOpen,
   Trash2,
+  StickyNote,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import {
@@ -30,6 +31,7 @@ import {
 } from "@/lib/providers";
 import CodePanel from "./CodePanel";
 import ArchivePanel from "./ArchivePanel";
+import NotesPanel from "./NotesPanel";
 import { CodePanelContext } from "./codePanelContext";
 import { SidekickAvatar } from "./SidekickIcon";
 import type { ChatFile, Message, Role } from "@/lib/types";
@@ -126,6 +128,8 @@ export default function ChatWindow() {
   const aliases = useStore((s) => s.aliases);
   const codeSplitEnabled = useStore((s) => s.codeSplitEnabled);
   const codeSplitThreshold = useStore((s) => s.codeSplitThreshold);
+  const codeSplitWidth = useStore((s) => s.codeSplitWidth);
+  const setCodeSplitWidth = useStore((s) => s.setCodeSplitWidth);
   const ollamaKeepAlive = useStore((s) => s.ollamaKeepAlive);
   const vramManaged = useStore((s) => s.vramManaged);
   const sidekicks = useStore((s) => s.sidekicks);
@@ -143,21 +147,30 @@ export default function ChatWindow() {
   const [panelMsgId, setPanelMsgId] = useState<string | null>(null);
   const [dismissedFor, setDismissedFor] = useState<string | null>(null);
   const fileSeq = useRef(0);
-  const [panelWidth, setPanelWidth] = useState(560);
+  const [panelWidth, setPanelWidth] = useState(codeSplitWidth);
+  const [resizing, setResizing] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   const [ghostMenu, setGhostMenu] = useState(false);
   const ghostRef = useRef<HTMLDivElement>(null);
 
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault();
+    setResizing(true);
+    let last = panelWidth;
     const move = (ev: MouseEvent) => {
-      const w = window.innerWidth - ev.clientX;
-      setPanelWidth(Math.min(Math.max(w, 320), window.innerWidth - 300));
+      last = Math.min(
+        Math.max(window.innerWidth - ev.clientX, 320),
+        window.innerWidth - 300
+      );
+      setPanelWidth(last);
     };
     const up = () => {
       document.removeEventListener("mousemove", move);
       document.removeEventListener("mouseup", up);
       document.body.style.userSelect = "";
+      setResizing(false);
+      setCodeSplitWidth(last); // persist final width
     };
     document.body.style.userSelect = "none";
     document.addEventListener("mousemove", move);
@@ -205,8 +218,12 @@ export default function ChatWindow() {
 
     setCodePanel((prev) => {
       // same message still streaming → keep file, just refresh content
-      if (panelMsgId === lastAssist.id && prev)
+      if (panelMsgId === lastAssist.id && prev) {
+        // Unchanged block → return prev (same ref) so React skips the re-render
+        // → no flicker between tokens that don't touch the code.
+        if (prev.code === blk.code && prev.lang === blk.lang) return prev;
         return { ...prev, code: blk.code, lang: blk.lang };
+      }
       // new assistant message → update existing file or start a new one
       const update = prev && isCodeUpdate(prev, blk, userText);
       const name =
@@ -697,7 +714,10 @@ export default function ChatWindow() {
 
         <div className="ml-auto flex items-center gap-1">
           <button
-            onClick={() => setArchiveOpen((v) => !v)}
+            onClick={() => {
+              setArchiveOpen((v) => !v);
+              setNotesOpen(false);
+            }}
             title="Archiv"
             className={clsx(
               "relative rounded-lg p-2 transition",
@@ -712,6 +732,21 @@ export default function ChatWindow() {
                 {chatFiles.length}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => {
+              setNotesOpen((v) => !v);
+              setArchiveOpen(false);
+            }}
+            title="Notizen"
+            className={clsx(
+              "rounded-lg p-2 transition",
+              notesOpen
+                ? "bg-accent/15 text-accent"
+                : "text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
+            )}
+          >
+            <StickyNote size={18} />
           </button>
           <div className="relative" ref={ghostRef}>
             <button
@@ -918,18 +953,30 @@ export default function ChatWindow() {
       </div>
       </CodePanelContext.Provider>
 
-      {/* Right splitscreen — archive takes precedence, else code. Resizable. */}
-      {(archiveOpen || codePanel) && (
+      {/* Right splitscreen — notes/archive take precedence, else code. Resizable. */}
+      {(notesOpen || archiveOpen || codePanel) && (
         <div
           className="relative flex min-w-0 shrink-0 overflow-hidden"
           style={{ width: panelWidth, maxWidth: "85vw" }}
         >
+          {/* Draggable divider — wide hit area, visible line, accent while dragging */}
           <div
             onMouseDown={startResize}
-            className="absolute left-0 top-0 z-20 h-full w-1.5 -translate-x-1/2 cursor-col-resize bg-transparent transition hover:bg-accent/40"
+            className="group absolute left-0 top-0 z-20 flex h-full w-3 -translate-x-1/2 cursor-col-resize items-center justify-center"
             title="Breite ziehen"
-          />
-          {archiveOpen ? (
+          >
+            <div
+              className={clsx(
+                "h-full w-px transition-all",
+                resizing
+                  ? "w-1 bg-accent"
+                  : "bg-border-light group-hover:w-1 group-hover:bg-accent/60 dark:bg-border-dark"
+              )}
+            />
+          </div>
+          {notesOpen ? (
+            <NotesPanel onClose={() => setNotesOpen(false)} />
+          ) : archiveOpen ? (
             <ArchivePanel
               files={chatFiles}
               onJump={jumpToMessage}

@@ -15,10 +15,15 @@ export default function CodeBlock({
 }) {
   const [copied, setCopied] = useState(false);
   const panel = useCodePanel();
+  // Render-lock: once this block is shown in the splitscreen, keep it locked
+  // inline even while the answer streams. Exact equality flips token-by-token
+  // during streaming (panel + inline grow separately) → prefix-tolerant match
+  // keeps the SAME block suppressed and stops the layout from jumping.
+  const norm = (s: string) => s.replace(/\s+$/, "");
+  const a = panel?.panelCode != null ? norm(panel.panelCode) : null;
+  const b = norm(code);
   const isInPanel =
-    !!panel &&
-    panel.panelCode != null &&
-    panel.panelCode.trim() === code.trim();
+    !!a && b.length > 0 && (a === b || a.startsWith(b) || b.startsWith(a));
 
   const copy = async () => {
     try {
