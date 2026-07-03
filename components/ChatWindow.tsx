@@ -588,7 +588,7 @@ export default function ChatWindow() {
             const res = await fetch("/api/generate-doc", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ kind: job.kind, title: text.slice(0, 80), content: job.content, chatId }),
+              body: JSON.stringify({ kind: job.kind, content: job.content, chatId }),
             });
             const d = await res.json().catch(() => ({}));
             if (res.ok && d.dataUrl) {

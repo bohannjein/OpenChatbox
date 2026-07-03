@@ -272,7 +272,11 @@ function decodeEntities(s: string): string {
     .replace(/&#39;/g, "'");
 }
 function stripTags(s: string): string {
-  return decodeEntities(String(s).replace(/<[^>]+>/g, " "))
+  return decodeEntities(
+    String(s)
+      .replace(/<[^>]*>/g, " ") // complete tags
+      .replace(/<[^>]*$/g, " ") // trailing unclosed tag (e.g. "<td")
+  )
     .replace(/[ \t]+/g, " ")
     .trim();
 }

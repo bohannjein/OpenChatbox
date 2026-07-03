@@ -42,15 +42,20 @@ export async function POST(req: NextRequest) {
   if (!k)
     return NextResponse.json({ error: "kind muss 'pdf' oder 'xlsx' sein." }, { status: 400 });
 
-  const safeTitle = String(title || "Dokument").slice(0, 80);
+  const c = String(content || "");
+  // Filename from the document's own <title>/<h1>/# heading — NOT the prompt.
+  const docTitle =
+    /<title[^>]*>([\s\S]*?)<\/title>/i.exec(c)?.[1] ||
+    /<h1[^>]*>([\s\S]*?)<\/h1>/i.exec(c)?.[1] ||
+    /^#\s+(.+)$/m.exec(c)?.[1] ||
+    String(title || "");
+  const base = slugName(docTitle.replace(/<[^>]+>/g, "").trim()) || "dokument";
   try {
     if (k === "pdf") {
-      const c = String(content || "");
-      // HTML content → the HTML→PDF printer; plain Markdown → pdf-lib renderer.
-      const buf = looksLikeHtml(c)
-        ? await htmlToPdf(safeTitle, c)
-        : await generatePdf(safeTitle, c);
-      const name = `${slugName(safeTitle)}.pdf`;
+      // Empty title → don't inject the prompt as a heading; the document
+      // carries its own heading.
+      const buf = looksLikeHtml(c) ? await htmlToPdf("", c) : await generatePdf("", c);
+      const name = `${base}.pdf`;
       saveDownload(chatId, name, buf);
       return NextResponse.json({
         name,
@@ -59,10 +64,10 @@ export async function POST(req: NextRequest) {
         dataUrl: `data:application/pdf;base64,${buf.toString("base64")}`,
       });
     }
-    const buf = await generateXlsx(safeTitle, String(content || ""));
+    const buf = await generateXlsx("", c);
     const mime =
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    const name = `${slugName(safeTitle)}.xlsx`;
+    const name = `${base}.xlsx`;
     saveDownload(chatId, name, buf);
     return NextResponse.json({
       name,

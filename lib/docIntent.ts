@@ -99,7 +99,9 @@ export const HTML_DOC_INSTRUCTION =
   "erscheint dem Nutzer NICHT — er sieht nur deinen Satz und die fertige PDF.\n" +
   "Gestalte es professionell und KOMPAKT, sodass es möglichst auf EINE A4-Seite " +
   "passt (klarer Titel, Abschnitte, Tabellen; keine überflüssige Prosa, keine " +
-  "Wiederholungen). Nur wenn der Inhalt es zwingend erfordert, nutze mehr Platz.";
+  "Wiederholungen). Nur wenn der Inhalt es zwingend erfordert, nutze mehr Platz. " +
+  "Übernimm die Anweisung/den Prompt NICHT als Überschrift oder Text ins Dokument " +
+  "und schließe alle HTML-Tags sauber (kein abgeschnittenes Markup).";
 
 /** True if a string is HTML markup (→ route to the HTML→PDF printer). */
 export const looksLikeHtml = (s: string) =>
