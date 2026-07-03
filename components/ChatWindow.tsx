@@ -43,8 +43,8 @@ import { routeModelKey, OCR_SYSTEM_HINT } from "@/lib/modelRouter";
 import { languageConstraint } from "@/lib/langDetect";
 import {
   detectDocIntent,
-  parseGenerateFileBlocks,
-  stripGenerateFileBlocks,
+  parseDocBlocks,
+  stripDocBlocks,
   extractHtmlDoc,
   stripHtmlDoc,
   isDocumentRequest,
@@ -553,7 +553,7 @@ export default function ChatWindow() {
           ?.messages.find((m) => m.id === assistantId)?.content ?? "";
       // 1) explicit ```generate-file:<kind>``` blocks, 2) a raw <html> document
       // (forced HTML doc mode), 3) prompt-intent fallback (whole answer).
-      const blocks = parseGenerateFileBlocks(answer);
+      const blocks = parseDocBlocks(answer);
       const html = blocks.length ? null : extractHtmlDoc(answer);
       const fallbackKind = blocks.length || html ? null : detectDocIntent(text);
       const jobs: { kind: "pdf" | "xlsx"; content: string }[] = blocks.length
@@ -570,7 +570,7 @@ export default function ChatWindow() {
           setMessageContent(
             chatId,
             assistantId,
-            stripGenerateFileBlocks(answer) || "Hier ist dein fertiges Dokument. 📄"
+            stripDocBlocks(answer) || "Hier ist dein fertiges Dokument. 📄"
           );
         else if (html)
           setMessageContent(

@@ -34,6 +34,49 @@ export function stripGenerateFileBlocks(text: string): string {
   return (text || "").replace(FENCE, "").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+/** A full HTML document (not a small snippet) → treat as a document to print. */
+export const isFullHtml = (s: string) => /<!doctype html|<html[\s>]/i.test(s || "");
+
+// Any fenced block: ```lang\n…\n```
+const ANY_FENCE = /```([^\n]*)\n([\s\S]*?)```/g;
+
+/** True if a fenced block is a document (generate-file tag or full HTML) —
+ *  shown as a placeholder, never as raw code, and turned into a file. */
+export function isDocBlock(lang: string, content: string): boolean {
+  return (lang || "").trim().toLowerCase().startsWith("generate-file") || isFullHtml(content);
+}
+
+/**
+ * Extract document jobs from ANY fenced block the model produced —
+ * ```generate-file:pdf|xlsx``` OR a plain ```html``` with a full HTML document.
+ * Robust to models that ignore the special fence.
+ */
+export function parseDocBlocks(text: string): { kind: DocKind; content: string }[] {
+  const out: { kind: DocKind; content: string }[] = [];
+  for (const m of (text || "").matchAll(ANY_FENCE)) {
+    const lang = m[1].trim().toLowerCase();
+    const content = m[2].trim();
+    if (!content) continue;
+    if (lang.startsWith("generate-file")) {
+      const tag = lang.slice("generate-file".length).replace(/^:/, "");
+      out.push({ kind: tag === "xlsx" || tag === "excel" || tag === "csv" ? "xlsx" : "pdf", content });
+    } else if (isFullHtml(content)) {
+      out.push({ kind: "pdf", content });
+    }
+  }
+  return out;
+}
+
+/** Remove document blocks from the answer shown to the user. */
+export function stripDocBlocks(text: string): string {
+  return (text || "")
+    .replace(ANY_FENCE, (full, lang: string, content: string) =>
+      isDocBlock(lang, content) ? "" : full
+    )
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 // Broad "the user wants a document" detector → forces HTML doc mode.
 const DOC_REQUEST_RE =
   /\b(erstelle|erstell|generiere|generier|mach|erzeuge|erzeug|baue|create|generate|make|export|exportiere)\b[^.\n]*\b(pdf|excel|dokument|protokoll|rechnung|tabelle|bericht|report|spreadsheet|angebot|vertrag|urkunde|zertifikat|brief)\b|\bals\s+(pdf|dokument|excel|tabelle|datei)\b|ausgabeprotokoll/i;

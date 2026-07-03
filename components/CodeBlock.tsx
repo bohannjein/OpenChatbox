@@ -5,6 +5,7 @@ import { Check, Copy, PanelRight, Code2, MessageSquare, Download } from "lucide-
 import { useCodePanel } from "./codePanelContext";
 import { langToExt } from "@/lib/providers";
 import { download } from "@/lib/share";
+import { isDocBlock } from "@/lib/docIntent";
 
 export default function CodeBlock({
   code,
@@ -30,9 +31,9 @@ export default function CodeBlock({
   const saveFile = () =>
     download(`code.${langToExt(language || "text")}`, code, "text/plain");
 
-  // Document blocks (```generate-file:…```) never show as code — the backend
-  // turns them into a real file. Show a neat placeholder while it streams.
-  const isDocBlock = (language || "").startsWith("generate-file");
+  // Document blocks (generate-file tag or a full HTML document) never show as
+  // code — the backend turns them into a real file. Placeholder while streaming.
+  const docBlock = isDocBlock(language || "", code);
 
   const copy = async () => {
     try {
@@ -44,7 +45,7 @@ export default function CodeBlock({
     }
   };
 
-  if (isDocBlock) {
+  if (docBlock) {
     return (
       <div className="my-3 flex items-center gap-2 rounded-xl border border-border-light bg-neutral-100 px-4 py-3 text-sm text-neutral-500 dark:border-border-dark dark:bg-white/5">
         <Code2 size={15} className="shrink-0 animate-pulse text-accent" />
