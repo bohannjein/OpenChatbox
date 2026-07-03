@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       } else if (kind === "pdf") {
         files.push({
           ...base,
-          note: "PDF angehängt — Textinhalt wird derzeit nicht ausgelesen.",
+          note: "PDF angehängt — Text wird für Vision/OCR-Modelle vorbereitet.",
         });
       } else {
         // best-effort: treat unknown as text

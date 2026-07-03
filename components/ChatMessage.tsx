@@ -18,10 +18,12 @@ import {
   Download,
   FileSpreadsheet,
   FileType,
+  FileText,
 } from "lucide-react";
 import Markdown from "./Markdown";
 import { useStore } from "@/lib/store";
 import { copyText } from "@/lib/clipboard";
+import { download } from "@/lib/share";
 import type { Message } from "@/lib/types";
 
 export default function ChatMessage({
@@ -39,6 +41,35 @@ export default function ChatMessage({
 }) {
   const setActiveVariant = useStore((s) => s.setActiveVariant);
   const setFeedback = useStore((s) => s.setFeedback);
+  const chatFiles = useStore((s) => s.chats.find((c) => c.id === chatId)?.files);
+
+  // Non-image uploads attached to this message (images already render inline).
+  const attachments = (chatFiles ?? []).filter(
+    (f) => f.messageId === message.id && f.source === "upload" && f.kind !== "image"
+  );
+  const attachChips =
+    attachments.length > 0 ? (
+      <div className="mb-1 flex flex-wrap justify-end gap-2">
+        {attachments.map((f) => {
+          const Icon =
+            f.kind === "pdf" ? FileType : f.kind === "code" ? FileText : FileText;
+          const clickable = !!f.content;
+          return (
+            <button
+              key={f.id}
+              onClick={() => f.content && download(f.name, f.content, "text/plain")}
+              disabled={!clickable}
+              title={f.content ? `${f.name} herunterladen` : f.name}
+              className="flex items-center gap-2 rounded-xl border border-border-light bg-neutral-50 px-3 py-2 text-sm transition enabled:hover:border-accent enabled:hover:bg-accent/5 disabled:cursor-default dark:border-border-dark dark:bg-white/5"
+            >
+              <Icon size={16} className="shrink-0 text-accent" />
+              <span className="max-w-[12rem] truncate">{f.name}</span>
+              {clickable && <Download size={13} className="shrink-0 text-neutral-400" />}
+            </button>
+          );
+        })}
+      </div>
+    ) : null;
 
   const [copied, setCopied] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -142,6 +173,7 @@ export default function ChatMessage({
                   ))}
                 </div>
               )}
+              {attachChips}
               {message.content && (
                 <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-tr-none bg-accent/15 px-4 py-2.5 leading-7">
                   {message.content}
