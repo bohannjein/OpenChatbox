@@ -6,6 +6,7 @@ import { useCodePanel } from "./codePanelContext";
 import { langToExt } from "@/lib/providers";
 import { download } from "@/lib/share";
 import { isDocBlock } from "@/lib/docIntent";
+import { copyText } from "@/lib/clipboard";
 
 export default function CodeBlock({
   code,
@@ -36,12 +37,9 @@ export default function CodeBlock({
   const docBlock = isDocBlock(language || "", code);
 
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
+    if (await copyText(code)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard blocked */
     }
   };
 

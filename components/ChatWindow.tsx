@@ -51,6 +51,7 @@ import {
 } from "@/lib/docIntent";
 import { useT } from "@/lib/i18n";
 import { uid } from "@/lib/uid";
+import { copyText } from "@/lib/clipboard";
 import ModelSwitcher from "./ModelSwitcher";
 import ParamsPopover from "./ParamsPopover";
 import ChatMessage from "./ChatMessage";
@@ -664,12 +665,9 @@ export default function ChatWindow() {
 
   const doShareLink = async () => {
     if (!chat) return;
-    try {
-      await navigator.clipboard.writeText(buildShareLink(chat));
+    if (await copyText(buildShareLink(chat))) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* ignore */
     }
   };
   const doExportMd = () => {

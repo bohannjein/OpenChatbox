@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import Markdown from "./Markdown";
 import { useStore } from "@/lib/store";
+import { copyText } from "@/lib/clipboard";
 import type { Message } from "@/lib/types";
 
 export default function ChatMessage({
@@ -61,12 +62,9 @@ export default function ChatMessage({
   }, [editing]);
 
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(message.content);
+    if (await copyText(message.content)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* ignore */
     }
   };
 

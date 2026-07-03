@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Plus, Check, Trash2, Layers, Share2, Copy } from "lucide-react";
 import { useStore, DEFAULT_WORKSPACE_ID } from "@/lib/store";
 import { useClickOutside } from "@/lib/useClickOutside";
+import { copyText } from "@/lib/clipboard";
 import Modal from "./Modal";
 
 /** Compact workspace selector: switch, create, delete (never the default). */
@@ -38,12 +39,9 @@ export default function WorkspaceSwitcher() {
   const copyInvite = async (id: string) => {
     const t = tokens[id];
     if (!t) return;
-    try {
-      await navigator.clipboard.writeText(`${location.origin}/join-workspace/${t}`);
+    if (await copyText(`${location.origin}/join-workspace/${t}`)) {
       setCopied(id);
       setTimeout(() => setCopied((c) => (c === id ? null : c)), 1500);
-    } catch {
-      /* ignore */
     }
   };
   useClickOutside(ref, () => {
