@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, PanelRight, Code2, MessageSquare } from "lucide-react";
+import { Check, Copy, PanelRight, Code2, MessageSquare, Download } from "lucide-react";
 import { useCodePanel } from "./codePanelContext";
+import { langToExt } from "@/lib/providers";
+import { download } from "@/lib/share";
 
 export default function CodeBlock({
   code,
@@ -24,6 +26,9 @@ export default function CodeBlock({
   const b = norm(code);
   const isInPanel =
     !!a && b.length > 0 && (a === b || a.startsWith(b) || b.startsWith(a));
+
+  const saveFile = () =>
+    download(`code.${langToExt(language || "text")}`, code, "text/plain");
 
   const copy = async () => {
     try {
@@ -69,6 +74,13 @@ export default function CodeBlock({
               <PanelRight size={13} /> Splitscreen
             </button>
           )}
+          <button
+            onClick={saveFile}
+            title={`Herunterladen (.${langToExt(language || "text")})`}
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 transition hover:text-neutral-800 dark:hover:text-neutral-200"
+          >
+            <Download size={13} /> Download
+          </button>
           <button
             onClick={copy}
             className="flex items-center gap-1 rounded px-1.5 py-0.5 transition hover:text-neutral-800 dark:hover:text-neutral-200"
