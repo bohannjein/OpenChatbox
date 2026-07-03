@@ -312,7 +312,10 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
             dataUrl,
           })
         );
-      } catch {
+      } catch (e) {
+        // Surface the real render/worker error — otherwise the PDF silently
+        // becomes a note and the vision model sees nothing ("no file content").
+        console.error("pdfToImages failed", e);
         failedPdfs.push(f); // fall back to server upload (note)
       }
     }

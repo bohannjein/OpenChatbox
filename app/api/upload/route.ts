@@ -81,7 +81,9 @@ export async function POST(req: NextRequest) {
       } else if (kind === "pdf") {
         files.push({
           ...base,
-          note: "PDF angehängt — Text wird für Vision/OCR-Modelle vorbereitet.",
+          note:
+            "PDF konnte nicht in Seitenbilder umgewandelt werden — als Datei " +
+            "angehängt (Vision-Modell kann den Inhalt nicht lesen).",
         });
       } else {
         // best-effort: treat unknown as text

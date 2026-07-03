@@ -10,3 +10,6 @@ next-env.d.ts
 *.tsbuildinfo
 /data
 .env*.local
+
+# generated at build (scripts/copy-pdf-worker.mjs)
+/public/pdf.worker.min.mjs

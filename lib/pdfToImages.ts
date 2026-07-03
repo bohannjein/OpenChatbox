@@ -12,10 +12,10 @@ export async function pdfToImages(
 ): Promise<string[]> {
   const pdfjs = await import("pdfjs-dist");
   if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-    pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-      "pdfjs-dist/build/pdf.worker.min.mjs",
-      import.meta.url
-    ).toString();
+    // Served from /public (copied at build via scripts/copy-pdf-worker.mjs).
+    // An absolute served URL is deterministic in the Next standalone/Docker
+    // bundle over HTTP — unlike `new URL(..., import.meta.url)` which 404s.
+    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
   }
 
   const data = new Uint8Array(await file.arrayBuffer());
