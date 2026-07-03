@@ -567,9 +567,17 @@ export default function ChatWindow() {
       if (jobs.length) {
         // Hide the raw block / HTML; show a clean answer + the download card.
         if (blocks.length)
-          setMessageContent(chatId, assistantId, stripGenerateFileBlocks(answer) || "Dokument erstellt.");
+          setMessageContent(
+            chatId,
+            assistantId,
+            stripGenerateFileBlocks(answer) || "Hier ist dein fertiges Dokument. 📄"
+          );
         else if (html)
-          setMessageContent(chatId, assistantId, stripHtmlDoc(answer) || "Dokument erstellt.");
+          setMessageContent(
+            chatId,
+            assistantId,
+            stripHtmlDoc(answer) || "Hier ist dein fertiges Dokument. 📄"
+          );
         for (const job of jobs) {
           try {
             const res = await fetch("/api/generate-doc", {

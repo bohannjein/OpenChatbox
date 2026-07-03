@@ -30,6 +30,10 @@ export default function CodeBlock({
   const saveFile = () =>
     download(`code.${langToExt(language || "text")}`, code, "text/plain");
 
+  // Document blocks (```generate-file:…```) never show as code — the backend
+  // turns them into a real file. Show a neat placeholder while it streams.
+  const isDocBlock = (language || "").startsWith("generate-file");
+
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(code);
@@ -39,6 +43,15 @@ export default function CodeBlock({
       /* clipboard blocked */
     }
   };
+
+  if (isDocBlock) {
+    return (
+      <div className="my-3 flex items-center gap-2 rounded-xl border border-border-light bg-neutral-100 px-4 py-3 text-sm text-neutral-500 dark:border-border-dark dark:bg-white/5">
+        <Code2 size={15} className="shrink-0 animate-pulse text-accent" />
+        <span className="truncate">Dokument wird erstellt…</span>
+      </div>
+    );
+  }
 
   // Shown as a compact placeholder while the code lives in the right splitscreen.
   if (isInPanel) {

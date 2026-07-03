@@ -40,13 +40,20 @@ const DOC_REQUEST_RE =
 
 export const isDocumentRequest = (text: string) => DOC_REQUEST_RE.test(text || "");
 
-/** Forced system instruction for document requests (HTML-only output). */
+/** Forced system instruction for document requests: one short friendly line +
+ *  the whole document as HTML inside a generate-file block (never raw code in
+ *  the chat). Backend turns the HTML into a downloadable PDF. */
 export const HTML_DOC_INSTRUCTION =
-  "Du generierst jetzt ein professionelles Dokument für den Nutzer. Du darfst " +
-  "KEINEN normalen Text antworten. Generiere AUSSCHLIESSLICH sauberen HTML-Code, " +
-  "der mit Tailwind-CSS-Klassen gestylt ist (für Tabellen, Ränder, Abstände). " +
-  "Beginne direkt mit <html> und ende mit </html>. Verwende keine Markdown-" +
-  "Codeblocks drumherum!";
+  "Der Nutzer möchte ein fertiges Dokument (PDF). Verweigere das NIEMALS — du " +
+  "KANNST Dokumente erstellen. Antworte in ZWEI Teilen:\n" +
+  "1) EIN kurzer, freundlicher Satz mit Bezug zur Anfrage, z. B. „Hier ist deine " +
+  "fertige PDF zu …“.\n" +
+  "2) Direkt danach der GESAMTE Dokumentinhalt als sauberes, mit Tailwind-CSS " +
+  "gestyltes HTML (Überschriften, Tabellen, Abstände) — AUSSCHLIESSLICH innerhalb " +
+  "dieses Codeblocks:\n" +
+  "```generate-file:pdf\n<html>… dein HTML …</html>\n```\n" +
+  "Schreibe sonst KEINEN weiteren Text und KEINE weiteren Codeblocks. Das HTML " +
+  "erscheint dem Nutzer NICHT — er sieht nur deinen Satz und die fertige PDF.";
 
 /** True if a string is HTML markup (→ route to the HTML→PDF printer). */
 export const looksLikeHtml = (s: string) =>
