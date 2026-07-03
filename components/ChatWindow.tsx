@@ -546,15 +546,27 @@ export default function ChatWindow() {
     // admin enabled the service, turn the AI's answer into a real file and
     // attach it under the message. Fully automatic — no user action needed.
     if (plugins?.docGenerator !== false) {
-      const answer =
-        useStore
-          .getState()
-          .chats.find((c) => c.id === chatId)
-          ?.messages.find((m) => m.id === assistantId)?.content ?? "";
-      // 1) explicit ```generate-file:<kind>``` blocks, 2) a raw <html> document
-      // (forced HTML doc mode), 3) prompt-intent fallback (whole answer).
-      const blocks = parseDocBlocks(answer);
-      const html = blocks.length ? null : extractHtmlDoc(answer);
+      const finalMsg = useStore
+        .getState()
+        .chats.find((c) => c.id === chatId)
+        ?.messages.find((m) => m.id === assistantId);
+      const answer = finalMsg?.content ?? "";
+      const reasoning = finalMsg?.reasoning ?? "";
+
+      // Look in the final answer first; reasoning models often emit the HTML
+      // only in their thinking trace → also scan `reasoning` as a fallback.
+      let source: "content" | "reasoning" = "content";
+      let blocks = parseDocBlocks(answer);
+      let html = blocks.length ? null : extractHtmlDoc(answer);
+      if (!blocks.length && !html && reasoning) {
+        const rBlocks = parseDocBlocks(reasoning);
+        const rHtml = rBlocks.length ? null : extractHtmlDoc(reasoning);
+        if (rBlocks.length || rHtml) {
+          source = "reasoning";
+          blocks = rBlocks;
+          html = rHtml;
+        }
+      }
       const fallbackKind = blocks.length || html ? null : detectDocIntent(text);
       const jobs: { kind: "pdf" | "xlsx"; content: string }[] = blocks.length
         ? blocks
@@ -566,18 +578,21 @@ export default function ChatWindow() {
 
       if (jobs.length) {
         // Hide the raw block / HTML; show a clean answer + the download card.
-        if (blocks.length)
+        if (source === "content" && blocks.length)
           setMessageContent(
             chatId,
             assistantId,
             stripDocBlocks(answer) || "Hier ist dein fertiges Dokument. 📄"
           );
-        else if (html)
+        else if (source === "content" && html)
           setMessageContent(
             chatId,
             assistantId,
             stripHtmlDoc(answer) || "Hier ist dein fertiges Dokument. 📄"
           );
+        else if (source === "reasoning" && !answer.trim())
+          // Everything was in the thinking trace → give the user a short line.
+          setMessageContent(chatId, assistantId, "Hier ist dein fertiges Dokument. 📄");
         for (const job of jobs) {
           try {
             const res = await fetch("/api/generate-doc", {
