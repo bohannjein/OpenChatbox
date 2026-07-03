@@ -199,6 +199,78 @@ export async function generateXlsx(title: string, content: string): Promise<Buff
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
+// ── HTML → PDF ──────────────────────────────────────────────────────────────
+
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+function stripTags(s: string): string {
+  return decodeEntities(String(s).replace(/<[^>]+>/g, " "))
+    .replace(/[ \t]+/g, " ")
+    .trim();
+}
+
+/** Convert HTML to structured Markdown (headings, lists, tables) for pdf-lib. */
+function htmlToMarkdown(html: string): string {
+  let h = html
+    .replace(/<head[\s\S]*?<\/head>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "");
+  h = h.replace(/<tr[^>]*>([\s\S]*?)<\/tr>/gi, (_m, row: string) => {
+    const cells = [...row.matchAll(/<(td|th)[^>]*>([\s\S]*?)<\/\1>/gi)].map((c) =>
+      stripTags(c[2])
+    );
+    return cells.length ? `\n| ${cells.join(" | ")} |\n` : "\n";
+  });
+  h = h.replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, (_m, t) => `\n# ${stripTags(t)}\n`);
+  h = h.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, (_m, t) => `\n## ${stripTags(t)}\n`);
+  h = h.replace(/<h[3-6][^>]*>([\s\S]*?)<\/h[3-6]>/gi, (_m, t) => `\n### ${stripTags(t)}\n`);
+  h = h.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_m, t) => `\n- ${stripTags(t)}`);
+  h = h.replace(/<\/(p|div|section|ul|ol|table|h[1-6])>/gi, "\n\n");
+  h = h.replace(/<br\s*\/?>/gi, "\n");
+  return stripTags(h).replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
+ * Render HTML to an A4 PDF. With PUPPETEER=1 (+ a Chromium available) it uses a
+ * headless browser for full Tailwind/CSS fidelity; otherwise it degrades to a
+ * structured pdf-lib render (headings/lists/tables) so it always produces a PDF.
+ */
+export async function htmlToPdf(title: string, html: string): Promise<Buffer> {
+  if (process.env.PUPPETEER === "1") {
+    try {
+      // Opaque require so the bundler never tries to resolve puppeteer at build.
+      const req = eval("require") as NodeRequire;
+      const puppeteer = req("puppeteer");
+      const browser = await puppeteer.launch({
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+      });
+      const page = await browser.newPage();
+      const doc = /<html/i.test(html)
+        ? html
+        : `<!doctype html><html><head><meta charset="utf-8"><script src="https://cdn.tailwindcss.com"></script></head><body class="p-8">${html}</body></html>`;
+      await page.setContent(doc, { waitUntil: "networkidle0" });
+      const buf = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        margin: { top: "18mm", right: "15mm", bottom: "18mm", left: "15mm" },
+      });
+      await browser.close();
+      return Buffer.from(buf);
+    } catch {
+      /* Chromium missing/failed → fall back to the pure-JS renderer */
+    }
+  }
+  return generatePdf(title, htmlToMarkdown(html));
+}
+
 export const slugName = (s: string) =>
   (s || "")
     .toLowerCase()

@@ -110,6 +110,8 @@ export function detectCodeBlock(
     const code = raw.replace(/\n$/, "");
     const open = i === parts.length - 1 && parts.length % 2 === 0;
     const lines = code.split("\n").length;
+    // Never send document blocks to the code splitscreen — they become files.
+    if (lang.startsWith("generate-file")) continue;
     if (lines >= threshold) best = { lang: lang || "text", code, open };
   }
   return best;
@@ -128,6 +130,7 @@ export function listCodeBlocks(
     const nl = block.indexOf("\n");
     const lang = (nl >= 0 ? block.slice(0, nl) : "").trim();
     const code = (nl >= 0 ? block.slice(nl + 1) : block).replace(/\n$/, "");
+    if (lang.startsWith("generate-file")) continue; // document block → not a code file
     if (code.trim()) out.push({ lang: lang || "text", code });
   }
   return out;

@@ -214,34 +214,44 @@ export default function ChatMessage({
             <span className="ml-0.5 inline-block h-4 w-2 animate-blink bg-neutral-500 align-middle" />
           )}
 
-          {/* Auto-generated downloadable files (PDF/Excel) */}
+          {/* Auto-generated downloadable documents — edle Download-Karte */}
           {message.docs && message.docs.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {message.docs.map((doc) => (
-                <a
-                  key={doc.id}
-                  href={doc.dataUrl}
-                  download={doc.name}
-                  title={`${doc.name} herunterladen`}
-                  className="group flex items-center gap-2 rounded-xl border border-border-light bg-neutral-50 px-3 py-2 text-sm transition hover:border-accent hover:bg-accent/5 dark:border-border-dark dark:bg-white/5"
-                >
-                  {doc.mime.includes("pdf") ? (
-                    <FileType size={18} className="shrink-0 text-red-500" />
-                  ) : (
-                    <FileSpreadsheet size={18} className="shrink-0 text-emerald-600" />
-                  )}
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{doc.name}</span>
-                    <span className="block text-xs text-neutral-400">
-                      {(doc.size / 1024).toFixed(0)} KB
-                    </span>
-                  </span>
-                  <Download
-                    size={15}
-                    className="ml-1 shrink-0 text-neutral-400 transition group-hover:text-accent"
-                  />
-                </a>
-              ))}
+            <div className="mt-3 space-y-3">
+              {message.docs.map((doc) => {
+                const isPdf = doc.mime.includes("pdf");
+                return (
+                  <div
+                    key={doc.id}
+                    className="flex flex-col items-center gap-3 rounded-2xl border border-border-light bg-neutral-50 p-5 text-center shadow-sm dark:border-border-dark dark:bg-white/5 sm:max-w-sm"
+                  >
+                    <div
+                      className={clsx(
+                        "flex h-12 w-12 items-center justify-center rounded-xl",
+                        isPdf
+                          ? "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400"
+                          : "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+                      )}
+                    >
+                      {isPdf ? <FileType size={26} /> : <FileSpreadsheet size={26} />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{doc.name}</div>
+                      <div className="text-xs text-neutral-400">
+                        {(doc.size / 1024).toFixed(0)} KB ·{" "}
+                        {isPdf ? "PDF-Dokument" : "Excel-Tabelle"}
+                      </div>
+                    </div>
+                    <a
+                      href={doc.dataUrl}
+                      download={doc.name}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-hover"
+                    >
+                      <Download size={16} />
+                      {isPdf ? "PDF-Dokument herunterladen" : "Tabelle herunterladen"}
+                    </a>
+                  </div>
+                );
+              })}
             </div>
           )}
 

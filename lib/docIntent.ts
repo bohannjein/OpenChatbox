@@ -33,3 +33,38 @@ export function parseGenerateFileBlocks(text: string): { kind: DocKind; content:
 export function stripGenerateFileBlocks(text: string): string {
   return (text || "").replace(FENCE, "").replace(/\n{3,}/g, "\n\n").trim();
 }
+
+// Broad "the user wants a document" detector → forces HTML doc mode.
+const DOC_REQUEST_RE =
+  /\b(erstelle|erstell|generiere|generier|mach|erzeuge|erzeug|baue|create|generate|make|export|exportiere)\b[^.\n]*\b(pdf|excel|dokument|protokoll|rechnung|tabelle|bericht|report|spreadsheet|angebot|vertrag|urkunde|zertifikat|brief)\b|\bals\s+(pdf|dokument|excel|tabelle|datei)\b|ausgabeprotokoll/i;
+
+export const isDocumentRequest = (text: string) => DOC_REQUEST_RE.test(text || "");
+
+/** Forced system instruction for document requests (HTML-only output). */
+export const HTML_DOC_INSTRUCTION =
+  "Du generierst jetzt ein professionelles Dokument für den Nutzer. Du darfst " +
+  "KEINEN normalen Text antworten. Generiere AUSSCHLIESSLICH sauberen HTML-Code, " +
+  "der mit Tailwind-CSS-Klassen gestylt ist (für Tabellen, Ränder, Abstände). " +
+  "Beginne direkt mit <html> und ende mit </html>. Verwende keine Markdown-" +
+  "Codeblocks drumherum!";
+
+/** True if a string is HTML markup (→ route to the HTML→PDF printer). */
+export const looksLikeHtml = (s: string) =>
+  /<\s*(html|body|table|thead|tbody|tr|h[1-6]|div|section|p|ul|ol)\b/i.test(s || "");
+
+/** Extract a raw <html>…</html> document from an answer (doc mode, no fence). */
+export function extractHtmlDoc(text: string): string | null {
+  const m = /<html[\s\S]*?<\/html>/i.exec(text || "");
+  if (m) return m[0];
+  // Fallback: a bare fragment that clearly starts with a block tag.
+  const frag = /<\s*(?:table|h1|h2|div|section)[\s\S]*$/i.exec((text || "").trim());
+  return frag ? frag[0] : null;
+}
+
+/** Remove a raw HTML document from the shown answer. */
+export function stripHtmlDoc(text: string): string {
+  return (text || "")
+    .replace(/<html[\s\S]*?<\/html>/i, "")
+    .replace(/<\s*(?:table|h1|h2|div|section)[\s\S]*$/i, "")
+    .trim();
+}

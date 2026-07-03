@@ -45,6 +45,10 @@ import {
   detectDocIntent,
   parseGenerateFileBlocks,
   stripGenerateFileBlocks,
+  extractHtmlDoc,
+  stripHtmlDoc,
+  isDocumentRequest,
+  HTML_DOC_INSTRUCTION,
 } from "@/lib/docIntent";
 import { useT } from "@/lib/i18n";
 import ModelSwitcher from "./ModelSwitcher";
@@ -323,8 +327,17 @@ export default function ChatWindow() {
       );
     }
 
-    // Datei-Erstellung: der KI beibringen, dass sie echte Dateien erzeugen kann.
-    if (plugins?.docGenerator !== false) {
+    const lastUser = [...(chatObj?.messages ?? [])]
+      .reverse()
+      .find((m) => m.role === "user" && m.content.trim());
+    const docReq =
+      plugins?.docGenerator !== false && !!lastUser && isDocumentRequest(lastUser.content);
+
+    // Datei-Erstellung. Bei klarer Dokument-Anfrage: HTML-ZWANG (allererstes im
+    // System-Prompt); sonst der lockere generate-file-Hinweis.
+    if (docReq) {
+      parts.unshift(HTML_DOC_INSTRUCTION);
+    } else if (plugins?.docGenerator !== false) {
       parts.push(
         "Datei-Erstellung: Wenn der Nutzer dich bittet, eine Datei (PDF, " +
           "Excel/Tabelle o. Ä.) zu erstellen, verweigere das NIEMALS mit der " +
@@ -339,9 +352,6 @@ export default function ChatWindow() {
     }
 
     // Sprach-Constraint: KI antwortet in der Sprache der letzten Nutzernachricht.
-    const lastUser = [...(chatObj?.messages ?? [])]
-      .reverse()
-      .find((m) => m.role === "user" && m.content.trim());
     if (lastUser) parts.push(languageConstraint(lastUser.content));
 
     // Aktuelle Client-Systemzeit — damit die KI weiß, welcher Tag heute ist.
@@ -541,29 +551,31 @@ export default function ChatWindow() {
           .getState()
           .chats.find((c) => c.id === chatId)
           ?.messages.find((m) => m.id === assistantId)?.content ?? "";
-      // Primary: explicit ```generate-file:<kind>``` blocks emitted by the model.
-      // Fallback: prompt intent → use the whole answer as content.
+      // 1) explicit ```generate-file:<kind>``` blocks, 2) a raw <html> document
+      // (forced HTML doc mode), 3) prompt-intent fallback (whole answer).
       const blocks = parseGenerateFileBlocks(answer);
-      const fallbackKind = detectDocIntent(text);
-      const jobs =
-        blocks.length > 0
-          ? blocks
-          : fallbackKind && answer.trim()
-          ? [{ kind: fallbackKind, content: answer }]
-          : [];
+      const html = blocks.length ? null : extractHtmlDoc(answer);
+      const fallbackKind = blocks.length || html ? null : detectDocIntent(text);
+      const jobs: { kind: "pdf" | "xlsx"; content: string }[] = blocks.length
+        ? blocks
+        : html
+        ? [{ kind: "pdf", content: html }]
+        : fallbackKind && answer.trim()
+        ? [{ kind: fallbackKind, content: answer }]
+        : [];
 
       if (jobs.length) {
-        // Hide the raw generate-file block; show a clean answer + download chip.
-        if (blocks.length) {
-          const cleaned = stripGenerateFileBlocks(answer);
-          setMessageContent(chatId, assistantId, cleaned || "Datei erstellt.");
-        }
+        // Hide the raw block / HTML; show a clean answer + the download card.
+        if (blocks.length)
+          setMessageContent(chatId, assistantId, stripGenerateFileBlocks(answer) || "Dokument erstellt.");
+        else if (html)
+          setMessageContent(chatId, assistantId, stripHtmlDoc(answer) || "Dokument erstellt.");
         for (const job of jobs) {
           try {
             const res = await fetch("/api/generate-doc", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ kind: job.kind, title: text.slice(0, 80), content: job.content }),
+              body: JSON.stringify({ kind: job.kind, title: text.slice(0, 80), content: job.content, chatId }),
             });
             const d = await res.json();
             if (res.status === 403) {
