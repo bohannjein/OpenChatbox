@@ -102,19 +102,36 @@ export const HTML_DOC_INSTRUCTION =
 export const looksLikeHtml = (s: string) =>
   /<\s*(html|body|table|thead|tbody|tr|h[1-6]|div|section|p|ul|ol)\b/i.test(s || "");
 
-/** Extract a raw <html>…</html> document from an answer (doc mode, no fence). */
+const HTML_START = /<!doctype html|<html[\s>]/i;
+const HTMLISH = /class=|<table|<thead|<tbody|<tr\b|<h[1-6][\s>]|<body|<section|<ul\b|<ol\b/i;
+
+/** Extract an HTML document from an answer: full <html>/<!doctype> region
+ *  (closed or unclosed), else a fenced html block, else an HTML-ish fragment. */
 export function extractHtmlDoc(text: string): string | null {
-  const m = /<html[\s\S]*?<\/html>/i.exec(text || "");
-  if (m) return m[0];
-  // Fallback: a bare fragment that clearly starts with a block tag.
-  const frag = /<\s*(?:table|h1|h2|div|section)[\s\S]*$/i.exec((text || "").trim());
-  return frag ? frag[0] : null;
+  const t = text || "";
+  const start = t.search(HTML_START);
+  if (start >= 0) {
+    const end = t.toLowerCase().lastIndexOf("</html>");
+    return end > start ? t.slice(start, end + 7) : t.slice(start);
+  }
+  // Fenced html/xml block (even if the closing ``` is missing while streaming).
+  const f = /```(?:html|xml)?[^\n]*\n([\s\S]*?)(?:```|$)/i.exec(t);
+  if (f && HTMLISH.test(f[1])) return f[1].trim();
+  return null;
 }
 
 /** Remove a raw HTML document from the shown answer. */
 export function stripHtmlDoc(text: string): string {
-  return (text || "")
-    .replace(/<html[\s\S]*?<\/html>/i, "")
-    .replace(/<\s*(?:table|h1|h2|div|section)[\s\S]*$/i, "")
+  let t = text || "";
+  const start = t.search(HTML_START);
+  if (start >= 0) {
+    const end = t.toLowerCase().lastIndexOf("</html>");
+    t = end > start ? t.slice(0, start) + t.slice(end + 7) : t.slice(0, start);
+  }
+  return t
+    .replace(/```(?:html|xml)?[^\n]*\n[\s\S]*?(?:```|$)/gi, (m) =>
+      HTMLISH.test(m) ? "" : m
+    )
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }

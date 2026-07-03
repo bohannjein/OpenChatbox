@@ -552,59 +552,40 @@ export default function ChatWindow() {
         ?.messages.find((m) => m.id === assistantId);
       const answer = finalMsg?.content ?? "";
       const reasoning = finalMsg?.reasoning ?? "";
+      // Scan answer + reasoning together — reasoning models often emit the HTML
+      // only in their thinking trace.
+      const src = reasoning ? `${answer}\n\n${reasoning}` : answer;
 
-      // Look in the final answer first; reasoning models often emit the HTML
-      // only in their thinking trace → also scan `reasoning` as a fallback.
-      let source: "content" | "reasoning" = "content";
-      let blocks = parseDocBlocks(answer);
-      let html = blocks.length ? null : extractHtmlDoc(answer);
-      if (!blocks.length && !html && reasoning) {
-        const rBlocks = parseDocBlocks(reasoning);
-        const rHtml = rBlocks.length ? null : extractHtmlDoc(reasoning);
-        if (rBlocks.length || rHtml) {
-          source = "reasoning";
-          blocks = rBlocks;
-          html = rHtml;
-        }
-      }
-      const fallbackKind = blocks.length || html ? null : detectDocIntent(text);
+      const blocks = parseDocBlocks(src);
+      const html = blocks.length ? null : extractHtmlDoc(src);
+      const intentKind = detectDocIntent(text);
+      // Guarantee a document for explicit requests even if the model ignored the
+      // format → render whatever text it produced.
+      const forced = !blocks.length && !html && (isDocumentRequest(text) || !!intentKind);
       const jobs: { kind: "pdf" | "xlsx"; content: string }[] = blocks.length
         ? blocks
         : html
         ? [{ kind: "pdf", content: html }]
-        : fallbackKind && answer.trim()
-        ? [{ kind: fallbackKind, content: answer }]
+        : forced
+        ? [{ kind: intentKind ?? "pdf", content: answer || reasoning }]
         : [];
 
       if (jobs.length) {
-        // Hide the raw block / HTML; show a clean answer + the download card.
-        if (source === "content" && blocks.length)
-          setMessageContent(
-            chatId,
-            assistantId,
-            stripDocBlocks(answer) || "Hier ist dein fertiges Dokument. 📄"
-          );
-        else if (source === "content" && html)
-          setMessageContent(
-            chatId,
-            assistantId,
-            stripHtmlDoc(answer) || "Hier ist dein fertiges Dokument. 📄"
-          );
-        else if (source === "reasoning" && !answer.trim())
-          // Everything was in the thinking trace → give the user a short line.
-          setMessageContent(chatId, assistantId, "Hier ist dein fertiges Dokument. 📄");
+        // Clean the visible answer (strip any leaked doc block / raw HTML).
+        let visible = stripHtmlDoc(stripDocBlocks(answer));
+        if (!visible.trim()) visible = "Hier ist dein fertiges Dokument. 📄";
+        if (visible !== answer) setMessageContent(chatId, assistantId, visible);
+
         for (const job of jobs) {
+          if (!job.content.trim()) continue;
           try {
             const res = await fetch("/api/generate-doc", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ kind: job.kind, title: text.slice(0, 80), content: job.content, chatId }),
             });
-            const d = await res.json();
-            if (res.status === 403) {
-              appendToMessage(chatId, assistantId, `\n\n_(${d.error || "Dienst deaktiviert."})_`);
-              break;
-            } else if (res.ok && d.dataUrl) {
+            const d = await res.json().catch(() => ({}));
+            if (res.ok && d.dataUrl) {
               attachGeneratedDoc(chatId, assistantId, {
                 id: crypto.randomUUID(),
                 name: d.name,
@@ -612,9 +593,24 @@ export default function ChatWindow() {
                 dataUrl: d.dataUrl,
                 size: d.size,
               });
+            } else {
+              // Surface the failure instead of silently doing nothing.
+              appendToMessage(
+                chatId,
+                assistantId,
+                `\n\n_⚠️ Dokument konnte nicht erstellt werden: ${d.error || `HTTP ${res.status}`}_`
+              );
+              break;
             }
-          } catch {
-            /* ignore generation errors */
+          } catch (e) {
+            appendToMessage(
+              chatId,
+              assistantId,
+              `\n\n_⚠️ Dokument konnte nicht erstellt werden: ${
+                e instanceof Error ? e.message : String(e)
+              }_`
+            );
+            break;
           }
         }
       }
