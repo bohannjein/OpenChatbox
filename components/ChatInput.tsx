@@ -31,6 +31,7 @@ import {
 } from "@/lib/files";
 import { loadAllModels, displayName } from "@/lib/providers";
 import { resizeImageToAttachment } from "@/lib/imageResize";
+import { pdfToImages } from "@/lib/pdfToImages";
 import { useT } from "@/lib/i18n";
 import { uid } from "@/lib/uid";
 import type { ModelOption } from "@/lib/types";
@@ -270,8 +271,11 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
   const addFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const list = Array.from(files);
+    const isPdf = (f: File) => f.type === "application/pdf" || /\.pdf$/i.test(f.name);
     const images = list.filter((f) => f.type.startsWith("image/"));
-    const others = list.filter((f) => !f.type.startsWith("image/"));
+    const pdfs = list.filter(isPdf);
+    const others = list.filter((f) => !f.type.startsWith("image/") && !isPdf(f));
+    const failedPdfs: File[] = [];
     const collected: Attachment[] = [];
 
     // Images: downscale + re-encode client-side so the base64 stays small.
@@ -294,26 +298,46 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
       }
     }
 
+    // PDFs: render pages to images so vision/OCR models can actually read them.
+    for (const f of pdfs) {
+      try {
+        const pages = await pdfToImages(f);
+        if (!pages.length) throw new Error("no pages");
+        pages.forEach((dataUrl, i) =>
+          collected.push({
+            id: uid(),
+            name: pages.length > 1 ? `${f.name} · S.${i + 1}` : f.name,
+            size: Math.floor((dataUrl.length - dataUrl.indexOf(",") - 1) * 0.75),
+            kind: "image",
+            dataUrl,
+          })
+        );
+      } catch {
+        failedPdfs.push(f); // fall back to server upload (note)
+      }
+    }
+
     // Documents: multipart upload endpoint → clean JSON; fallback local.
-    if (others.length) {
+    const toUpload = [...others, ...failedPdfs];
+    if (toUpload.length) {
       try {
         const fd = new FormData();
-        for (const f of others) fd.append("files", f);
+        for (const f of toUpload) fd.append("files", f);
         const res = await fetch("/api/upload", { method: "POST", body: fd });
         const data = await res.json();
         if (!res.ok || !Array.isArray(data.files))
           throw new Error(data?.error || `Upload fehlgeschlagen (HTTP ${res.status})`);
         collected.push(...(data.files as Attachment[]));
       } catch {
-        const results = await Promise.allSettled(others.map(processFile));
+        const results = await Promise.allSettled(toUpload.map(processFile));
         results.forEach((r, i) =>
           collected.push(
             r.status === "fulfilled"
               ? r.value
               : {
                   id: uid(),
-                  name: others[i]?.name ?? "Datei",
-                  size: others[i]?.size ?? 0,
+                  name: toUpload[i]?.name ?? "Datei",
+                  size: toUpload[i]?.size ?? 0,
                   kind: "other",
                   note: "Datei konnte nicht verarbeitet werden.",
                 }
