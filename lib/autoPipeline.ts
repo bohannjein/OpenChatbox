@@ -65,6 +65,22 @@ export const OCR_EXTRACT_ONLY =
   "Frage, füge KEINE Anrede oder Erklärung hinzu. Ausschließlich der extrahierte " +
   "Inhalt.";
 
+/** System prompt for the search-query construction model. */
+export const SEARCH_QUERY_SYSTEM =
+  "Formuliere aus der folgenden Nutzerfrage eine knappe, präzise Web-Suchanfrage " +
+  "(wenige Schlüsselwörter, keine ganzen Sätze, keine Anführungszeichen). Gib " +
+  "AUSSCHLIESSLICH die Suchanfrage aus, sonst nichts.";
+
+/** Build the web-search result context injected into the answer model's prompt. */
+export const buildSearchContext = (
+  results: { title: string; url: string; snippet: string }[]
+): string =>
+  "Aktuelle Web-Suchergebnisse — nutze sie für die Antwort und zitiere Quellen " +
+  "als [n]:\n\n" +
+  results
+    .map((r, i) => `[${i + 1}] ${r.title} — ${r.url}\n${r.snippet}`)
+    .join("\n\n");
+
 /** Hidden context injected into stage 2 (the answer model) of the OCR chain. */
 export const buildOcrContext = (extracted: string): string =>
   "Der Nutzer hat eine Datei angehängt. Ein OCR-Modell hat daraus folgenden Inhalt " +

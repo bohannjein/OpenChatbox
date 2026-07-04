@@ -10,7 +10,8 @@ export type PipelineStage =
   | "reasoning"
   | "text"
   | "vision"
-  | "imagegen";
+  | "imagegen"
+  | "search";
 
 export interface Message {
   id: string;
@@ -192,6 +193,11 @@ export interface GlobalConfigPayload {
     vision: string | null;
     title: string | null;
     search: string | null;
+  };
+  search?: {
+    enabled: boolean;
+    provider: string | null;
+    providers?: Record<string, boolean>;
   };
   plugins?: { officeParser: boolean; ocrEngine: boolean; docGenerator: boolean };
 }

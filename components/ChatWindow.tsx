@@ -44,6 +44,8 @@ import {
   planPipeline,
   OCR_EXTRACT_ONLY,
   buildOcrContext,
+  SEARCH_QUERY_SYSTEM,
+  buildSearchContext,
   type PipelinePlan,
 } from "@/lib/autoPipeline";
 import { languageConstraint } from "@/lib/langDetect";
@@ -118,6 +120,8 @@ export default function ChatWindow() {
   const customInstructions = useStore((s) => s.customInstructions);
   const paramsCfg = useStore((s) => s.params);
   const chatBackgroundUrl = useStore((s) => s.chatBackgroundUrl);
+  const webSearchEnabled = useStore((s) => s.webSearchEnabled);
+  const searchAvailable = useStore((s) => s.searchAvailable);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
   const addMessage = useStore((s) => s.addMessage);
@@ -451,6 +455,52 @@ export default function ChatWindow() {
     const ac = new AbortController();
     abortRef.current = ac;
 
+    // Optional web search: build a query with the dedicated search model, run it
+    // via the admin's provider, and inject the results as answer context.
+    let searchContext = "";
+    if (webSearchEnabled && searchAvailable && !sk && lastUser?.content?.trim()) {
+      try {
+        setMessagePipeline(chatId, assistantId, "search");
+        const queryKey = routerModels.search || routerModels.standard || effectiveKey;
+        let q = "";
+        if (queryKey) {
+          const { provider: qp, model: qm } = resolveModel(queryKey);
+          await streamChat(
+            {
+              type: qp.type,
+              baseUrl: qp.baseUrl,
+              apiKey: qp.apiKey,
+              providerId: qp.id,
+              model: qm,
+              messages: [
+                { role: "system", content: SEARCH_QUERY_SYSTEM },
+                { role: "user", content: lastUser.content },
+              ],
+              params: paramsCfg,
+            },
+            (tt, text) => {
+              if (tt === "c") q += text;
+            },
+            ac.signal
+          );
+        }
+        q = (q.trim().split("\n")[0] || lastUser.content).slice(0, 200);
+        const r = await fetch("/api/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: q }),
+          signal: ac.signal,
+        });
+        const d = await r.json().catch(() => ({ results: [] }));
+        if (Array.isArray(d.results) && d.results.length)
+          searchContext = buildSearchContext(d.results);
+      } catch {
+        /* search failed → answer without web context */
+      }
+    }
+    const withSearch = (sys: string) =>
+      searchContext ? searchContext + "\n\n" + sys : sys;
+
     // Run one model of the pipeline: resolve key → build history → stream.
     // `stripImages` drops attachments from history (for text-only answer models).
     const runModel = async (
@@ -516,7 +566,7 @@ export default function ChatWindow() {
         if (extracted.trim()) {
           setMessagePipeline(chatId, assistantId, "answer");
           const base = buildSystem(chatId);
-          const sys = (base ? base + "\n\n" : "") + buildOcrContext(extracted);
+          const sys = withSearch((base ? base + "\n\n" : "") + buildOcrContext(extracted));
           await runModel(plan.steps[1].key, sys, {
             stripImages: true, // text answer model — don't forward raw images
             onContent: (x) => appendToMessage(chatId, assistantId, x),
@@ -526,7 +576,7 @@ export default function ChatWindow() {
           // OCR produced nothing → single vision call reads the image AND answers.
           setMessagePipeline(chatId, assistantId, "vision");
           const base = buildSystem(chatId);
-          const sys = (base ? base + "\n\n" : "") + OCR_SYSTEM_HINT;
+          const sys = withSearch((base ? base + "\n\n" : "") + OCR_SYSTEM_HINT);
           await runModel(plan.steps[0].key, sys, {
             stripImages: false,
             onContent: (x) => appendToMessage(chatId, assistantId, x),
@@ -540,6 +590,7 @@ export default function ChatWindow() {
         let sys = buildSystem(chatId);
         if (step.role === "vision")
           sys = (sys ? sys + "\n\n" : "") + OCR_SYSTEM_HINT;
+        sys = withSearch(sys);
         await runModel(step.key, sys, {
           stripImages: false,
           onContent: (x) => appendToMessage(chatId, assistantId, x),

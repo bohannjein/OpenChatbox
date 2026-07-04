@@ -34,6 +34,7 @@ import SidekickManager from "./SidekickManager";
 import MemoryManager from "./MemoryManager";
 import AccountPanel from "./AccountPanel";
 import DefaultModelsPanel from "./DefaultModelsPanel";
+import SearchProvidersPanel from "./SearchProvidersPanel";
 import type { Provider, ProviderType } from "@/lib/types";
 
 type TestState = { status: "idle" | "loading" | "ok" | "err"; msg?: string };
@@ -845,23 +846,32 @@ export default function SettingsModal() {
             )}
 
             {activeTab === "search" && (
-              <Section>
-                <h3 className="font-medium">Internetsuche</h3>
-                <p className="mb-2 text-sm text-neutral-500">
-                  Erlaubt dem Modell, für aktuelle Fragen das Web zu durchsuchen.
-                  Die Suchanfrage formuliert das Modell „Suchbegriff-Konstruktion"
-                  (siehe Standardmodelle).
-                </p>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={webSearchEnabled}
-                    onChange={() => toggleWebSearch()}
-                    className="h-4 w-4 accent-[rgb(var(--accent))]"
-                  />
-                  Internetsuche aktivieren
-                </label>
-              </Section>
+              <>
+                <Section>
+                  <h3 className="font-medium">Internetsuche</h3>
+                  <p className="mb-2 text-sm text-neutral-500">
+                    Erlaubt dem Modell, für aktuelle Fragen das Web zu durchsuchen.
+                    Die Suchanfrage formuliert das Modell „Suchbegriff-Konstruktion"
+                    (siehe Standardmodelle); die Treffer werden dem Antwortmodell
+                    als Kontext übergeben.
+                  </p>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={webSearchEnabled}
+                      onChange={() => toggleWebSearch()}
+                      className="h-4 w-4 accent-[rgb(var(--accent))]"
+                    />
+                    Internetsuche aktivieren
+                  </label>
+                </Section>
+
+                {isAdmin && (
+                  <Section>
+                    <SearchProvidersPanel />
+                  </Section>
+                )}
+              </>
             )}
 
             {activeTab === "plugins" && isAdmin && (

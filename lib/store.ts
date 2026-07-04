@@ -235,6 +235,8 @@ interface State {
   // admin plugin master-switches (transient, fetched from /api/config)
   plugins: { officeParser: boolean; ocrEngine: boolean; docGenerator: boolean } | null;
   setPluginFlags: (p: State["plugins"]) => void;
+  /** whether an admin web-search provider is configured (transient, from /api/config) */
+  searchAvailable: boolean;
   // Server-persistence bridge: apply admin-global config + per-user profile
   // fetched from the server on load (server is the source of truth).
   applyGlobalConfig: (c: GlobalConfigPayload) => void;
@@ -415,6 +417,7 @@ export const useStore = create<State>()(
       setAuthUser: (authUser) => set({ authUser }),
       plugins: null,
       setPluginFlags: (plugins) => set({ plugins }),
+      searchAvailable: false,
 
       // Apply admin-global config from the server. Only overwrite a field when
       // the server actually provides it, so a fresh instance (empty config)
@@ -437,6 +440,7 @@ export const useStore = create<State>()(
           logoUrl: c.logoUrl ?? s.logoUrl,
           accentColor: c.accentColor || s.accentColor,
           plugins: c.plugins ?? s.plugins,
+          searchAvailable: c.search?.enabled ?? s.searchAvailable,
         })),
 
       // Apply the per-user profile fetched from the server (source of truth).

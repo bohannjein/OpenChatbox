@@ -30,6 +30,26 @@ export interface RouterModels {
   search: string | null;
 }
 
+/** Web-search provider (API key server-only). */
+export interface SearchProviderCfg {
+  enabled: boolean;
+  apiKey?: string;
+}
+export type SearchProviderName = "bing" | "tavily" | "bocha" | "qureit";
+export interface SearchConfig {
+  bing?: SearchProviderCfg;
+  tavily?: SearchProviderCfg;
+  bocha?: SearchProviderCfg;
+  qureit?: SearchProviderCfg;
+}
+/** Order in which a usable (enabled + keyed) provider is selected. */
+export const SEARCH_PROVIDER_ORDER: SearchProviderName[] = [
+  "tavily",
+  "bing",
+  "bocha",
+  "qureit",
+];
+
 export interface ServerConfig {
   /** display name of this instance (shown in the UI) */
   appName: string;
@@ -47,6 +67,8 @@ export interface ServerConfig {
   providers?: Provider[];
   /** admin-global auto-router category mapping */
   routerModels?: RouterModels;
+  /** admin-global web-search providers (apiKeys server-only) */
+  search?: SearchConfig;
   /** admin master-switches for server-side background services */
   plugins?: PluginFlags;
   /** epoch ms when setup was completed */
@@ -110,6 +132,22 @@ export function getProviders(): Provider[] {
   return getConfig().providers ?? [];
 }
 
+/** Web-search config (WITH apiKeys) — server-side only. */
+export function getSearchConfig(): SearchConfig {
+  return getConfig().search ?? {};
+}
+
+/** The active search provider (first enabled + keyed in order), or null. */
+export function activeSearchProvider(): { name: SearchProviderName; apiKey: string } | null {
+  const sc = getSearchConfig();
+  for (const name of SEARCH_PROVIDER_ORDER) {
+    const p = sc[name];
+    if (p?.enabled && p.apiKey && p.apiKey.trim())
+      return { name, apiKey: p.apiKey.trim() };
+  }
+  return null;
+}
+
 /** Resolve a provider (incl. secret apiKey) by its id — for /api/chat & /api/models. */
 export function getProviderById(id: string): Provider | undefined {
   return getProviders().find((p) => p.id === id);
@@ -133,6 +171,15 @@ export function publicConfig(c: ServerConfig = getConfig()) {
       : undefined,
     providers: (c.providers ?? []).map(sanitizeProvider),
     routerModels: { ...DEFAULT_ROUTER_MODELS, ...(c.routerModels ?? {}) },
+    // Web search: expose only which providers are enabled + the active one —
+    // never the apiKeys.
+    search: {
+      enabled: !!activeSearchProvider(),
+      provider: activeSearchProvider()?.name ?? null,
+      providers: Object.fromEntries(
+        SEARCH_PROVIDER_ORDER.map((n) => [n, !!(c.search?.[n]?.enabled)])
+      ) as Record<SearchProviderName, boolean>,
+    },
     plugins: { ...DEFAULT_PLUGINS, ...(c.plugins ?? {}) },
   };
 }

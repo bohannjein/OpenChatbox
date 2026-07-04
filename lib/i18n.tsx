@@ -56,6 +56,7 @@ const STRINGS = {
     en: "Reasoning model is thinking…",
   },
   "pipeline.text": { de: "Modell antwortet…", en: "Model is answering…" },
+  "pipeline.search": { de: "Durchsucht das Web…", en: "Searching the web…" },
   "pipeline.imagegenHint": {
     de: "🎨 Bildgenerierung ist noch nicht verfügbar. Dieses System kann Bilder lesen und analysieren, aber (noch) keine neuen Bilder erzeugen.",
     en: "🎨 Image generation is not available yet. This system can read and analyse images, but cannot (yet) create new ones.",

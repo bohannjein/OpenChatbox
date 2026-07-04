@@ -23,6 +23,8 @@ export async function POST(req: NextRequest) {
   if (Array.isArray(body.providers)) patch.providers = body.providers as ServerConfig["providers"];
   if (body.routerModels && typeof body.routerModels === "object")
     patch.routerModels = body.routerModels as ServerConfig["routerModels"];
+  if (body.search && typeof body.search === "object")
+    patch.search = body.search as ServerConfig["search"];
   if (body.primaryProvider && typeof body.primaryProvider === "object")
     patch.primaryProvider = body.primaryProvider as ServerConfig["primaryProvider"];
 
