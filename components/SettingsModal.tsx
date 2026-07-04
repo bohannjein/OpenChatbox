@@ -25,6 +25,7 @@ import { useStore } from "@/lib/store";
 import { fetchModels } from "@/lib/providers";
 import { PRESETS } from "@/lib/presets";
 import { DEFAULT_ACCENT, normalizeHex } from "@/lib/branding";
+import { resizeImageToDataUrl } from "@/lib/imageResize";
 import { uid } from "@/lib/uid";
 import AdminPanel from "./AdminPanel";
 import PluginsPanel from "./PluginsPanel";
@@ -99,7 +100,35 @@ export default function SettingsModal() {
   const setLang = useStore((s) => s.setLang);
   const webSearchEnabled = useStore((s) => s.webSearchEnabled);
   const toggleWebSearch = useStore((s) => s.toggleWebSearch);
+  const chatLayout = useStore((s) => s.chatLayout);
+  const setChatLayout = useStore((s) => s.setChatLayout);
+  const chatShowAvatar = useStore((s) => s.chatShowAvatar);
+  const setChatShowAvatar = useStore((s) => s.setChatShowAvatar);
+  const chatShowTimestamps = useStore((s) => s.chatShowTimestamps);
+  const setChatShowTimestamps = useStore((s) => s.setChatShowTimestamps);
+  const chatShowStats = useStore((s) => s.chatShowStats);
+  const setChatShowStats = useStore((s) => s.setChatShowStats);
+  const assistantAvatarUrl = useStore((s) => s.assistantAvatarUrl);
+  const setAssistantAvatarUrl = useStore((s) => s.setAssistantAvatarUrl);
+  const chatBackgroundUrl = useStore((s) => s.chatBackgroundUrl);
+  const setChatBackgroundUrl = useStore((s) => s.setChatBackgroundUrl);
   const authUser = useStore((s) => s.authUser);
+
+  // Pick + resize an image file → data URL, into the given setter.
+  const pickImage = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: (v: string) => void,
+    maxDim: number
+  ) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    try {
+      setter(await resizeImageToDataUrl(f, maxDim, 0.72));
+    } catch {
+      /* ignore bad image */
+    }
+  };
 
   const [tests, setTests] = useState<Record<string, TestState>>({});
   const [tab, setTab] = useState<TabId>("account");
@@ -185,6 +214,138 @@ export default function SettingsModal() {
 
             {activeTab === "chat" && (
               <>
+                <Section>
+                  <h3 className="font-medium">Chat-Darstellung</h3>
+                  <p className="mb-3 text-sm text-neutral-500">
+                    Layout und Personalisierung des Chatverlaufs.
+                  </p>
+
+                  {/* Layout */}
+                  <label className="mb-1 block text-xs text-neutral-500">Layout</label>
+                  <div className="mb-4 flex gap-2">
+                    {(
+                      [
+                        ["classic", "Klassisch", "Flaches Design"],
+                        ["bubble", "Bubble-Layout", "Sprechblasen (KI links, du rechts)"],
+                      ] as const
+                    ).map(([val, label, hint]) => (
+                      <button
+                        key={val}
+                        onClick={() => setChatLayout(val)}
+                        className={clsx(
+                          "flex-1 rounded-xl border px-3 py-2 text-left text-sm transition",
+                          chatLayout === val
+                            ? "border-accent bg-accent/10"
+                            : "border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
+                        )}
+                      >
+                        <div className="font-medium">{label}</div>
+                        <div className="text-xs text-neutral-400">{hint}</div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Toggles */}
+                  <div className="mb-4 space-y-2">
+                    {(
+                      [
+                        ["avatar", "Avatar neben Nachrichten", chatShowAvatar, setChatShowAvatar],
+                        ["ts", "Zeitstempel anzeigen", chatShowTimestamps, setChatShowTimestamps],
+                        ["stats", "Statistiken (Wörter & ~Tokens)", chatShowStats, setChatShowStats],
+                      ] as const
+                    ).map(([id, label, val, setter]) => (
+                      <label
+                        key={id}
+                        className="flex cursor-pointer items-center gap-2 text-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={val}
+                          onChange={(e) => setter(e.target.checked)}
+                          className="h-4 w-4 accent-[rgb(var(--accent))]"
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+
+                  {/* Image uploads */}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-xs text-neutral-500">
+                        Assistenten-Profilbild
+                      </label>
+                      <div className="flex items-center gap-3">
+                        {assistantAvatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={assistantAvatarUrl}
+                            alt="Avatar"
+                            className="h-12 w-12 rounded-full object-cover ring-1 ring-border-light dark:ring-border-dark"
+                          />
+                        ) : (
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 text-accent">
+                            <Brain size={20} />
+                          </div>
+                        )}
+                        <label className="cursor-pointer rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5">
+                          Bild wählen
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => pickImage(e, setAssistantAvatarUrl, 256)}
+                          />
+                        </label>
+                        {assistantAvatarUrl && (
+                          <button
+                            onClick={() => setAssistantAvatarUrl("")}
+                            className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
+                            title="Entfernen"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-neutral-500">
+                        Chathintergrund
+                      </label>
+                      <div className="flex items-center gap-3">
+                        {chatBackgroundUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={chatBackgroundUrl}
+                            alt="Hintergrund"
+                            className="h-12 w-20 rounded-lg object-cover ring-1 ring-border-light dark:ring-border-dark"
+                          />
+                        ) : (
+                          <div className="h-12 w-20 rounded-lg bg-neutral-100 ring-1 ring-border-light dark:bg-white/5 dark:ring-border-dark" />
+                        )}
+                        <label className="cursor-pointer rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5">
+                          Bild wählen
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => pickImage(e, setChatBackgroundUrl, 1600)}
+                          />
+                        </label>
+                        {chatBackgroundUrl && (
+                          <button
+                            onClick={() => setChatBackgroundUrl("")}
+                            className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
+                            title="Entfernen"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Section>
+
                 <Section>
                   <h3 className="font-medium">Benutzerdefinierte Anweisungen</h3>
                   <p className="mb-2 text-sm text-neutral-500">

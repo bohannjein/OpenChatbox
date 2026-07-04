@@ -22,6 +22,8 @@ import {
   Search,
   Loader2,
   Code,
+  Bot,
+  User,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Markdown from "./Markdown";
@@ -58,6 +60,11 @@ export default function ChatMessage({
   const setActiveVariant = useStore((s) => s.setActiveVariant);
   const setFeedback = useStore((s) => s.setFeedback);
   const chatFiles = useStore((s) => s.chats.find((c) => c.id === chatId)?.files);
+  const chatLayout = useStore((s) => s.chatLayout);
+  const showAvatar = useStore((s) => s.chatShowAvatar);
+  const showTimestamps = useStore((s) => s.chatShowTimestamps);
+  const showStats = useStore((s) => s.chatShowStats);
+  const assistantAvatarUrl = useStore((s) => s.assistantAvatarUrl);
   const t = useT();
 
   // Non-image uploads attached to this message (images already render inline).
@@ -100,6 +107,54 @@ export default function ChatMessage({
   const hasVariants = !!variants && variants.length > 1;
   const active = message.activeVariant ?? 0;
 
+  // ── Chat appearance (per-user settings) ────────────────────────────────
+  const bubble = chatLayout === "bubble";
+  const time = new Date(message.createdAt).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const words = message.content.trim() ? message.content.trim().split(/\s+/).length : 0;
+  const approxTokens = Math.round(message.content.length / 4); // rough estimate
+
+  const meta =
+    showTimestamps || showStats ? (
+      <div
+        className={clsx(
+          "mt-1 flex gap-2 text-[11px] text-neutral-400",
+          isUser && "justify-end"
+        )}
+      >
+        {showTimestamps && <span>{time}</span>}
+        {showStats && message.content && (
+          <span>
+            {words} Wörter · ~{approxTokens} Tokens
+          </span>
+        )}
+      </div>
+    ) : null;
+
+  const assistantAvatar = (
+    <div className="mt-0.5 shrink-0">
+      {assistantAvatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={assistantAvatarUrl}
+          alt="KI"
+          className="h-8 w-8 rounded-full object-cover ring-1 ring-border-light dark:ring-border-dark"
+        />
+      ) : (
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-accent">
+          <Bot size={18} />
+        </div>
+      )}
+    </div>
+  );
+  const userAvatar = (
+    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500 dark:bg-white/10 dark:text-neutral-300">
+      <User size={18} />
+    </div>
+  );
+
   useEffect(() => {
     if (editing && editRef.current) {
       const el = editRef.current;
@@ -140,7 +195,8 @@ export default function ChatMessage({
   if (isUser) {
     return (
       <div id={`msg-${message.id}`} className="group animate-fade-in px-4 py-3">
-        <div className="mx-auto flex max-w-3xl flex-col items-end">
+        <div className="mx-auto flex max-w-3xl justify-end gap-2.5">
+          <div className="flex min-w-0 flex-col items-end">
           {editing ? (
             <div className="w-full rounded-2xl border border-border-light bg-bubble-light p-2 dark:border-border-dark dark:bg-bubble-dark">
               <textarea
@@ -213,8 +269,11 @@ export default function ChatMessage({
                   <Pencil size={15} />
                 </IconBtn>
               </div>
+              {meta}
             </>
           )}
+          </div>
+          {showAvatar && userAvatar}
         </div>
       </div>
     );
@@ -224,7 +283,9 @@ export default function ChatMessage({
   return (
     <div id={`msg-${message.id}`} className="group animate-fade-in px-4 py-4">
       <div className="mx-auto max-w-3xl">
-        <div className="min-w-0">
+        <div className="flex gap-2.5">
+          {showAvatar && assistantAvatar}
+          <div className="min-w-0 flex-1">
           {message.reasoning && message.reasoning.trim() && (
             <div className="mb-3 rounded-xl border border-border-light dark:border-border-dark">
               <button
@@ -271,14 +332,21 @@ export default function ChatMessage({
               </span>
             </div>
           )}
-          {message.content ? (
-            <Markdown content={message.content} />
-          ) : streaming && !message.reasoning && !message.pipeline ? (
-            <span className="inline-block h-4 w-2 animate-blink bg-neutral-500 align-middle" />
-          ) : null}
-          {streaming && message.content && (
-            <span className="ml-0.5 inline-block h-4 w-2 animate-blink bg-neutral-500 align-middle" />
-          )}
+          <div
+            className={clsx(
+              bubble &&
+                "inline-block max-w-full rounded-2xl rounded-tl-none bg-neutral-100 px-4 py-3 dark:bg-white/5"
+            )}
+          >
+            {message.content ? (
+              <Markdown content={message.content} />
+            ) : streaming && !message.reasoning && !message.pipeline ? (
+              <span className="inline-block h-4 w-2 animate-blink bg-neutral-500 align-middle" />
+            ) : null}
+            {streaming && message.content && (
+              <span className="ml-0.5 inline-block h-4 w-2 animate-blink bg-neutral-500 align-middle" />
+            )}
+          </div>
 
           {/* Auto-generated downloadable documents — edle Download-Karte */}
           {message.docs && message.docs.length > 0 && (
@@ -320,6 +388,8 @@ export default function ChatMessage({
               })}
             </div>
           )}
+
+          {meta}
 
           {/* Action bar */}
           {!streaming && (
@@ -382,6 +452,7 @@ export default function ChatMessage({
               </IconBtn>
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>

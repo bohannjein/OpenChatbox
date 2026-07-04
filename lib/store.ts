@@ -195,6 +195,21 @@ interface State {
   // model management
   favorites: string[]; // model keys pinned to top
   aliases: Record<string, string>; // model key → friendly display name
+  // chat appearance (per-user)
+  chatLayout: "classic" | "bubble";
+  chatShowAvatar: boolean;
+  chatShowTimestamps: boolean;
+  chatShowStats: boolean;
+  /** uploaded assistant profile picture (data URL) */
+  assistantAvatarUrl: string;
+  /** uploaded chat-window background image (data URL) */
+  chatBackgroundUrl: string;
+  setChatLayout: (v: "classic" | "bubble") => void;
+  setChatShowAvatar: (v: boolean) => void;
+  setChatShowTimestamps: (v: boolean) => void;
+  setChatShowStats: (v: boolean) => void;
+  setAssistantAvatarUrl: (v: string) => void;
+  setChatBackgroundUrl: (v: string) => void;
   // code splitscreen
   codeSplitEnabled: boolean;
   codeSplitThreshold: number;
@@ -377,6 +392,12 @@ export const useStore = create<State>()(
       appName: "OpenChatbox",
       favorites: [],
       aliases: {},
+      chatLayout: "classic",
+      chatShowAvatar: false,
+      chatShowTimestamps: false,
+      chatShowStats: false,
+      assistantAvatarUrl: "",
+      chatBackgroundUrl: "",
       codeSplitEnabled: true,
       codeSplitThreshold: 15,
       codeSplitWidth: 560,
@@ -430,6 +451,12 @@ export const useStore = create<State>()(
           codeSplitEnabled: p.codeSplitEnabled ?? s.codeSplitEnabled,
           codeSplitThreshold: p.codeSplitThreshold ?? s.codeSplitThreshold,
           codeSplitWidth: p.codeSplitWidth ?? s.codeSplitWidth,
+          chatLayout: p.chatLayout ?? s.chatLayout,
+          chatShowAvatar: p.chatShowAvatar ?? s.chatShowAvatar,
+          chatShowTimestamps: p.chatShowTimestamps ?? s.chatShowTimestamps,
+          chatShowStats: p.chatShowStats ?? s.chatShowStats,
+          assistantAvatarUrl: p.assistantAvatarUrl ?? s.assistantAvatarUrl,
+          chatBackgroundUrl: p.chatBackgroundUrl ?? s.chatBackgroundUrl,
           memory: p.memory ?? s.memory,
           memoryEnabled: p.memoryEnabled ?? s.memoryEnabled,
           webSearchEnabled: p.webSearchEnabled ?? s.webSearchEnabled,
@@ -759,6 +786,12 @@ export const useStore = create<State>()(
           return { aliases };
         }),
 
+      setChatLayout: (chatLayout) => set({ chatLayout }),
+      setChatShowAvatar: (chatShowAvatar) => set({ chatShowAvatar }),
+      setChatShowTimestamps: (chatShowTimestamps) => set({ chatShowTimestamps }),
+      setChatShowStats: (chatShowStats) => set({ chatShowStats }),
+      setAssistantAvatarUrl: (assistantAvatarUrl) => set({ assistantAvatarUrl }),
+      setChatBackgroundUrl: (chatBackgroundUrl) => set({ chatBackgroundUrl }),
       setCodeSplitEnabled: (codeSplitEnabled) => set({ codeSplitEnabled }),
       setCodeSplitThreshold: (codeSplitThreshold) =>
         set({ codeSplitThreshold: Math.max(1, codeSplitThreshold || 15) }),

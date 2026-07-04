@@ -18,6 +18,12 @@ export interface UserProfile {
   codeSplitEnabled?: boolean;
   codeSplitThreshold?: number;
   codeSplitWidth?: number;
+  chatLayout?: "classic" | "bubble";
+  chatShowAvatar?: boolean;
+  chatShowTimestamps?: boolean;
+  chatShowStats?: boolean;
+  assistantAvatarUrl?: string;
+  chatBackgroundUrl?: string;
   memory?: MemoryFact[];
   memoryEnabled?: boolean;
   webSearchEnabled?: boolean;
@@ -40,6 +46,12 @@ const KEYS: (keyof UserProfile)[] = [
   "codeSplitEnabled",
   "codeSplitThreshold",
   "codeSplitWidth",
+  "chatLayout",
+  "chatShowAvatar",
+  "chatShowTimestamps",
+  "chatShowStats",
+  "assistantAvatarUrl",
+  "chatBackgroundUrl",
   "memory",
   "memoryEnabled",
   "webSearchEnabled",
@@ -52,8 +64,9 @@ const KEYS: (keyof UserProfile)[] = [
 ];
 
 const FILE = path.join(DATA_DIR, "profiles.json");
-// Guard against a runaway payload bloating the file (per-user).
-const MAX_JSON = 1_000_000;
+// Guard against a runaway payload bloating the file (per-user). Generous because
+// the chat background + assistant avatar are stored as (resized) data URLs.
+const MAX_JSON = 8_000_000;
 
 function loadAll(): Record<string, UserProfile> {
   try {

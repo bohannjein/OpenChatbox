@@ -207,6 +207,12 @@ export interface ServerUserProfile {
   codeSplitEnabled?: boolean;
   codeSplitThreshold?: number;
   codeSplitWidth?: number;
+  chatLayout?: "classic" | "bubble";
+  chatShowAvatar?: boolean;
+  chatShowTimestamps?: boolean;
+  chatShowStats?: boolean;
+  assistantAvatarUrl?: string;
+  chatBackgroundUrl?: string;
   memory?: MemoryFact[];
   memoryEnabled?: boolean;
   webSearchEnabled?: boolean;

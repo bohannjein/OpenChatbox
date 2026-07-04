@@ -117,6 +117,7 @@ export default function ChatWindow() {
   const attachGeneratedDoc = useStore((s) => s.attachGeneratedDoc);
   const customInstructions = useStore((s) => s.customInstructions);
   const paramsCfg = useStore((s) => s.params);
+  const chatBackgroundUrl = useStore((s) => s.chatBackgroundUrl);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
   const addMessage = useStore((s) => s.addMessage);
@@ -1028,7 +1029,12 @@ export default function ChatWindow() {
           {/* Messages */}
           <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto print:overflow-visible"
+            className="flex-1 overflow-y-auto bg-cover bg-center bg-fixed print:overflow-visible"
+            style={
+              chatBackgroundUrl
+                ? { backgroundImage: `url(${chatBackgroundUrl})` }
+                : undefined
+            }
           >
             {isTemp && (
               <div className="mx-auto mt-4 flex max-w-3xl items-center gap-2 rounded-lg border border-border-light bg-bubble-light px-4 py-2 text-sm text-neutral-600 dark:border-border-dark dark:bg-bubble-dark dark:text-neutral-300">
