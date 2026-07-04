@@ -17,6 +17,7 @@ import {
   Pin,
   PinOff,
   Search,
+  FolderOpen,
 } from "lucide-react";
 import { useStore, inWorkspace } from "@/lib/store";
 import { SidekickAvatar } from "./SidekickIcon";
@@ -49,6 +50,7 @@ export default function Sidebar() {
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
 
   const setSearchOpen = useStore((s) => s.setSearchOpen);
+  const setFilesOpen = useStore((s) => s.setFilesOpen);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [pendingDelete, setPendingDelete] = useState<Chat | null>(null);
@@ -218,6 +220,13 @@ export default function Sidebar() {
             className="shrink-0 rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/5"
           >
             <Search size={17} />
+          </button>
+          <button
+            onClick={() => setFilesOpen(true)}
+            title="Dateimanager"
+            className="shrink-0 rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/5"
+          >
+            <FolderOpen size={17} />
           </button>
           <button
             onClick={() => setSidebarOpen(false)}

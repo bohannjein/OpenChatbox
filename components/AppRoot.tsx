@@ -6,7 +6,9 @@ import Sidebar from "@/components/Sidebar";
 import ChatWindow from "@/components/ChatWindow";
 import SettingsModal from "@/components/SettingsModal";
 import SearchModal from "@/components/SearchModal";
+import FileManager from "@/components/FileManager";
 import { useStore } from "@/lib/store";
+import { loadServerState, startProfileSync } from "@/lib/serverSync";
 import { hexToRgbChannels, darkenChannels } from "@/lib/branding";
 import { detectBrowserLang } from "@/lib/i18n";
 import clsx from "clsx";
@@ -34,7 +36,6 @@ export default function AppRoot() {
   const newChat = useStore((s) => s.newChat);
   const selectChat = useStore((s) => s.selectChat);
   const setAuthUser = useStore((s) => s.setAuthUser);
-  const setPluginFlags = useStore((s) => s.setPluginFlags);
   const setSearchOpen = useStore((s) => s.setSearchOpen);
   const lang = useStore((s) => s.lang);
   const setLang = useStore((s) => s.setLang);
@@ -84,13 +85,11 @@ export default function AppRoot() {
     return () => window.removeEventListener("keydown", h);
   }, [setSearchOpen]);
 
-  // Load enabled server plugins + workspaces the user is a member of.
+  // Hydrate admin-global config + per-user profile from the server (source of
+  // truth) and load workspaces the user is a member of.
   useEffect(() => {
     if (isAuthRoute || isSetupRoute || isJoinRoute) return;
-    fetch("/api/config")
-      .then((r) => r.json())
-      .then((d) => d?.plugins && setPluginFlags(d.plugins))
-      .catch(() => {});
+    loadServerState();
     // Server is the source of truth for workspace membership (invites) → merge.
     fetch("/api/workspaces")
       .then((r) => r.json())
@@ -100,6 +99,11 @@ export default function AppRoot() {
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+
+  // Write-through: push per-user preference changes back to the server (debounced).
+  useEffect(() => {
+    startProfileSync();
+  }, []);
 
   // Load session; ensure the per-user storage namespace matches the user.
   useEffect(() => {
@@ -217,6 +221,7 @@ export default function AppRoot() {
 
       <SettingsModal />
       <SearchModal />
+      <FileManager />
     </div>
   );
 }

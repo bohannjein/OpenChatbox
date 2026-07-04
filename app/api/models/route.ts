@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ProviderRequest } from "@/lib/types";
+import { getProviderById } from "@/lib/server/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,12 +13,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const baseUrl = (body.baseUrl || "").replace(/\/+$/, "");
+  // Resolve provider from the server registry when a providerId is given
+  // (keeps secret apiKeys off the client); else use the client-sent values.
+  const resolved = body.providerId ? getProviderById(body.providerId) : undefined;
+  const type = resolved?.type ?? body.type;
+  const apiKey = resolved?.apiKey ?? body.apiKey;
+  const baseUrl = (resolved?.baseUrl ?? body.baseUrl ?? "").replace(/\/+$/, "");
   if (!baseUrl)
     return NextResponse.json({ error: "baseUrl fehlt" }, { status: 400 });
 
   try {
-    if (body.type === "ollama") {
+    if (type === "ollama") {
       const r = await fetch(`${baseUrl}/api/tags`, { cache: "no-store" });
       if (!r.ok)
         return NextResponse.json(
@@ -29,11 +35,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ models });
     }
 
-    if (body.type === "anthropic") {
+    if (type === "anthropic") {
       const r = await fetch(`${baseUrl}/models`, {
         cache: "no-store",
         headers: {
-          "x-api-key": body.apiKey ?? "",
+          "x-api-key": apiKey ?? "",
           "anthropic-version": "2023-06-01",
         },
       });
@@ -50,7 +56,7 @@ export async function POST(req: NextRequest) {
     // openai-compatible
     const r = await fetch(`${baseUrl}/models`, {
       cache: "no-store",
-      headers: body.apiKey ? { Authorization: `Bearer ${body.apiKey}` } : {},
+      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
     });
     if (!r.ok)
       return NextResponse.json(

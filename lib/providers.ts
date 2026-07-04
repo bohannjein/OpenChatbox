@@ -29,6 +29,7 @@ export async function fetchModels(p: Provider): Promise<string[]> {
     type: p.type,
     baseUrl: normUrl(p.baseUrl),
     apiKey: p.apiKey,
+    providerId: p.id,
   };
   const res = await fetch("/api/models", {
     method: "POST",
@@ -218,6 +219,7 @@ export async function extractMemory(
     type: ChatRequest["type"];
     baseUrl: string;
     apiKey?: string;
+    providerId?: string;
     model: string;
   },
   userText: string,
@@ -239,6 +241,7 @@ export async function extractMemory(
         type: base.type,
         baseUrl: base.baseUrl,
         apiKey: base.apiKey,
+        providerId: base.providerId,
         model: base.model,
         messages: [
           { role: "system", content: sys },
@@ -286,6 +289,7 @@ export async function generateTitle(
     type: ChatRequest["type"];
     baseUrl: string;
     apiKey?: string;
+    providerId?: string;
     model: string;
   },
   transcript: string
@@ -301,6 +305,7 @@ export async function generateTitle(
         type: base.type,
         baseUrl: base.baseUrl,
         apiKey: base.apiKey,
+        providerId: base.providerId,
         model: base.model,
         messages: [
           { role: "system", content: sys },

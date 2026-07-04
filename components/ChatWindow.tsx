@@ -481,6 +481,7 @@ export default function ChatWindow() {
           type: provider.type,
           baseUrl: provider.baseUrl,
           apiKey: provider.apiKey,
+          providerId: provider.id,
           model,
           messages: history,
           params: paramsCfg,
@@ -605,6 +606,24 @@ export default function ChatWindow() {
         createdAt: Date.now(),
       }));
       addChatFiles(chatId, files);
+      // Persist the bytes server-side so they survive reload + show cross-chat
+      // in the file manager (until the chat is deleted). Fire-and-forget.
+      for (const a of attachments) {
+        if (!a.dataUrl && a.text == null) continue;
+        fetch("/api/files", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chatId,
+            messageId: userId,
+            name: a.name,
+            kind: a.kind,
+            source: "upload",
+            dataUrl: a.dataUrl,
+            text: a.text,
+          }),
+        }).catch(() => {});
+      }
     }
     const assistantId = addMessage(chatId, "assistant", "");
     // Promote a fresh chat to its own URL (no remount: activeChatId unchanged).
@@ -660,7 +679,7 @@ export default function ChatWindow() {
             const res = await fetch("/api/generate-doc", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ kind: job.kind, content: job.content, chatId }),
+              body: JSON.stringify({ kind: job.kind, content: job.content, chatId, messageId: assistantId }),
             });
             const d = await res.json().catch(() => ({}));
             if (res.ok && d.dataUrl) {
@@ -709,6 +728,7 @@ export default function ChatWindow() {
               type: provider.type,
               baseUrl: provider.baseUrl,
               apiKey: provider.apiKey,
+              providerId: provider.id,
               model,
             },
             text,

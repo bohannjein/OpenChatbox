@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import type { ChatRequest } from "@/lib/types";
+import { getProviderById } from "@/lib/server/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,8 +16,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const baseUrl = (body.baseUrl || "").replace(/\/+$/, "");
-  const { type, model, messages, apiKey, params } = body;
+  // Resolve the provider: when a providerId is given, use the server-stored
+  // provider (incl. its secret apiKey) so the key never lives in the client;
+  // otherwise fall back to the client-sent baseUrl/type/apiKey.
+  const resolved = body.providerId ? getProviderById(body.providerId) : undefined;
+  const type = resolved?.type ?? body.type;
+  const baseUrl = (resolved?.baseUrl ?? body.baseUrl ?? "").replace(/\/+$/, "");
+  const apiKey = resolved?.apiKey ?? body.apiKey;
+  const { model, messages, params } = body;
   if (!baseUrl || !model || !messages)
     return Response.json(
       { error: "baseUrl, model und messages erforderlich." },

@@ -1,11 +1,11 @@
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./paths";
+import type { Provider } from "@/lib/types";
 
 /**
- * Global, server-side instance configuration captured during first-run setup.
- * Lives next to users.json in the data dir and, like it, is prepared to be
- * swapped for a real DB later.
+ * Global, server-side instance configuration ("system settings") — the master
+ * config every session/user reads. Lives next to users.json in the data dir.
  */
 export interface PluginFlags {
   /** Office parser (Word/Excel/CSV) in the upload pipeline. */
@@ -16,9 +16,26 @@ export interface PluginFlags {
   docGenerator: boolean;
 }
 
+/** Admin-global auto-router role → model-key map (default-model assignments). */
+export interface RouterModels {
+  /** standard chat / allrounder (also OCR-chain stage 2) */
+  standard: string | null;
+  coding: string | null;
+  reasoning: string | null;
+  /** OCR / vision model */
+  vision: string | null;
+  /** automatic chat-title (thread naming) */
+  title: string | null;
+  /** web-search query construction */
+  search: string | null;
+}
+
 export interface ServerConfig {
   /** display name of this instance (shown in the UI) */
   appName: string;
+  /** admin-global branding shown to every user */
+  logoUrl?: string;
+  accentColor?: string;
   /** default AI provider the first admin configured during setup */
   primaryProvider?: {
     type: "ollama" | "openai";
@@ -26,11 +43,24 @@ export interface ServerConfig {
     /** never returned by the public getter */
     apiKey?: string;
   };
+  /** admin-global provider registry (apiKeys server-only, never in publicConfig) */
+  providers?: Provider[];
+  /** admin-global auto-router category mapping */
+  routerModels?: RouterModels;
   /** admin master-switches for server-side background services */
   plugins?: PluginFlags;
   /** epoch ms when setup was completed */
   setupCompletedAt?: number;
 }
+
+export const DEFAULT_ROUTER_MODELS: RouterModels = {
+  standard: null,
+  coding: null,
+  reasoning: null,
+  vision: null,
+  title: null,
+  search: null,
+};
 
 export const DEFAULT_PLUGINS: PluginFlags = {
   officeParser: true,
@@ -63,17 +93,46 @@ export function getConfig(): ServerConfig {
 export function setConfig(patch: Partial<ServerConfig>): ServerConfig {
   const next = { ...getConfig(), ...patch };
   fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(FILE, JSON.stringify(next, null, 2), "utf8");
+  // Atomic write (tmp + rename) so a crash never leaves a truncated config.
+  const tmp = `${FILE}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(next, null, 2), "utf8");
+  fs.renameSync(tmp, FILE);
   return next;
+}
+
+/** Global auto-router model map with defaults filled in. */
+export function getRouterModels(): RouterModels {
+  return { ...DEFAULT_ROUTER_MODELS, ...(getConfig().routerModels ?? {}) };
+}
+
+/** Full provider registry (WITH apiKeys) — server-side only. */
+export function getProviders(): Provider[] {
+  return getConfig().providers ?? [];
+}
+
+/** Resolve a provider (incl. secret apiKey) by its id — for /api/chat & /api/models. */
+export function getProviderById(id: string): Provider | undefined {
+  return getProviders().find((p) => p.id === id);
+}
+
+/** Strip the secret apiKey from a provider before sending it to a client. */
+function sanitizeProvider(p: Provider): Omit<Provider, "apiKey"> {
+  const { apiKey, ...rest } = p;
+  void apiKey;
+  return rest;
 }
 
 /** Config safe to expose to any client (no secrets). */
 export function publicConfig(c: ServerConfig = getConfig()) {
   return {
     appName: c.appName,
+    logoUrl: c.logoUrl,
+    accentColor: c.accentColor,
     primaryProvider: c.primaryProvider
       ? { type: c.primaryProvider.type, baseUrl: c.primaryProvider.baseUrl }
       : undefined,
+    providers: (c.providers ?? []).map(sanitizeProvider),
+    routerModels: { ...DEFAULT_ROUTER_MODELS, ...(c.routerModels ?? {}) },
     plugins: { ...DEFAULT_PLUGINS, ...(c.plugins ?? {}) },
   };
 }

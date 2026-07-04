@@ -11,6 +11,8 @@ import type {
   MemoryFact,
   Message,
   PipelineStage,
+  GlobalConfigPayload,
+  ServerUserProfile,
   PromptTemplate,
   Provider,
   Role,
@@ -165,11 +167,16 @@ interface State {
   // Auto model-router: when on, route each turn to a category model automatically.
   autoRouter: boolean;
   routerModels: {
+    /** Standard / Allrounder — the answer model (also stage 2 of the OCR chain). */
+    standard: string | null;
     coding: string | null;
     reasoning: string | null;
+    /** OCR / vision model */
     vision: string | null;
-    /** Standard / Allrounder-Groß — the answer model (also stage 2 of the OCR chain). */
-    standard: string | null;
+    /** automatic chat-title (thread naming) */
+    title: string | null;
+    /** web-search query construction */
+    search: string | null;
   };
   prompts: PromptTemplate[];
   customInstructions: string;
@@ -213,9 +220,15 @@ interface State {
   // admin plugin master-switches (transient, fetched from /api/config)
   plugins: { officeParser: boolean; ocrEngine: boolean; docGenerator: boolean } | null;
   setPluginFlags: (p: State["plugins"]) => void;
+  // Server-persistence bridge: apply admin-global config + per-user profile
+  // fetched from the server on load (server is the source of truth).
+  applyGlobalConfig: (c: GlobalConfigPayload) => void;
+  hydrateProfile: (p: ServerUserProfile) => void;
   settingsOpen: boolean;
   searchOpen: boolean;
   setSearchOpen: (v: boolean) => void;
+  filesOpen: boolean;
+  setFilesOpen: (v: boolean) => void;
   sidebarOpen: boolean;
 
   // chat actions
@@ -262,7 +275,7 @@ interface State {
   selectModel: (key: string) => void;
   setAutoRouter: (v: boolean) => void;
   setRouterModel: (
-    category: "coding" | "reasoning" | "vision" | "standard",
+    category: "coding" | "reasoning" | "vision" | "standard" | "title" | "search",
     key: string | null
   ) => void;
 
@@ -344,7 +357,14 @@ export const useStore = create<State>()(
       providers: defaultProviders(),
       selectedModelKey: null,
       autoRouter: false,
-      routerModels: { coding: null, reasoning: null, vision: null, standard: null },
+      routerModels: {
+        standard: null,
+        coding: null,
+        reasoning: null,
+        vision: null,
+        title: null,
+        search: null,
+      },
       prompts: defaultPrompts(),
       customInstructions: "",
       params: defaultParams(),
@@ -374,9 +394,59 @@ export const useStore = create<State>()(
       setAuthUser: (authUser) => set({ authUser }),
       plugins: null,
       setPluginFlags: (plugins) => set({ plugins }),
+
+      // Apply admin-global config from the server. Only overwrite a field when
+      // the server actually provides it, so a fresh instance (empty config)
+      // never wipes sensible client defaults (e.g. the local Ollama provider).
+      applyGlobalConfig: (c) =>
+        set((s) => ({
+          // Server provider list is apiKey-stripped; preserve any local apiKey
+          // (the admin who entered it) so re-saving never wipes the secret.
+          providers:
+            c.providers && c.providers.length
+              ? c.providers.map((p) => {
+                  const local = s.providers.find((x) => x.id === p.id);
+                  return local?.apiKey && !p.apiKey ? { ...p, apiKey: local.apiKey } : p;
+                })
+              : s.providers,
+          routerModels: c.routerModels
+            ? { ...s.routerModels, ...c.routerModels }
+            : s.routerModels,
+          appName: c.appName ?? s.appName,
+          logoUrl: c.logoUrl ?? s.logoUrl,
+          accentColor: c.accentColor || s.accentColor,
+          plugins: c.plugins ?? s.plugins,
+        })),
+
+      // Apply the per-user profile fetched from the server (source of truth).
+      hydrateProfile: (p) =>
+        set((s) => ({
+          theme: (p.theme as State["theme"]) ?? s.theme,
+          lang: p.lang !== undefined ? p.lang : s.lang,
+          params: p.params ?? s.params,
+          customInstructions: p.customInstructions ?? s.customInstructions,
+          favorites: p.favorites ?? s.favorites,
+          aliases: p.aliases ?? s.aliases,
+          codeSplitEnabled: p.codeSplitEnabled ?? s.codeSplitEnabled,
+          codeSplitThreshold: p.codeSplitThreshold ?? s.codeSplitThreshold,
+          codeSplitWidth: p.codeSplitWidth ?? s.codeSplitWidth,
+          memory: p.memory ?? s.memory,
+          memoryEnabled: p.memoryEnabled ?? s.memoryEnabled,
+          webSearchEnabled: p.webSearchEnabled ?? s.webSearchEnabled,
+          selectedModelKey:
+            p.selectedModelKey !== undefined ? p.selectedModelKey : s.selectedModelKey,
+          autoRouter: p.autoRouter ?? s.autoRouter,
+          vramManaged: p.vramManaged ?? s.vramManaged,
+          ollamaKeepAlive: p.ollamaKeepAlive ?? s.ollamaKeepAlive,
+          sidekicks: p.sidekicks ?? s.sidekicks,
+          prompts: p.prompts ?? s.prompts,
+        })),
+
       settingsOpen: false,
       searchOpen: false,
       setSearchOpen: (searchOpen) => set({ searchOpen }),
+      filesOpen: false,
+      setFilesOpen: (filesOpen) => set({ filesOpen }),
       sidebarOpen: true,
 
       newChat: (temporary, sidekickId) => {
@@ -408,7 +478,15 @@ export const useStore = create<State>()(
         return chat.id;
       },
 
-      deleteChat: (id) =>
+      deleteChat: (id) => {
+        // Persisted files belong to the chat → remove them server-side too.
+        try {
+          fetch(`/api/files?chatId=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(
+            () => {}
+          );
+        } catch {
+          /* SSR / no fetch — ignore */
+        }
         set((s) => {
           const chats = s.chats.filter((c) => c.id !== id);
           const activeChatId =
@@ -416,7 +494,8 @@ export const useStore = create<State>()(
               ? chats.find((c) => !c.temporary)?.id ?? chats[0]?.id ?? null
               : s.activeChatId;
           return { chats, activeChatId };
-        }),
+        });
+      },
 
       selectChat: (id) =>
         set((s) => {
@@ -809,10 +888,13 @@ export const useStore = create<State>()(
     }),
     {
       name: "openchatbox-store",
-      version: 5,
+      version: 7,
       // localStorage-backed, but tolerant of quota errors (see safeStorage).
       storage: createJSONStorage(() => safeStorage),
-      // persist everything except transient UI flags + temporary chats.
+      // Server is now the source of truth for per-user prefs + admin-global
+      // config (hydrated on load via lib/serverSync). localStorage only keeps
+      // (a) chats — still local for now (Phase 2), and (b) a small no-flash
+      // cache of theme/branding read by the pre-hydration script in layout.tsx.
       // Images (base64 data URLs) are stripped: they'd blow the ~5MB quota.
       partialize: (s) => ({
         chats: s.chats
@@ -823,31 +905,18 @@ export const useStore = create<State>()(
             files: c.files?.map(({ dataUrl, ...f }) => f),
           })),
         activeChatId: s.activeChatId,
+        workspaces: s.workspaces,
+        activeWorkspaceId: s.activeWorkspaceId,
+        // provider registry: cached locally so the admin's typed apiKeys survive
+        // a reload (server public config is key-stripped). Non-admins just cache
+        // the global keyless list.
         providers: s.providers,
-        selectedModelKey: s.selectedModelKey,
-        autoRouter: s.autoRouter,
-        routerModels: s.routerModels,
-        prompts: s.prompts,
-        customInstructions: s.customInstructions,
-        params: s.params,
+        // no-flash cache (authoritative copy lives on the server)
         theme: s.theme,
         lang: s.lang,
         accentColor: s.accentColor,
-        logoUrl: s.logoUrl,
         appName: s.appName,
-        favorites: s.favorites,
-        aliases: s.aliases,
-        codeSplitEnabled: s.codeSplitEnabled,
-        codeSplitThreshold: s.codeSplitThreshold,
-        codeSplitWidth: s.codeSplitWidth,
-        vramManaged: s.vramManaged,
-        ollamaKeepAlive: s.ollamaKeepAlive,
-        sidekicks: s.sidekicks,
-        workspaces: s.workspaces,
-        activeWorkspaceId: s.activeWorkspaceId,
-        memory: s.memory,
-        memoryEnabled: s.memoryEnabled,
-        webSearchEnabled: s.webSearchEnabled,
+        logoUrl: s.logoUrl,
       }),
       migrate: (persisted, version) => {
         const s = persisted as Partial<State>;
@@ -878,16 +947,33 @@ export const useStore = create<State>()(
           const legacy = s as unknown as { routerVisionKey?: string | null };
           if (!s.routerModels)
             s.routerModels = {
+              standard: null,
               coding: null,
               reasoning: null,
               vision: legacy.routerVisionKey ?? null,
-              standard: null,
+              title: null,
+              search: null,
             };
         }
         if (version < 5) {
           // Agentic pipeline: add the "standard"/answer model slot.
           if (s.routerModels && (s.routerModels as { standard?: string | null }).standard === undefined)
             s.routerModels = { ...s.routerModels, standard: null };
+        }
+        if (version < 7) {
+          // Default-model assignments: add title (thread naming) + search
+          // (web-search query construction) role slots, keeping existing values.
+          if (s.routerModels) {
+            const rm = s.routerModels as Record<string, string | null>;
+            s.routerModels = {
+              standard: rm.standard ?? null,
+              coding: rm.coding ?? null,
+              reasoning: rm.reasoning ?? null,
+              vision: rm.vision ?? null,
+              title: rm.title ?? null,
+              search: rm.search ?? null,
+            };
+          }
         }
         return s as State;
       },

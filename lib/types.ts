@@ -174,6 +174,48 @@ export interface ProviderRequest {
   type: ProviderType;
   baseUrl: string;
   apiKey?: string;
+  /** When set, the server resolves the provider (incl. secret apiKey) from its
+   *  global registry by id — the client never holds the key. */
+  providerId?: string;
+}
+
+/** Admin-global config exposed to any client (no secrets). */
+export interface GlobalConfigPayload {
+  appName?: string;
+  logoUrl?: string;
+  accentColor?: string;
+  providers?: Provider[];
+  routerModels?: {
+    standard: string | null;
+    coding: string | null;
+    reasoning: string | null;
+    vision: string | null;
+    title: string | null;
+    search: string | null;
+  };
+  plugins?: { officeParser: boolean; ocrEngine: boolean; docGenerator: boolean };
+}
+
+/** Per-user preferences persisted server-side (mirror of lib/server/profiles). */
+export interface ServerUserProfile {
+  theme?: string;
+  lang?: "de" | "en" | null;
+  params?: GenParams;
+  customInstructions?: string;
+  favorites?: string[];
+  aliases?: Record<string, string>;
+  codeSplitEnabled?: boolean;
+  codeSplitThreshold?: number;
+  codeSplitWidth?: number;
+  memory?: MemoryFact[];
+  memoryEnabled?: boolean;
+  webSearchEnabled?: boolean;
+  selectedModelKey?: string | null;
+  autoRouter?: boolean;
+  vramManaged?: boolean;
+  ollamaKeepAlive?: string;
+  sidekicks?: Sidekick[];
+  prompts?: PromptTemplate[];
 }
 
 export interface ChatMessagePayload {
