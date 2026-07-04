@@ -248,7 +248,12 @@ export default function ChatMessage({
               )}
               {attachChips}
               {message.content && (
-                <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-tr-none bg-accent/15 px-4 py-2.5 leading-7">
+                <div
+                  className={clsx(
+                    "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-tr-none px-4 py-2.5 leading-7",
+                    bubble ? "bg-accent text-white" : "bg-accent/15"
+                  )}
+                >
                   {message.content}
                 </div>
               )}
@@ -335,7 +340,7 @@ export default function ChatMessage({
           <div
             className={clsx(
               bubble &&
-                "inline-block max-w-full rounded-2xl rounded-tl-none bg-neutral-100 px-4 py-3 dark:bg-white/5"
+                "inline-block max-w-full rounded-2xl rounded-tl-none bg-bubble-light px-4 py-3 dark:bg-bubble-dark"
             )}
           >
             {message.content ? (
