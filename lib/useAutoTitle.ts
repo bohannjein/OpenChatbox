@@ -11,6 +11,7 @@ import { generateTitle, parseModelKey } from "@/lib/providers";
 export function useAutoTitle() {
   const providers = useStore((s) => s.providers);
   const selectedModelKey = useStore((s) => s.selectedModelKey);
+  const titleModelKey = useStore((s) => s.routerModels.title);
   const sidekicks = useStore((s) => s.sidekicks);
   const renameChat = useStore((s) => s.renameChat);
   const setTitlePending = useStore((s) => s.setTitlePending);
@@ -27,11 +28,12 @@ export function useAutoTitle() {
       const firstUser = chat.messages.find((m) => m.role === "user");
       if (answers.length !== 1 || !firstUser) return;
 
-      // Effective model: the chat's sidekick overrides the current selection.
+      // Effective model: a sidekick wins; else the dedicated thread-naming
+      // model (Standardmodelle → Thread-Benennung); else the current selection.
       const sk = chat.sidekickId
         ? sidekicks.find((x) => x.id === chat.sidekickId)
         : undefined;
-      const key = sk?.modelKey || selectedModelKey;
+      const key = sk?.modelKey || titleModelKey || selectedModelKey;
       if (!key) return;
       const { providerId, model } = parseModelKey(key);
       const provider = providers.find((p) => p.id === providerId);
@@ -47,6 +49,7 @@ export function useAutoTitle() {
             type: provider.type,
             baseUrl: provider.baseUrl,
             apiKey: provider.apiKey,
+            providerId: provider.id,
             model,
           },
           transcript

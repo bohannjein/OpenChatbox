@@ -12,8 +12,13 @@ import {
   User,
   MessageSquare,
   Brain,
-  Shield,
   Blocks,
+  SlidersHorizontal,
+  Server,
+  ListChecks,
+  Globe,
+  Sun,
+  Moon,
   type LucideIcon,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -27,17 +32,29 @@ import UserManagement from "./UserManagement";
 import SidekickManager from "./SidekickManager";
 import MemoryManager from "./MemoryManager";
 import AccountPanel from "./AccountPanel";
+import DefaultModelsPanel from "./DefaultModelsPanel";
 import type { Provider, ProviderType } from "@/lib/types";
 
 type TestState = { status: "idle" | "loading" | "ok" | "err"; msg?: string };
-type TabId = "account" | "chat" | "ai" | "admin" | "plugins";
+type TabId =
+  | "account"
+  | "general"
+  | "providers"
+  | "defaults"
+  | "search"
+  | "chat"
+  | "ai"
+  | "plugins";
 
 const TABS: { id: TabId; label: string; Icon: LucideIcon; adminOnly?: boolean }[] =
   [
     { id: "account", label: "Mein Konto", Icon: User },
-    { id: "chat", label: "Chat-Einstellungen", Icon: MessageSquare },
+    { id: "general", label: "Allgemein", Icon: SlidersHorizontal },
+    { id: "providers", label: "Modellanbieter & Modelle", Icon: Server, adminOnly: true },
+    { id: "defaults", label: "Standardmodelle", Icon: ListChecks, adminOnly: true },
+    { id: "search", label: "Internetsuche", Icon: Globe },
+    { id: "chat", label: "Chateinstellungen", Icon: MessageSquare },
     { id: "ai", label: "KI-Personalisierung", Icon: Brain },
-    { id: "admin", label: "Admin-Dashboard", Icon: Shield, adminOnly: true },
     { id: "plugins", label: "System-Dienste/Plugins", Icon: Blocks, adminOnly: true },
   ];
 
@@ -76,6 +93,12 @@ export default function SettingsModal() {
   const setOllamaKeepAlive = useStore((s) => s.setOllamaKeepAlive);
   const vramManaged = useStore((s) => s.vramManaged);
   const setVramManaged = useStore((s) => s.setVramManaged);
+  const theme = useStore((s) => s.theme);
+  const setTheme = useStore((s) => s.setTheme);
+  const lang = useStore((s) => s.lang);
+  const setLang = useStore((s) => s.setLang);
+  const webSearchEnabled = useStore((s) => s.webSearchEnabled);
+  const toggleWebSearch = useStore((s) => s.toggleWebSearch);
   const authUser = useStore((s) => s.authUser);
 
   const [tests, setTests] = useState<Record<string, TestState>>({});
@@ -305,8 +328,51 @@ export default function SettingsModal() {
               </>
             )}
 
-            {activeTab === "admin" && isAdmin && (
+            {activeTab === "general" && (
               <>
+                {/* Appearance — theme + language (all users) */}
+                <Section>
+                  <h3 className="font-medium">Darstellung</h3>
+                  <p className="mb-2 text-sm text-neutral-500">
+                    Design und Sprache der Oberfläche.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => setTheme("light")}
+                      className={clsx(
+                        "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition",
+                        theme === "light"
+                          ? "border-accent bg-accent/15 text-accent"
+                          : "border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
+                      )}
+                    >
+                      <Sun size={15} /> Hell
+                    </button>
+                    <button
+                      onClick={() => setTheme("dark")}
+                      className={clsx(
+                        "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition",
+                        theme === "dark"
+                          ? "border-accent bg-accent/15 text-accent"
+                          : "border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
+                      )}
+                    >
+                      <Moon size={15} /> Dunkel
+                    </button>
+                    <span className="mx-1 text-neutral-300 dark:text-neutral-600">|</span>
+                    <select
+                      value={lang ?? "de"}
+                      onChange={(e) => setLang(e.target.value as "de" | "en")}
+                      className="input-base py-1.5 text-sm dark:bg-sidebar-dark"
+                    >
+                      <option value="de">Deutsch</option>
+                      <option value="en">English</option>
+                    </select>
+                  </div>
+                </Section>
+
+                {isAdmin && (
+                  <>
                 {/* User management */}
                 <Section>
                   <UserManagement />
@@ -373,6 +439,13 @@ export default function SettingsModal() {
                   </div>
                 </Section>
 
+                  </>
+                )}
+              </>
+            )}
+
+            {activeTab === "providers" && isAdmin && (
+              <>
                 {/* Providers */}
                 <Section>
                   <div className="mb-3 flex items-center justify-between">
@@ -602,6 +675,32 @@ export default function SettingsModal() {
                   <AdminPanel />
                 </Section>
               </>
+            )}
+
+            {activeTab === "defaults" && isAdmin && (
+              <Section>
+                <DefaultModelsPanel />
+              </Section>
+            )}
+
+            {activeTab === "search" && (
+              <Section>
+                <h3 className="font-medium">Internetsuche</h3>
+                <p className="mb-2 text-sm text-neutral-500">
+                  Erlaubt dem Modell, für aktuelle Fragen das Web zu durchsuchen.
+                  Die Suchanfrage formuliert das Modell „Suchbegriff-Konstruktion"
+                  (siehe Standardmodelle).
+                </p>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={webSearchEnabled}
+                    onChange={() => toggleWebSearch()}
+                    className="h-4 w-4 accent-[rgb(var(--accent))]"
+                  />
+                  Internetsuche aktivieren
+                </label>
+              </Section>
             )}
 
             {activeTab === "plugins" && isAdmin && (
