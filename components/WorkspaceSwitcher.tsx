@@ -93,7 +93,7 @@ export default function WorkspaceSwitcher() {
         <span
           aria-hidden
           className={clsx(
-            "pointer-events-none absolute inset-y-0.5 left-0.5 w-[calc(50%-4px)] rounded-md bg-white/10 shadow-sm backdrop-blur transition-transform duration-300 ease-out",
+            "pointer-events-none absolute inset-y-0.5 left-0.5 w-[calc(50%-4px)] rounded-md border border-white/5 bg-white/10 backdrop-blur transition-transform duration-300 ease-out",
             isPersonal ? "translate-x-0" : "translate-x-[calc(100%+4px)]"
           )}
         />
@@ -103,10 +103,10 @@ export default function WorkspaceSwitcher() {
             setOpen(false);
           }}
           className={clsx(
-            "relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition",
+            "relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors duration-300",
             isPersonal
               ? "font-medium text-neutral-900 dark:text-white"
-              : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+              : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
           )}
         >
           <User size={14} className="shrink-0" /> Persönlich
@@ -115,10 +115,10 @@ export default function WorkspaceSwitcher() {
           onClick={() => setOpen((v) => !v)}
           title="Workspaces verwalten"
           className={clsx(
-            "relative z-10 flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition",
+            "relative z-10 flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors duration-300",
             !isPersonal
               ? "font-medium text-neutral-900 dark:text-white"
-              : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+              : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
           )}
         >
           <Users size={14} className="shrink-0" />
