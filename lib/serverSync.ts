@@ -47,13 +47,17 @@ function chatsOf(s: State): { chats: unknown[]; activeChatId: string | null } {
   };
 }
 
-/** Admin-global subset (branding + router + providers incl. locally-held keys). */
+/**
+ * Admin-global subset auto-pushed on change (branding + router). Providers are
+ * NOT here on purpose: the client only holds an apiKey-stripped copy, so
+ * auto-pushing them would wipe the server-side keys. Providers are saved
+ * explicitly via the ProvidersPanel (which loads the full config with keys).
+ */
 function globalOf(s: State): GlobalConfigPayload {
   return {
     appName: s.appName,
     logoUrl: s.logoUrl,
     accentColor: s.accentColor,
-    providers: s.providers,
     routerModels: s.routerModels,
   };
 }

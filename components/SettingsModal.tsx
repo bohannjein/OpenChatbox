@@ -5,9 +5,6 @@ import clsx from "clsx";
 import {
   X,
   Trash2,
-  Loader2,
-  CheckCircle2,
-  XCircle,
   Plus,
   User,
   MessageSquare,
@@ -23,8 +20,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { fetchModels } from "@/lib/providers";
-import { PRESETS } from "@/lib/presets";
 import { DEFAULT_ACCENT, normalizeHex } from "@/lib/branding";
 import { resizeImageToDataUrl } from "@/lib/imageResize";
 import { uid } from "@/lib/uid";
@@ -38,9 +33,8 @@ import DefaultModelsPanel from "./DefaultModelsPanel";
 import SearchProvidersPanel from "./SearchProvidersPanel";
 import KnowledgeBasePanel from "./KnowledgeBasePanel";
 import ImageGenPanel from "./ImageGenPanel";
-import type { Provider, ProviderType } from "@/lib/types";
+import ProvidersPanel from "./ProvidersPanel";
 
-type TestState = { status: "idle" | "loading" | "ok" | "err"; msg?: string };
 type TabId =
   | "account"
   | "general"
@@ -77,9 +71,6 @@ function Section({ children }: { children: React.ReactNode }) {
 export default function SettingsModal() {
   const open = useStore((s) => s.settingsOpen);
   const setOpen = useStore((s) => s.setSettingsOpen);
-  const providers = useStore((s) => s.providers);
-  const upsertProvider = useStore((s) => s.upsertProvider);
-  const removeProvider = useStore((s) => s.removeProvider);
   const clearAllChats = useStore((s) => s.clearAllChats);
   const customInstructions = useStore((s) => s.customInstructions);
   const setCustomInstructions = useStore((s) => s.setCustomInstructions);
@@ -136,7 +127,6 @@ export default function SettingsModal() {
     }
   };
 
-  const [tests, setTests] = useState<Record<string, TestState>>({});
   const [tab, setTab] = useState<TabId>("account");
 
   if (!open) return null;
@@ -144,37 +134,6 @@ export default function SettingsModal() {
   const isAdmin = authUser?.role === "admin";
   const visibleTabs = TABS.filter((t) => !t.adminOnly || isAdmin);
   const activeTab = visibleTabs.some((t) => t.id === tab) ? tab : "account";
-
-  const update = (p: Provider, patch: Partial<Provider>) =>
-    upsertProvider({ ...p, ...patch });
-
-  const addFromPreset = (idx: number) => {
-    const preset = PRESETS[idx];
-    if (!preset) return;
-    upsertProvider({
-      id: uid(),
-      name: preset.name,
-      type: preset.type,
-      baseUrl: preset.baseUrl,
-      apiKey: "",
-      enabled: true,
-      manualModels: preset.suggested ? [...preset.suggested] : undefined,
-    });
-  };
-
-  const test = async (p: Provider) => {
-    setTests((t) => ({ ...t, [p.id]: { status: "loading" } }));
-    try {
-      const models = await fetchModels(p);
-      setTests((t) => ({
-        ...t,
-        [p.id]: { status: "ok", msg: `${models.length} Modelle` },
-      }));
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setTests((t) => ({ ...t, [p.id]: { status: "err", msg } }));
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -613,164 +572,9 @@ export default function SettingsModal() {
 
             {activeTab === "providers" && isAdmin && (
               <>
-                {/* Providers */}
+                {/* Providers (global, server-side; loads full config incl keys) */}
                 <Section>
-                  <div className="mb-3 flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium">Provider & API-Endpunkte</h3>
-                      <p className="text-sm text-neutral-500">
-                        Ollama (lokal) oder OpenAI-kompatible APIs (Hugging Face
-                        TGI, vLLM, OpenAI…).
-                      </p>
-                    </div>
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        if (e.target.value !== "")
-                          addFromPreset(Number(e.target.value));
-                        e.target.value = "";
-                      }}
-                      className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover"
-                      title="Anbieter aus Vorlage hinzufügen"
-                    >
-                      <option value="">+ Anbieter hinzufügen</option>
-                      {PRESETS.map((p, i) => (
-                        <option key={p.name} value={i} className="text-black">
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-3">
-                    {providers.map((p) => {
-                      const t = tests[p.id] ?? { status: "idle" };
-                      return (
-                        <div
-                          key={p.id}
-                          className="rounded-xl border border-border-light p-3 dark:border-border-dark"
-                        >
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={p.enabled}
-                              onChange={(e) =>
-                                update(p, { enabled: e.target.checked })
-                              }
-                              className="h-4 w-4 accent-[rgb(var(--accent))]"
-                            />
-                            <input
-                              value={p.name}
-                              onChange={(e) =>
-                                update(p, { name: e.target.value })
-                              }
-                              placeholder="Anzeigename"
-                              className="min-w-0 flex-1 input-base"
-                            />
-                            <select
-                              value={p.type}
-                              onChange={(e) =>
-                                update(p, {
-                                  type: e.target.value as ProviderType,
-                                })
-                              }
-                              className="input-base dark:bg-sidebar-dark"
-                            >
-                              <option value="ollama">Ollama</option>
-                              <option value="openai">OpenAI-kompatibel</option>
-                              <option value="anthropic">Anthropic</option>
-                            </select>
-                            <button
-                              onClick={() => removeProvider(p.id)}
-                              className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
-                              title="Provider entfernen"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                          <div className="mt-2 grid gap-2">
-                            <div>
-                              <label className="text-xs text-neutral-500">
-                                Base-URL
-                              </label>
-                              <input
-                                value={p.baseUrl}
-                                onChange={(e) =>
-                                  update(p, { baseUrl: e.target.value })
-                                }
-                                placeholder={
-                                  p.type === "ollama"
-                                    ? "http://localhost:11434"
-                                    : "https://api.openai.com/v1"
-                                }
-                                className="w-full input-base font-mono"
-                              />
-                            </div>
-                            {p.type !== "ollama" && (
-                              <div>
-                                <label className="text-xs text-neutral-500">
-                                  API-Key
-                                </label>
-                                <input
-                                  type="password"
-                                  value={p.apiKey ?? ""}
-                                  onChange={(e) =>
-                                    update(p, { apiKey: e.target.value })
-                                  }
-                                  placeholder="sk-… / API-Key des Anbieters"
-                                  className="w-full input-base font-mono"
-                                />
-                              </div>
-                            )}
-                            <div>
-                              <label className="text-xs text-neutral-500">
-                                Modelle manuell (optional, Komma-getrennt)
-                              </label>
-                              <input
-                                value={(p.manualModels ?? []).join(", ")}
-                                onChange={(e) =>
-                                  update(p, {
-                                    manualModels: e.target.value
-                                      .split(",")
-                                      .map((s) => s.trim())
-                                      .filter(Boolean),
-                                  })
-                                }
-                                placeholder="z. B. gpt-4o, claude-sonnet-4-5, sonar-pro"
-                                className="w-full input-base font-mono"
-                              />
-                            </div>
-                          </div>
-                          <div className="mt-2 flex items-center gap-3">
-                            <button
-                              onClick={() => test(p)}
-                              className="rounded-lg border border-border-light px-3 py-1 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
-                            >
-                              Verbindung testen
-                            </button>
-                            {t.status === "loading" && (
-                              <span className="flex items-center gap-1 text-sm text-neutral-500">
-                                <Loader2 size={14} className="animate-spin" />{" "}
-                                teste…
-                              </span>
-                            )}
-                            {t.status === "ok" && (
-                              <span className="flex items-center gap-1 text-sm text-accent">
-                                <CheckCircle2 size={14} /> {t.msg}
-                              </span>
-                            )}
-                            {t.status === "err" && (
-                              <span
-                                className="flex items-center gap-1 truncate text-sm text-red-500"
-                                title={t.msg}
-                              >
-                                <XCircle size={14} /> {t.msg}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <ProvidersPanel />
                 </Section>
 
                 {/* Performance / VRAM */}
