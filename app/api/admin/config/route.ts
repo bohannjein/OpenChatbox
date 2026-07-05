@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
     patch.search = body.search as ServerConfig["search"];
   if (typeof body.embeddingModel === "string")
     patch.embeddingModel = body.embeddingModel.slice(0, 100);
+  if (body.imageGen && typeof body.imageGen === "object")
+    patch.imageGen = body.imageGen as ServerConfig["imageGen"];
   if (body.primaryProvider && typeof body.primaryProvider === "object")
     patch.primaryProvider = body.primaryProvider as ServerConfig["primaryProvider"];
 

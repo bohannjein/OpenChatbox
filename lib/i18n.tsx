@@ -56,6 +56,7 @@ const STRINGS = {
     en: "Reasoning model is thinking…",
   },
   "pipeline.text": { de: "Modell antwortet…", en: "Model is answering…" },
+  "pipeline.imagegen": { de: "Erzeugt ein Bild…", en: "Generating an image…" },
   "pipeline.search": { de: "Durchsucht das Web…", en: "Searching the web…" },
   "pipeline.knowledge": {
     de: "Durchsucht die Wissensdatenbank…",

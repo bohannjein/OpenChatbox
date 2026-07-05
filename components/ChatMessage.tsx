@@ -44,7 +44,7 @@ const PIPELINE_BADGE: Record<PipelineStage, { Icon: LucideIcon; key: StringKey }
   coding: { Icon: Code, key: "pipeline.coding" },
   reasoning: { Icon: Brain, key: "pipeline.reasoning" },
   text: { Icon: Loader2, key: "pipeline.text" },
-  imagegen: { Icon: Loader2, key: "pipeline.text" },
+  imagegen: { Icon: Loader2, key: "pipeline.imagegen" },
   search: { Icon: Globe, key: "pipeline.search" },
   knowledge: { Icon: Library, key: "pipeline.knowledge" },
 };
@@ -369,6 +369,21 @@ export default function ChatMessage({
               <span className="ml-0.5 inline-block h-4 w-2 animate-blink bg-neutral-500 align-middle" />
             )}
           </div>
+
+          {/* Generated image(s) — rendered inline. */}
+          {message.images && message.images.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {message.images.map((src, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={i}
+                  src={src}
+                  alt={`Bild ${i + 1}`}
+                  className="max-h-96 rounded-xl border border-border-light object-contain dark:border-border-dark"
+                />
+              ))}
+            </div>
+          )}
 
           {/* Auto-generated downloadable documents — edle Download-Karte */}
           {message.docs && message.docs.length > 0 && (

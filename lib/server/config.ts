@@ -50,6 +50,20 @@ export const SEARCH_PROVIDER_ORDER: SearchProviderName[] = [
   "qureit",
 ];
 
+/** Image-generation backend (API key server-only). */
+export type ImageGenType = "openai" | "automatic1111" | "comfyui";
+export interface ImageGenConfig {
+  enabled: boolean;
+  type: ImageGenType;
+  /** endpoint base (OpenAI-compatible /v1, or the A1111/ComfyUI host) */
+  baseUrl?: string;
+  apiKey?: string;
+  /** model id (OpenAI: gpt-image-1 / dall-e-3) */
+  model?: string;
+  /** image size, e.g. 1024x1024 */
+  size?: string;
+}
+
 export interface ServerConfig {
   /** display name of this instance (shown in the UI) */
   appName: string;
@@ -71,6 +85,8 @@ export interface ServerConfig {
   search?: SearchConfig;
   /** Ollama embedding model for the knowledge base (RAG). */
   embeddingModel?: string;
+  /** admin-global image generation backend (apiKey server-only) */
+  imageGen?: ImageGenConfig;
   /** admin master-switches for server-side background services */
   plugins?: PluginFlags;
   /** epoch ms when setup was completed */
@@ -148,6 +164,12 @@ export function getSearchConfig(): SearchConfig {
   return getConfig().search ?? {};
 }
 
+/** Image-generation config if enabled + has an endpoint — server-side only. */
+export function getImageGenConfig(): ImageGenConfig | null {
+  const c = getConfig().imageGen;
+  return c?.enabled ? c : null;
+}
+
 /** The active search provider (first enabled + keyed in order), or null. */
 export function activeSearchProvider(): { name: SearchProviderName; apiKey: string } | null {
   const sc = getSearchConfig();
@@ -191,6 +213,8 @@ export function publicConfig(c: ServerConfig = getConfig()) {
         SEARCH_PROVIDER_ORDER.map((n) => [n, !!(c.search?.[n]?.enabled)])
       ) as Record<SearchProviderName, boolean>,
     },
+    // Image generation: expose only availability + type, never the key.
+    imageGen: { enabled: !!c.imageGen?.enabled, type: c.imageGen?.type ?? null },
     plugins: { ...DEFAULT_PLUGINS, ...(c.plugins ?? {}) },
   };
 }

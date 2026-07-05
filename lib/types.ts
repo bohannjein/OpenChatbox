@@ -206,6 +206,7 @@ export interface GlobalConfigPayload {
     provider: string | null;
     providers?: Record<string, boolean>;
   };
+  imageGen?: { enabled: boolean; type: string | null };
   plugins?: { officeParser: boolean; ocrEngine: boolean; docGenerator: boolean };
 }
 

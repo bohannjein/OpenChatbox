@@ -240,6 +240,8 @@ interface State {
   setPluginFlags: (p: State["plugins"]) => void;
   /** whether an admin web-search provider is configured (transient, from /api/config) */
   searchAvailable: boolean;
+  /** whether an admin image-generation backend is configured (transient) */
+  imageGenAvailable: boolean;
   /** transient: last server write-through (profile/chats) failed → data may be local only */
   syncError: boolean;
   setSyncError: (v: boolean) => void;
@@ -284,6 +286,7 @@ interface State {
     msgId: string,
     stage: PipelineStage | undefined
   ) => void;
+  setMessageImages: (chatId: string, msgId: string, images: string[]) => void;
   truncateAfter: (chatId: string, msgId: string) => void;
   editUserMessage: (chatId: string, msgId: string, content: string) => void;
 
@@ -431,6 +434,7 @@ export const useStore = create<State>()(
       plugins: null,
       setPluginFlags: (plugins) => set({ plugins }),
       searchAvailable: false,
+      imageGenAvailable: false,
       syncError: false,
       setSyncError: (syncError) => set({ syncError }),
 
@@ -456,6 +460,7 @@ export const useStore = create<State>()(
           accentColor: c.accentColor || s.accentColor,
           plugins: c.plugins ?? s.plugins,
           searchAvailable: c.search?.enabled ?? s.searchAvailable,
+          imageGenAvailable: c.imageGen?.enabled ?? s.imageGenAvailable,
         })),
 
       // Apply the per-user profile fetched from the server (source of truth).
@@ -694,6 +699,11 @@ export const useStore = create<State>()(
             ...m,
             pipeline: stage,
           })),
+        })),
+
+      setMessageImages: (chatId, msgId, images) =>
+        set((s) => ({
+          chats: patchMessage(s.chats, chatId, msgId, (m) => ({ ...m, images })),
         })),
 
       truncateAfter: (chatId, msgId) =>

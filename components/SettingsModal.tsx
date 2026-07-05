@@ -37,6 +37,7 @@ import AccountPanel from "./AccountPanel";
 import DefaultModelsPanel from "./DefaultModelsPanel";
 import SearchProvidersPanel from "./SearchProvidersPanel";
 import KnowledgeBasePanel from "./KnowledgeBasePanel";
+import ImageGenPanel from "./ImageGenPanel";
 import type { Provider, ProviderType } from "@/lib/types";
 
 type TestState = { status: "idle" | "loading" | "ok" | "err"; msg?: string };
@@ -839,6 +840,11 @@ export default function SettingsModal() {
                 {/* Ollama pull + model aliases/favorites */}
                 <Section>
                   <AdminPanel />
+                </Section>
+
+                {/* Image generation backend */}
+                <Section>
+                  <ImageGenPanel />
                 </Section>
               </>
             )}

@@ -123,6 +123,8 @@ export default function ChatWindow() {
   const chatBackgroundUrl = useStore((s) => s.chatBackgroundUrl);
   const webSearchEnabled = useStore((s) => s.webSearchEnabled);
   const searchAvailable = useStore((s) => s.searchAvailable);
+  const imageGenAvailable = useStore((s) => s.imageGenAvailable);
+  const setMessageImages = useStore((s) => s.setMessageImages);
   const kbEnabled = useStore((s) => s.kbEnabled);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
@@ -436,10 +438,56 @@ export default function ChatWindow() {
       }
     }
 
-    // Szenario B — image generation. Not supported yet (Ollama can't generate
-    // images); tell the user instead of failing silently. No model runs.
+    // Szenario B — image generation via the admin-configured backend.
     if (plan.scenario === "imagegen") {
-      setMessageContent(chatId, assistantId, t("pipeline.imagegenHint"));
+      if (imageGenAvailable && lastUser?.content?.trim()) {
+        setStreamingId(assistantId);
+        setMessagePipeline(chatId, assistantId, "imagegen");
+        const ac = new AbortController();
+        abortRef.current = ac;
+        try {
+          const r = await fetch("/api/image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: lastUser.content }),
+            signal: ac.signal,
+          });
+          const d = await r.json().catch(() => ({}));
+          if (d.dataUrl) {
+            setMessageImages(chatId, assistantId, [d.dataUrl]);
+            setMessageContent(chatId, assistantId, "Hier ist dein generiertes Bild:");
+            // Persist in the file store so it survives reload / shows in files.
+            fetch("/api/files", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chatId,
+                messageId: assistantId,
+                name: "bild.png",
+                kind: "image",
+                source: "generated",
+                dataUrl: d.dataUrl,
+              }),
+            }).catch(() => {});
+          } else {
+            setMessageContent(chatId, assistantId, `⚠️ ${d.error || "Bildgenerierung fehlgeschlagen."}`);
+          }
+        } catch (e) {
+          if ((e as Error)?.name !== "AbortError")
+            setMessageContent(
+              chatId,
+              assistantId,
+              `⚠️ ${e instanceof Error ? e.message : String(e)}`
+            );
+        } finally {
+          setMessagePipeline(chatId, assistantId, undefined);
+          finalizeVariant(chatId, assistantId);
+          abortRef.current = null;
+          setStreamingId(null);
+        }
+      } else {
+        setMessageContent(chatId, assistantId, t("pipeline.imagegenHint"));
+      }
       return;
     }
 
