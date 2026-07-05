@@ -4,6 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import { Plus, Trash2, Upload, Loader2, FileText, Library } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { extractText } from "@/lib/kbText";
+import Modal from "./Modal";
+
+type Pending = { type: "category" | "document"; id: string; name: string };
 
 interface Category {
   id: string;
@@ -32,9 +35,10 @@ export default function KnowledgeBasePanel() {
   const [busy, setBusy] = useState<string | null>(null); // categoryId being indexed
   const [error, setError] = useState<string | null>(null);
   const [embModel, setEmbModel] = useState("");
+  const [pending, setPending] = useState<Pending | null>(null);
 
   const load = useCallback(() => {
-    fetch("/api/kb")
+    fetch("/api/kb", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : { categories: [], documents: [] }))
       .then((d) => {
         setCats(d.categories ?? []);
@@ -64,12 +68,15 @@ export default function KnowledgeBasePanel() {
     load();
   };
 
-  const removeCategory = async (id: string) => {
-    await fetch(`/api/kb?category=${id}`, { method: "DELETE" }).catch(() => {});
-    load();
-  };
-  const removeDoc = async (id: string) => {
-    await fetch(`/api/kb?document=${id}`, { method: "DELETE" }).catch(() => {});
+  // Deletions go through a confirmation modal (knowledge shouldn't vanish on a
+  // stray click). doDelete performs the actual request after confirmation.
+  const doDelete = async () => {
+    if (!pending) return;
+    const param = pending.type === "category" ? "category" : "document";
+    await fetch(`/api/kb?${param}=${encodeURIComponent(pending.id)}`, {
+      method: "DELETE",
+    }).catch(() => {});
+    setPending(null);
     load();
   };
 
@@ -211,7 +218,9 @@ export default function KnowledgeBasePanel() {
                     />
                   </label>
                   <button
-                    onClick={() => removeCategory(cat.id)}
+                    onClick={() =>
+                      setPending({ type: "category", id: cat.id, name: cat.name })
+                    }
                     className="rounded-lg p-1.5 text-neutral-400 hover:text-red-500"
                     title="Kategorie löschen"
                   >
@@ -231,7 +240,9 @@ export default function KnowledgeBasePanel() {
                           {d.chunkCount} Abschnitte
                         </span>
                         <button
-                          onClick={() => removeDoc(d.id)}
+                          onClick={() =>
+                            setPending({ type: "document", id: d.id, name: d.name })
+                          }
                           className="rounded p-1 text-neutral-400 hover:text-red-500"
                           title="Dokument entfernen"
                         >
@@ -245,6 +256,42 @@ export default function KnowledgeBasePanel() {
             );
           })}
         </div>
+      )}
+
+      {pending && (
+        <Modal onClose={() => setPending(null)}>
+          <h3 className="mb-1 text-lg font-semibold">
+            {pending.type === "category" ? "Kategorie löschen" : "Dokument löschen"}
+          </h3>
+          <p className="mb-4 text-sm text-neutral-500">
+            {pending.type === "category" ? (
+              <>
+                „{pending.name}" und <b>alle enthaltenen Dokumente</b> endgültig aus
+                der Wissensdatenbank löschen? Das kann nicht rückgängig gemacht
+                werden.
+              </>
+            ) : (
+              <>
+                „{pending.name}" endgültig aus der Wissensdatenbank löschen? Das kann
+                nicht rückgängig gemacht werden.
+              </>
+            )}
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setPending(null)}
+              className="rounded-lg px-3 py-1.5 text-sm hover:bg-neutral-200 dark:hover:bg-white/10"
+            >
+              Abbrechen
+            </button>
+            <button
+              onClick={doDelete}
+              className="rounded-lg bg-red-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-red-700"
+            >
+              Löschen
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );
