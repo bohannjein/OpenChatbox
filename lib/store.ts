@@ -540,6 +540,10 @@ export const useStore = create<State>()(
           chats: [chat, ...pruneEmpty(s.chats, s.activeChatId)],
           activeChatId: chat.id,
           incognito,
+          // A fresh chat starts with the per-turn tools off — the user opts in
+          // per conversation (web search / knowledge base are not sticky).
+          webSearchEnabled: false,
+          kbEnabled: false,
         });
         return chat.id;
       },
