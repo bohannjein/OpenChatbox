@@ -27,10 +27,10 @@ export default function Modal({
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 print:hidden">
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="absolute inset-0 animate-fade-in bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border-light bg-white p-5 shadow-2xl dark:border-border-dark dark:bg-sidebar-dark">
+      <div className="relative z-10 w-full max-w-sm origin-center animate-modal-in rounded-2xl border border-border-light bg-white p-5 shadow-2xl dark:border-border-dark dark:bg-sidebar-dark">
         {children}
       </div>
     </div>,

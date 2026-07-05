@@ -39,6 +39,10 @@ const config: Config = {
           "sans-serif",
         ],
       },
+      transitionTimingFunction: {
+        // easeOutExpo — snappy start, soft landing (the app-wide "premium" curve)
+        expo: "cubic-bezier(0.16, 1, 0.3, 1)",
+      },
       keyframes: {
         "fade-in": {
           "0%": { opacity: "0", transform: "translateY(4px)" },

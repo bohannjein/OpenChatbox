@@ -1409,7 +1409,7 @@ export default function ChatWindow() {
                 <button
                   key={s.title}
                   onClick={() => inputRef.current?.setText(s.prompt)}
-                  className="flex items-start gap-3 rounded-xl border border-border-light p-4 text-left transition hover:bg-neutral-100 hover:shadow-sm dark:border-border-dark dark:hover:bg-white/5"
+                  className="flex items-start gap-3 rounded-xl border border-border-light p-4 text-left transition-all duration-150 ease-out hover:scale-[1.01] hover:bg-neutral-100 hover:shadow-sm active:scale-[0.98] dark:border-border-dark dark:hover:bg-white/5"
                 >
                   <s.icon size={18} className="mt-0.5 shrink-0 text-accent" />
                   <span className="text-sm font-medium">{s.title}</span>

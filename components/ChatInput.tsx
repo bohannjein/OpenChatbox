@@ -682,7 +682,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
               <button
                 onClick={onStop}
                 title="Generierung stoppen"
-                className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-white transition hover:bg-neutral-700 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+                className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-white transition-all duration-150 ease-out hover:bg-neutral-700 active:scale-95 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
               >
                 <Square size={16} fill="currentColor" />
               </button>
@@ -691,7 +691,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
                 onClick={submit}
                 disabled={(!value.trim() && attachments.length === 0) || disabled}
                 title="Senden"
-                className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-white transition hover:bg-neutral-700 disabled:opacity-30 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+                className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-white transition-all duration-150 ease-out hover:scale-105 hover:bg-neutral-700 active:scale-95 disabled:opacity-30 disabled:hover:scale-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
               >
                 <ArrowUp size={18} />
               </button>

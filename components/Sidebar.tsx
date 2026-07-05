@@ -128,7 +128,7 @@ export default function Sidebar() {
       <div
         key={c.id}
         className={clsx(
-          "group relative mb-0.5 flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors duration-200",
+          "group relative mb-0.5 flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors duration-200 ease-out",
           active
             ? "bg-zinc-200/60 dark:bg-white/[0.03]"
             : "hover:bg-zinc-200/40 dark:hover:bg-white/[0.02]"
@@ -287,7 +287,7 @@ export default function Sidebar() {
         <div className="px-3 pb-1 pt-0.5">
           <button
             onClick={startNewChat}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-violet-500/20 bg-zinc-950/40 px-3 py-2.5 text-sm font-medium tracking-wide text-violet-700 shadow-[0_0_15px_rgba(139,92,246,0.05)] backdrop-blur-md transition-all duration-300 hover:border-violet-400/40 hover:bg-gradient-to-r hover:from-violet-600/10 hover:to-indigo-600/10 hover:text-violet-900 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] dark:text-violet-200 dark:hover:text-white"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-violet-500/20 bg-zinc-950/40 px-3 py-2.5 text-sm font-medium tracking-wide text-violet-700 shadow-[0_0_15px_rgba(139,92,246,0.05)] backdrop-blur-md transition-all duration-150 ease-out hover:scale-[1.01] hover:border-violet-400/40 hover:bg-gradient-to-r hover:from-violet-600/10 hover:to-indigo-600/10 hover:text-violet-900 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] active:scale-[0.98] dark:text-violet-200 dark:hover:text-white"
           >
             <Plus size={16} />
             {t("sidebar.newChat")}
@@ -348,10 +348,10 @@ export default function Sidebar() {
         {/* Cyber-glass popover */}
         <div
           className={clsx(
-            "absolute bottom-16 left-2 right-2 z-50 mb-1 flex origin-bottom flex-col gap-1 rounded-2xl border border-white/[0.08] bg-zinc-950/90 p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur-md transition-all duration-200",
+            "absolute bottom-16 left-2 right-2 z-50 mb-1 flex origin-bottom flex-col gap-1 rounded-2xl border border-white/[0.08] bg-zinc-950/90 p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur-md transition-all duration-200 ease-expo",
             menuOpen
-              ? "scale-100 opacity-100"
-              : "pointer-events-none scale-95 opacity-0"
+              ? "translate-y-0 scale-100 opacity-100"
+              : "pointer-events-none translate-y-1 scale-95 opacity-0"
           )}
         >
           {/* Header — current user (non-clickable) */}
