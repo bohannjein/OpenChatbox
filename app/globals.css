@@ -205,3 +205,82 @@ body {
 .prose-chat :not(pre) > code {
   @apply rounded bg-bubble-light px-1.5 py-0.5 text-[0.85em] dark:bg-bubble-dark;
 }
+
+/* Popover pop-in (fade + scale-up) */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.animate-pop-in {
+  animation: pop-in 0.15s ease-out;
+}
+
+/* High-end parameter slider: dark rail + violet→indigo fill + filigree thumb.
+   The fill percentage is driven by an inline `--pct` custom property. */
+.param-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 0.875rem;
+  background: transparent;
+  cursor: pointer;
+}
+.param-range::-webkit-slider-runnable-track {
+  height: 0.25rem;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    #7c3aed 0%,
+    #6366f1 var(--pct, 0%),
+    #27272a var(--pct, 0%)
+  );
+}
+.param-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -0.3125rem;
+  height: 0.875rem;
+  width: 0.875rem;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease;
+}
+.param-range:hover::-webkit-slider-thumb {
+  transform: scale(1.1);
+}
+.param-range:active::-webkit-slider-thumb {
+  transform: scale(0.95);
+}
+.param-range::-moz-range-track {
+  height: 0.25rem;
+  border-radius: 9999px;
+  background: #27272a;
+}
+.param-range::-moz-range-progress {
+  height: 0.25rem;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #7c3aed, #6366f1);
+}
+.param-range::-moz-range-thumb {
+  height: 0.875rem;
+  width: 0.875rem;
+  border: none;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease;
+  cursor: pointer;
+}
+.param-range:hover::-moz-range-thumb {
+  transform: scale(1.1);
+}
+.param-range:active::-moz-range-thumb {
+  transform: scale(0.95);
+}

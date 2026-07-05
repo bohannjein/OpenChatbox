@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { SlidersHorizontal, RotateCcw, Info } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useClickOutside } from "@/lib/useClickOutside";
@@ -24,9 +24,9 @@ export default function ParamsPopover() {
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-40 mt-1 w-72 menu-panel p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+        <div className="absolute left-0 top-full z-40 mt-2 w-72 origin-top animate-pop-in rounded-2xl border border-white/[0.08] bg-zinc-950/75 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               Parameter
             </span>
             <button
@@ -34,7 +34,7 @@ export default function ParamsPopover() {
                 setParams({ temperature: 0.7, topP: 1, maxTokens: 2048 })
               }
               title="Zurücksetzen"
-              className="flex items-center gap-1 rounded p-1 text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
+              className="flex items-center gap-1 text-xs text-zinc-400 transition-colors hover:text-violet-400"
             >
               <RotateCcw size={12} /> Reset
             </button>
@@ -93,7 +93,7 @@ function InfoTip({ text }: { text: string }) {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="flex h-4 w-4 items-center justify-center rounded-full text-neutral-400 transition hover:text-accent focus:text-accent focus:outline-none"
+        className="flex h-4 w-4 items-center justify-center rounded-full text-zinc-500 transition-colors hover:text-zinc-300 focus:text-zinc-300 focus:outline-none"
       >
         <Info size={13} />
       </button>
@@ -130,17 +130,19 @@ function Slider({
   onChange: (v: number) => void;
   format?: (v: number) => string;
 }) {
+  const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
   return (
-    <div className="mb-3">
-      <div className="mb-1 flex items-baseline justify-between">
-        <span className="flex items-center gap-1.5 text-sm font-medium">
+    <div className="mb-4 last:mb-0">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-200">
           {label}
           <InfoTip text={info} />
         </span>
-        <span className="font-mono text-sm text-neutral-500">
+        <span className="rounded-md border border-white/[0.05] bg-zinc-900/80 px-2 py-0.5 font-mono text-xs text-violet-400">
           {format ? format(value) : value.toFixed(2)}
         </span>
       </div>
+      <div className="mt-0.5 text-[11px] text-zinc-500">{hint}</div>
       <input
         type="range"
         min={min}
@@ -148,9 +150,9 @@ function Slider({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-[rgb(var(--accent))]"
+        style={{ "--pct": `${pct}%` } as CSSProperties}
+        className="param-range mt-2"
       />
-      <span className="text-xs text-neutral-400">{hint}</span>
     </div>
   );
 }
