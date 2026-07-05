@@ -252,6 +252,8 @@ interface State {
   /** Replace chats with the server copy (only when the server has any). */
   hydrateChats: (chats: Chat[], activeChatId: string | null) => void;
   settingsOpen: boolean;
+  /** One-shot: which settings tab to open next (consumed by SettingsModal). */
+  settingsTab: string | null;
   searchOpen: boolean;
   setSearchOpen: (v: boolean) => void;
   filesOpen: boolean;
@@ -363,6 +365,7 @@ interface State {
   setTheme: (t: Theme) => void;
   toggleTheme: () => void;
   setSettingsOpen: (v: boolean) => void;
+  setSettingsTab: (t: string | null) => void;
   setSidebarOpen: (v: boolean) => void;
 }
 
@@ -511,6 +514,7 @@ export const useStore = create<State>()(
         }),
 
       settingsOpen: false,
+      settingsTab: null,
       searchOpen: false,
       setSearchOpen: (searchOpen) => set({ searchOpen }),
       filesOpen: false,
@@ -990,6 +994,7 @@ export const useStore = create<State>()(
       toggleTheme: () =>
         set((s) => ({ theme: s.theme === "dark" ? "light" : "dark" })),
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+      setSettingsTab: (settingsTab) => set({ settingsTab }),
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
     }),
     {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import clsx from "clsx";
 import {
   X,
@@ -71,6 +71,8 @@ function Section({ children }: { children: React.ReactNode }) {
 export default function SettingsModal() {
   const open = useStore((s) => s.settingsOpen);
   const setOpen = useStore((s) => s.setSettingsOpen);
+  const requestedTab = useStore((s) => s.settingsTab);
+  const setRequestedTab = useStore((s) => s.setSettingsTab);
   const clearAllChats = useStore((s) => s.clearAllChats);
   const customInstructions = useStore((s) => s.customInstructions);
   const setCustomInstructions = useStore((s) => s.setCustomInstructions);
@@ -128,6 +130,14 @@ export default function SettingsModal() {
   };
 
   const [tab, setTab] = useState<TabId>("account");
+
+  // Honor a one-shot tab request (e.g. footer → "Profil & Sicherheit").
+  useEffect(() => {
+    if (open && requestedTab) {
+      setTab(requestedTab as TabId);
+      setRequestedTab(null);
+    }
+  }, [open, requestedTab, setRequestedTab]);
 
   if (!open) return null;
 

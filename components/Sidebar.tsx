@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import clsx from "clsx";
 import {
@@ -18,8 +18,12 @@ import {
   PinOff,
   Search,
   FolderOpen,
+  User,
+  Users,
+  LogOut,
 } from "lucide-react";
 import { useStore, inWorkspace } from "@/lib/store";
+import { useClickOutside } from "@/lib/useClickOutside";
 import { SidekickAvatar } from "./SidekickIcon";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import AsciiSpinner from "./AsciiSpinner";
@@ -52,6 +56,7 @@ export default function Sidebar() {
   const togglePinChat = useStore((s) => s.togglePinChat);
   const toggleTheme = useStore((s) => s.toggleTheme);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
+  const setSettingsTab = useStore((s) => s.setSettingsTab);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
 
   const setSearchOpen = useStore((s) => s.setSearchOpen);
@@ -59,6 +64,29 @@ export default function Sidebar() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [pendingDelete, setPendingDelete] = useState<Chat | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const footerRef = useRef<HTMLDivElement>(null);
+  useClickOutside(footerRef, () => setMenuOpen(false));
+
+  const openProfile = () => {
+    setMenuOpen(false);
+    setSettingsTab("account");
+    setSettingsOpen(true);
+  };
+  const logout = async () => {
+    setMenuOpen(false);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      /* ignore */
+    }
+    try {
+      localStorage.removeItem("nexus-uid");
+    } catch {
+      /* ignore */
+    }
+    router.push("/login");
+  };
 
   const startEdit = (id: string, title: string) => {
     setEditingId(id);
@@ -319,11 +347,56 @@ export default function Sidebar() {
         {rest.map(chatRow)}
       </nav>
 
-      {/* Footer — floating profile card */}
-      <div className="p-2">
+      {/* Footer — floating profile card + popover menu */}
+      <div className="relative p-2" ref={footerRef}>
+        {/* Cyber-glass popover */}
+        <div
+          className={clsx(
+            "absolute bottom-16 left-2 right-2 z-50 mb-1 flex origin-bottom flex-col gap-1 rounded-2xl border border-white/[0.08] bg-zinc-950/90 p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur-md transition-all duration-200",
+            menuOpen
+              ? "scale-100 opacity-100"
+              : "pointer-events-none scale-95 opacity-0"
+          )}
+        >
+          {/* Header — current user (non-clickable) */}
+          <div className="mb-1 truncate border-b border-white/[0.05] px-3 py-2 font-mono text-xs text-zinc-500">
+            {authUser?.username ?? "Angemeldet"}
+          </div>
+          <button
+            onClick={logout}
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-white/[0.04]"
+          >
+            <Users size={16} strokeWidth={1.5} className="shrink-0 text-zinc-400" />
+            Account wechseln
+          </button>
+          <button
+            onClick={openProfile}
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-white/[0.04]"
+          >
+            <User size={16} strokeWidth={1.5} className="shrink-0 text-zinc-400" />
+            Profil &amp; Sicherheit
+          </button>
+          <div className="my-1 border-t border-white/[0.05]" />
+          <button
+            onClick={logout}
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-red-400/90 transition-colors hover:bg-red-500/10 hover:text-red-400"
+          >
+            <LogOut
+              size={16}
+              strokeWidth={1.5}
+              className="shrink-0 text-red-400/80"
+            />
+            Abmelden
+          </button>
+        </div>
+
         <div className="flex items-center justify-between gap-2 rounded-xl border border-black/[0.06] bg-black/[0.02] p-2 backdrop-blur-sm dark:border-white/[0.05] dark:bg-zinc-950/20">
-          {/* Profile */}
-          <div className="flex min-w-0 items-center gap-2.5">
+          {/* Profile — opens popover */}
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            title="Konto-Menü"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg text-left transition-colors"
+          >
             <div className="relative shrink-0">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
                 {(authUser?.username ?? "?").trim().charAt(0).toUpperCase()}
@@ -340,7 +413,7 @@ export default function Sidebar() {
                   : "—"}
               </div>
             </div>
-          </div>
+          </button>
           {/* Actions */}
           <div className="flex shrink-0 items-center gap-0.5">
             <button
