@@ -11,6 +11,8 @@ import type {
   MemoryFact,
   Message,
   PipelineStage,
+  ToolEvent,
+  SourceLink,
   GlobalConfigPayload,
   ServerUserProfile,
   PromptTemplate,
@@ -242,6 +244,8 @@ interface State {
   searchAvailable: boolean;
   /** whether an admin image-generation backend is configured (transient) */
   imageGenAvailable: boolean;
+  /** whether the admin BookStack integration is enabled (transient, from /api/config) */
+  bookstackAvailable: boolean;
   /** transient: last server write-through (profile/chats) failed → data may be local only */
   syncError: boolean;
   setSyncError: (v: boolean) => void;
@@ -289,6 +293,9 @@ interface State {
     stage: PipelineStage | undefined
   ) => void;
   setMessageImages: (chatId: string, msgId: string, images: string[]) => void;
+  /** BookStack tool status (upsert: a "done" resolves the matching "running"). */
+  upsertToolEvent: (chatId: string, msgId: string, evt: ToolEvent) => void;
+  setMessageSources: (chatId: string, msgId: string, sources: SourceLink[]) => void;
   truncateAfter: (chatId: string, msgId: string) => void;
   editUserMessage: (chatId: string, msgId: string, content: string) => void;
 
@@ -440,6 +447,7 @@ export const useStore = create<State>()(
       setPluginFlags: (plugins) => set({ plugins }),
       searchAvailable: false,
       imageGenAvailable: false,
+      bookstackAvailable: false,
       syncError: false,
       setSyncError: (syncError) => set({ syncError }),
 
@@ -466,6 +474,7 @@ export const useStore = create<State>()(
           plugins: c.plugins ?? s.plugins,
           searchAvailable: c.search?.enabled ?? s.searchAvailable,
           imageGenAvailable: c.imageGen?.enabled ?? s.imageGenAvailable,
+          bookstackAvailable: c.bookstack?.enabled ?? s.bookstackAvailable,
         })),
 
       // Apply the per-user profile fetched from the server (source of truth).
@@ -716,6 +725,30 @@ export const useStore = create<State>()(
           chats: patchMessage(s.chats, chatId, msgId, (m) => ({ ...m, images })),
         })),
 
+      upsertToolEvent: (chatId, msgId, evt) =>
+        set((s) => ({
+          chats: patchMessage(s.chats, chatId, msgId, (m) => {
+            const list = m.toolEvents ?? [];
+            if (evt.status === "done") {
+              // Resolve the last matching "running" event to "done".
+              const next = [...list];
+              for (let i = next.length - 1; i >= 0; i--) {
+                if (next[i].name === evt.name && next[i].status === "running") {
+                  next[i] = { ...next[i], status: "done" };
+                  return { ...m, toolEvents: next };
+                }
+              }
+              return { ...m, toolEvents: [...list, evt] };
+            }
+            return { ...m, toolEvents: [...list, evt] };
+          }),
+        })),
+
+      setMessageSources: (chatId, msgId, sources) =>
+        set((s) => ({
+          chats: patchMessage(s.chats, chatId, msgId, (m) => ({ ...m, sources })),
+        })),
+
       truncateAfter: (chatId, msgId) =>
         set((s) => ({
           chats: s.chats.map((c) => {
@@ -753,6 +786,8 @@ export const useStore = create<State>()(
               content: "",
               reasoning: "",
               feedback: null,
+              toolEvents: undefined,
+              sources: undefined,
             };
           }),
         })),

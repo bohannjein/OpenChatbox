@@ -14,7 +14,7 @@ import { DATA_DIR } from "./paths";
  * Changing the secret invalidates all existing sessions (users re-login once).
  */
 let cachedSecret: string | null = null;
-function getSecret(): string {
+export function getSecret(): string {
   if (cachedSecret) return cachedSecret;
   if (process.env.AUTH_SECRET) return (cachedSecret = process.env.AUTH_SECRET);
   try {

@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./paths";
+import { decryptSecret } from "./crypto";
 import type { Provider } from "@/lib/types";
 
 /**
@@ -66,6 +67,24 @@ export interface ImageGenConfig {
   size?: string;
 }
 
+/** BookStack wiki integration (token secret encrypted at rest). */
+export interface BookstackConfig {
+  enabled: boolean;
+  /** allow destructive tools (create/update/delete); false = read-only. */
+  writeEnabled: boolean;
+  baseUrl?: string;
+  tokenId?: string;
+  /** encrypted (enc:v1:…) — never returned to any client. */
+  tokenSecret?: string;
+}
+/** Fully resolved (decrypted) BookStack config — server-side only. */
+export interface BookstackResolved {
+  baseUrl: string;
+  tokenId: string;
+  tokenSecret: string;
+  writeEnabled: boolean;
+}
+
 export interface ServerConfig {
   /** display name of this instance (shown in the UI) */
   appName: string;
@@ -91,6 +110,8 @@ export interface ServerConfig {
   imageGen?: ImageGenConfig;
   /** admin master-switches for server-side background services */
   plugins?: PluginFlags;
+  /** BookStack wiki integration (token secret encrypted, server-only) */
+  bookstack?: BookstackConfig;
   /** epoch ms when setup was completed */
   setupCompletedAt?: number;
 }
@@ -192,6 +213,20 @@ export function getProviderById(id: string): Provider | undefined {
   return getProviders().find((p) => p.id === id);
 }
 
+/**
+ * Resolved BookStack config (decrypted token) if the integration is enabled and
+ * fully configured; otherwise null. Server-side only — never expose the token.
+ */
+export function getBookstackConfig(): BookstackResolved | null {
+  const b = getConfig().bookstack;
+  if (!b?.enabled) return null;
+  const baseUrl = (b.baseUrl ?? "").replace(/\/+$/, "");
+  const tokenId = (b.tokenId ?? "").trim();
+  const tokenSecret = decryptSecret(b.tokenSecret).trim();
+  if (!baseUrl || !tokenId || !tokenSecret) return null;
+  return { baseUrl, tokenId, tokenSecret, writeEnabled: !!b.writeEnabled };
+}
+
 /** Strip the secret apiKey from a provider before sending it to a client. */
 function sanitizeProvider(p: Provider): Omit<Provider, "apiKey"> {
   const { apiKey, ...rest } = p;
@@ -222,5 +257,11 @@ export function publicConfig(c: ServerConfig = getConfig()) {
     // Image generation: expose only availability + type, never the key.
     imageGen: { enabled: !!c.imageGen?.enabled, type: c.imageGen?.type ?? null },
     plugins: { ...DEFAULT_PLUGINS, ...(c.plugins ?? {}) },
+    // BookStack: expose only availability + base URL + write flag, never token.
+    bookstack: {
+      enabled: !!c.bookstack?.enabled,
+      writeEnabled: !!c.bookstack?.writeEnabled,
+      baseUrl: c.bookstack?.baseUrl ?? "",
+    },
   };
 }

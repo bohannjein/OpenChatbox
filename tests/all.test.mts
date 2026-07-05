@@ -107,8 +107,43 @@ async function kbTests() {
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
+// ── bookstack: secret encryption + write-permission tool filtering ────────
+async function bookstackTests() {
+  process.env.AUTH_SECRET = "test-secret-for-crypto-roundtrip";
+  const { encryptSecret, decryptSecret, isEncrypted } = await import(
+    "../lib/server/crypto"
+  );
+  const plain = "TokenId42:super-secret-value";
+  const enc = encryptSecret(plain);
+  ok("crypto: ciphertext hides plaintext", enc !== plain && isEncrypted(enc));
+  eq("crypto: decrypt round-trip", decryptSecret(enc), plain);
+  eq("crypto: legacy plaintext passthrough", decryptSecret("legacy-plain"), "legacy-plain");
+
+  const { toolDefs } = await import("../lib/server/bookstack");
+  const read = toolDefs(false).map((t) => t.name);
+  const write = toolDefs(true).map((t) => t.name);
+  const destructive = [
+    "bookstack_create_page",
+    "bookstack_update_page",
+    "bookstack_delete_page",
+  ];
+  ok(
+    "bookstack: read-only mode hides all write tools",
+    destructive.every((n) => !read.includes(n))
+  );
+  ok(
+    "bookstack: write mode exposes create/update/delete",
+    destructive.every((n) => write.includes(n))
+  );
+  ok(
+    "bookstack: search available in both modes",
+    read.includes("bookstack_search") && write.includes("bookstack_search")
+  );
+}
+
 await tableTests();
 await kbTests();
+await bookstackTests();
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

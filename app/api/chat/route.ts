@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import type { ChatRequest } from "@/lib/types";
-import { getProviderById } from "@/lib/server/config";
+import { getProviderById, getBookstackConfig } from "@/lib/server/config";
+import { runToolChat } from "@/lib/server/toolChat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,6 +45,36 @@ export async function POST(req: NextRequest) {
       : /^-?\d+$/.test(String(rawKeep))
       ? Number(rawKeep)
       : rawKeep;
+
+  // BookStack tool-calling: when the client opts in (tools:true), the admin has
+  // enabled the integration, and the provider supports function calling, run the
+  // agentic tool loop instead of the plain streaming proxy. Emits the same NDJSON
+  // {t,v} stream plus t:"tool"/"src" events for the live badge + source links.
+  if (
+    body.tools &&
+    (type === "ollama" || type === "openai") &&
+    getBookstackConfig()
+  ) {
+    const stream = runToolChat({
+      type,
+      baseUrl,
+      apiKey,
+      model,
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      temperature,
+      topP,
+      maxTokens,
+      keepAlive,
+      signal: req.signal,
+    });
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "application/x-ndjson; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "X-Accel-Buffering": "no",
+      },
+    });
+  }
 
   const stripPrefix = (u: string) => {
     const i = u.indexOf("base64,");

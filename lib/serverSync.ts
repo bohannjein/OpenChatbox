@@ -40,7 +40,7 @@ function chatsOf(s: State): { chats: unknown[]; activeChatId: string | null } {
       .filter((c) => !c.temporary)
       .map((c) => ({
         ...c,
-        messages: c.messages.map(({ images, docs, pipeline, ...m }) => m),
+        messages: c.messages.map(({ images, docs, pipeline, toolEvents, ...m }) => m),
         files: c.files?.map(({ dataUrl, ...f }) => f),
       })),
     activeChatId: s.activeChatId,

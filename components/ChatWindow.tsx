@@ -127,7 +127,10 @@ export default function ChatWindow() {
   const webSearchEnabled = useStore((s) => s.webSearchEnabled);
   const searchAvailable = useStore((s) => s.searchAvailable);
   const imageGenAvailable = useStore((s) => s.imageGenAvailable);
+  const bookstackAvailable = useStore((s) => s.bookstackAvailable);
   const setMessageImages = useStore((s) => s.setMessageImages);
+  const upsertToolEvent = useStore((s) => s.upsertToolEvent);
+  const setMessageSources = useStore((s) => s.setMessageSources);
   const kbEnabled = useStore((s) => s.kbEnabled);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
@@ -613,6 +616,12 @@ export default function ChatWindow() {
         stripImages: boolean;
         onContent: (t: string) => void;
         onReasoning: (t: string) => void;
+        /** enable BookStack tool-calling for this call */
+        enableTools?: boolean;
+        /** raw JSON of a BookStack tool status event */
+        onTool?: (json: string) => void;
+        /** raw JSON of a BookStack SourceLink[] */
+        onSource?: (json: string) => void;
       }
     ) => {
       const { provider, model } = resolveModel(modelKey);
@@ -640,9 +649,14 @@ export default function ChatWindow() {
           messages: history,
           params: paramsCfg,
           keepAlive: vramManaged ? ollamaKeepAlive : undefined,
+          ...(opts.enableTools ? { tools: true } : {}),
         },
-        (tt, text) =>
-          tt === "r" ? opts.onReasoning(text) : opts.onContent(text),
+        (tt, text) => {
+          if (tt === "r") opts.onReasoning(text);
+          else if (tt === "tool") opts.onTool?.(text);
+          else if (tt === "src") opts.onSource?.(text);
+          else opts.onContent(text);
+        },
         ac.signal
       );
     };
@@ -698,6 +712,23 @@ export default function ChatWindow() {
           stripImages: false,
           onContent: (x) => appendToMessage(chatId, assistantId, x),
           onReasoning: (x) => appendReasoning(chatId, assistantId, x),
+          // BookStack tools for normal text/coding/reasoning turns (not vision —
+          // the tool loop is text-only and would drop image attachments).
+          enableTools: bookstackAvailable && step.role !== "vision",
+          onTool: (json) => {
+            try {
+              upsertToolEvent(chatId, assistantId, JSON.parse(json));
+            } catch {
+              /* ignore malformed */
+            }
+          },
+          onSource: (json) => {
+            try {
+              setMessageSources(chatId, assistantId, JSON.parse(json));
+            } catch {
+              /* ignore malformed */
+            }
+          },
         });
       }
     } catch (e) {

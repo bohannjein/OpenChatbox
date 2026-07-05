@@ -37,6 +37,22 @@ export interface Message {
   pipeline?: PipelineStage;
   /** assistant only: which sidekick authored this message (group chats). */
   sidekickId?: string;
+  /** assistant only, transient: BookStack tool-call live status (stripped on persist). */
+  toolEvents?: ToolEvent[];
+  /** assistant only: clickable BookStack sources cited in the answer. */
+  sources?: SourceLink[];
+}
+
+/** Live status of a BookStack tool call, shown as an animated chat badge. */
+export interface ToolEvent {
+  name: string;
+  label: string;
+  status: "running" | "done";
+}
+/** A clickable source citation linking into the BookStack instance. */
+export interface SourceLink {
+  title: string;
+  url: string;
 }
 
 /** A backend-generated, downloadable file attached under an assistant answer. */
@@ -210,6 +226,7 @@ export interface GlobalConfigPayload {
   };
   imageGen?: { enabled: boolean; type: string | null };
   plugins?: { officeParser: boolean; ocrEngine: boolean; docGenerator: boolean };
+  bookstack?: { enabled: boolean; writeEnabled: boolean; baseUrl?: string };
 }
 
 /** Per-user preferences persisted server-side (mirror of lib/server/profiles). */
@@ -254,4 +271,6 @@ export interface ChatRequest extends ProviderRequest {
   params?: GenParams;
   /** Ollama keep_alive (VRAM-Freigabe), z.B. "2m". */
   keepAlive?: string;
+  /** opt in to BookStack tool-calling for this (primary answer) call. */
+  tools?: boolean;
 }

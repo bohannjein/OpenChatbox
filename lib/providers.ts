@@ -323,8 +323,12 @@ export async function generateTitle(
   return sanitizeTitle(acc);
 }
 
-/** One streamed event: content ("c") or reasoning ("r") text delta. */
-export type StreamEvent = { t: "c" | "r"; v: string };
+/**
+ * One streamed event: content ("c"), reasoning ("r"), a BookStack tool status
+ * ("tool", v = JSON ToolEvent), or cited sources ("src", v = JSON SourceLink[]).
+ */
+export type StreamEventType = "c" | "r" | "tool" | "src";
+export type StreamEvent = { t: StreamEventType; v: string };
 
 /**
  * Stream a chat completion. The proxy route normalizes Ollama NDJSON /
@@ -334,7 +338,7 @@ export type StreamEvent = { t: "c" | "r"; v: string };
  */
 export async function streamChat(
   req: ChatRequest,
-  onEvent: (type: "c" | "r", text: string) => void,
+  onEvent: (type: StreamEventType, text: string) => void,
   signal?: AbortSignal
 ): Promise<void> {
   const res = await fetch("/api/chat", {
@@ -367,7 +371,11 @@ export async function streamChat(
       if (!s) continue;
       try {
         const evt = JSON.parse(s) as StreamEvent;
-        if (evt && (evt.t === "c" || evt.t === "r") && evt.v)
+        if (
+          evt &&
+          (evt.t === "c" || evt.t === "r" || evt.t === "tool" || evt.t === "src") &&
+          evt.v
+        )
           onEvent(evt.t, evt.v);
       } catch {
         /* ignore partial */

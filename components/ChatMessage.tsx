@@ -26,6 +26,8 @@ import {
   User,
   Globe,
   Library,
+  BookOpen,
+  ExternalLink,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Markdown from "./Markdown";
@@ -354,6 +356,34 @@ export default function ChatMessage({
               </span>
             </div>
           )}
+
+          {/* BookStack tool-call live status badges */}
+          {message.toolEvents && message.toolEvents.length > 0 && (
+            <div className="mb-3 space-y-1.5">
+              {message.toolEvents.map((ev, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300"
+                >
+                  <BookOpen size={15} className="shrink-0 text-emerald-500" />
+                  <span
+                    className={clsx(
+                      "min-w-0 flex-1 truncate font-medium",
+                      ev.status === "running" && "animate-pulse"
+                    )}
+                  >
+                    {ev.label}
+                    {ev.status === "running" ? "…" : ""}
+                  </span>
+                  {ev.status === "running" ? (
+                    <Loader2 size={14} className="shrink-0 animate-spin text-emerald-500" />
+                  ) : (
+                    <Check size={14} className="shrink-0 text-emerald-500" />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           <div
             className={clsx(
               bubble &&
@@ -423,6 +453,29 @@ export default function ChatMessage({
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* BookStack sources — clickable links into the wiki */}
+          {message.sources && message.sources.length > 0 && (
+            <div className="mt-3 rounded-xl border border-border-light p-3 dark:border-border-dark">
+              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                <BookOpen size={13} className="text-emerald-500" /> BookStack-Quellen
+              </div>
+              <div className="space-y-1">
+                {message.sources.map((src, i) => (
+                  <a
+                    key={i}
+                    href={src.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-accent transition hover:bg-neutral-100 dark:hover:bg-white/5"
+                  >
+                    <ExternalLink size={13} className="shrink-0" />
+                    <span className="min-w-0 flex-1 truncate">{src.title}</span>
+                  </a>
+                ))}
+              </div>
             </div>
           )}
 
