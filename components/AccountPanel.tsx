@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, ShieldCheck, ShieldOff, KeyRound, Loader2 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { providerLabel } from "@/lib/authProvider";
 
 export default function AccountPanel() {
   const router = useRouter();
@@ -107,8 +108,8 @@ export default function AccountPanel() {
           <h3 className="font-medium">Mein Konto</h3>
           <p className="text-sm text-neutral-500">
             {authUser.username}
-            {authUser.role === "admin" && " · Admin"} · Anmeldung:{" "}
-            {authUser.provider}
+            {authUser.role === "admin" && " · Admin"} · Anmeldung per{" "}
+            {providerLabel(authUser.provider)}
           </p>
         </div>
         <button

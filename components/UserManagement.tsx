@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Users, Trash2, Lock, Unlock, KeyRound, Loader2, UserPlus } from "lucide-react";
 import clsx from "clsx";
+import { providerLabel } from "@/lib/authProvider";
 
 type U = {
   id: string;
@@ -156,7 +157,7 @@ export default function UserManagement() {
                   )}
                   {u.blocked && <span className="text-[10px] text-red-500">gesperrt</span>}
                 </div>
-                <div className="text-xs text-neutral-400">{u.provider}</div>
+                <div className="text-xs text-neutral-400">{providerLabel(u.provider)}</div>
               </div>
 
               <select
