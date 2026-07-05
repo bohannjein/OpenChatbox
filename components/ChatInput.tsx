@@ -239,14 +239,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
     caretEnd(content);
   };
 
-  // Tab → complete the command name into the field ("/mo" → "/model ")
-  const completeCommand = (cmd: string) => {
-    const text = cmd + " ";
-    changeValue(text);
-    caretEnd(text);
-  };
-
-  // Enter → run the command's action, then clear the slash text
+  // Enter / Tab → run the command's action, then clear the slash text
   const runCommand = (c: (typeof COMMANDS)[number]) => {
     changeValue("");
     setMenuClosed(true);
@@ -264,11 +257,10 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
     requestAnimationFrame(() => taRef.current?.focus());
   };
 
-  const chooseItem = (it: Item, viaTab: boolean) => {
+  const chooseItem = (it: Item) => {
     if (it.type === "model") return applyModel(it.option);
     if (it.type === "prompt") return applyPrompt(it.prompt.content);
-    if (viaTab) completeCommand(it.cmd.cmd);
-    else runCommand(it.cmd);
+    runCommand(it.cmd);
   };
 
   const addFiles = async (files: FileList | null) => {
@@ -436,21 +428,17 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
         setPicIdx((i) => Math.max(i - 1, 0));
         return;
       }
-      if (e.key === "Tab") {
+      if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
+        // Tab confirms just like Enter — run the command / apply model/prompt.
         e.preventDefault();
-        chooseItem(items[picIdx], true); // complete name into field
-        return;
-      }
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        chooseItem(items[picIdx], false); // execute / insert
+        chooseItem(items[picIdx]);
         return;
       }
       if (e.key === " " && modelMode) {
         // im Modell-Modus bestätigt Leertaste; sonst normal tippen
         // (damit man "/model " überhaupt eingeben kann)
         e.preventDefault();
-        chooseItem(items[picIdx], false);
+        chooseItem(items[picIdx]);
         return;
       }
       if (e.key === "Escape") {
@@ -491,11 +479,11 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
             <div className="flex items-center gap-1.5 border-b border-border-light px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:border-border-dark">
               <BookText size={13} />{" "}
               {modelMode
-                ? "Modell wählen · ↑↓ · Tab/⏎ wechselt"
-                : "Befehle & Vorlagen · ↑↓ · Tab · ⏎"}
+                ? "Modell wählen · ↑↓ · Tab/⏎ bestätigt"
+                : "Befehle & Vorlagen · ↑↓ · Tab/⏎ bestätigt"}
               {modelMode && ghost && (
                 <span className="ml-auto normal-case text-neutral-400">
-                  Tab → <span className="text-neutral-500">{modelQuery}</span>
+                  <span className="text-neutral-500">{modelQuery}</span>
                   {ghost}
                 </span>
               )}
@@ -505,7 +493,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
                 <button
                   key={it.option.key}
                   onMouseEnter={() => setPicIdx(i)}
-                  onClick={() => chooseItem(it, false)}
+                  onClick={() => chooseItem(it)}
                   className={clsx(
                     "flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition",
                     i === picIdx
@@ -524,7 +512,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
                 <button
                   key={it.cmd.cmd}
                   onMouseEnter={() => setPicIdx(i)}
-                  onClick={() => chooseItem(it, false)}
+                  onClick={() => chooseItem(it)}
                   className={clsx(
                     "flex w-full items-center gap-2 px-3 py-2 text-left transition",
                     i === picIdx
@@ -544,7 +532,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
                 <button
                   key={it.prompt.id}
                   onMouseEnter={() => setPicIdx(i)}
-                  onClick={() => chooseItem(it, false)}
+                  onClick={() => chooseItem(it)}
                   className={clsx(
                     "flex w-full flex-col items-start px-3 py-2 text-left transition",
                     i === picIdx
