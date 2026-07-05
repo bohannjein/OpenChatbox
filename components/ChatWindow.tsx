@@ -1207,8 +1207,12 @@ export default function ChatWindow() {
             {activeSidekick.name}
           </span>
         )}
-        <ModelSwitcher />
-        <ParamsPopover />
+        {/* Modell-Selektor + Parameter als edle Kombipille */}
+        <div className="flex items-center gap-0.5 rounded-xl border border-black/[0.06] bg-black/[0.03] px-1 py-0.5 backdrop-blur-md dark:border-white/[0.05] dark:bg-zinc-950/40">
+          <ModelSwitcher />
+          <span aria-hidden className="mx-0.5 h-5 w-px bg-black/10 dark:bg-white/10" />
+          <ParamsPopover />
+        </div>
 
         {isTemp && (
           <span className="ml-1 flex items-center gap-1 rounded-full bg-neutral-200 px-2 py-1 text-xs font-medium text-neutral-600 dark:bg-white/10 dark:text-neutral-300">
@@ -1216,106 +1220,118 @@ export default function ChatWindow() {
           </span>
         )}
 
-        <div className="ml-auto flex items-center gap-1">
-          {activeChatId && <ParticipantsManager chatId={activeChatId} />}
-          <button
-            onClick={() => {
-              setArchiveOpen((v) => !v);
-              setNotesOpen(false);
-            }}
-            title="Archiv"
-            className={clsx(
-              "relative rounded-lg p-2 transition",
-              archiveOpen
-                ? "bg-accent/15 text-accent"
-                : "text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
-            )}
-          >
-            <FolderOpen size={18} />
-            {chatFiles.length > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium text-white">
-                {chatFiles.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => {
-              setNotesOpen((v) => !v);
-              setArchiveOpen(false);
-            }}
-            title="Notizen"
-            className={clsx(
-              "rounded-lg p-2 transition",
-              notesOpen
-                ? "bg-accent/15 text-accent"
-                : "text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
-            )}
-          >
-            <StickyNote size={18} />
-          </button>
-          <div className="relative" ref={ghostRef}>
-            <button
-              onClick={() => {
-                if (isTemp) {
-                  setGhostMenu((v) => !v);
-                } else {
-                  setIncognito(true);
-                  if (chat && chat.messages.length === 0)
-                    setChatTemporary(chat.id, true); // convert empty chat in place
-                  else router.push("/"); // fresh temp chat
+        <div className="ml-auto flex items-center">
+          {/* Gruppe 1 — Chat-Modus (Sicherheit) */}
+          <div className="flex items-center gap-3">
+            <div className="relative" ref={ghostRef}>
+              <button
+                onClick={() => {
+                  if (isTemp) {
+                    setGhostMenu((v) => !v);
+                  } else {
+                    setIncognito(true);
+                    if (chat && chat.messages.length === 0)
+                      setChatTemporary(chat.id, true); // convert empty chat in place
+                    else router.push("/"); // fresh temp chat
+                  }
+                }}
+                title={
+                  isTemp
+                    ? "Temporären Chat verwalten"
+                    : "Inkognito-Modus einschalten (temporärer Chat)"
                 }
-              }}
-              title={
-                isTemp
-                  ? "Temporären Chat verwalten"
-                  : "Inkognito an (temporärer Chat)"
-              }
-              className={clsx(
-                "rounded-lg p-2 transition",
-                isTemp || incognito
-                  ? "bg-accent/15 text-accent"
-                  : "text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
+                className={clsx(
+                  "rounded-lg p-2 transition-colors duration-200",
+                  isTemp || incognito
+                    ? "bg-accent/15 text-accent"
+                    : "text-zinc-400 hover:bg-neutral-200 hover:text-zinc-100 dark:hover:bg-white/5"
+                )}
+              >
+                <Ghost size={18} />
+              </button>
+              {ghostMenu && isTemp && chat && (
+                <div className="absolute right-0 top-full z-40 mt-1 w-56 menu-panel p-1">
+                  <MenuItem
+                    onClick={() => {
+                      setGhostMenu(false);
+                      keepChat(chat.id);
+                      setIncognito(false);
+                      router.push(`/c/${chat.id}`);
+                    }}
+                  >
+                    <Check size={15} /> Chat behalten & speichern
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      setGhostMenu(false);
+                      setIncognito(false);
+                      deleteChat(chat.id);
+                      newChat(false); // fresh normal chat (stays on "/")
+                    }}
+                  >
+                    <Trash2 size={15} /> Chat jetzt löschen
+                  </MenuItem>
+                </div>
               )}
-            >
-              <Ghost size={18} />
-            </button>
-            {ghostMenu && isTemp && chat && (
-              <div className="absolute right-0 top-full z-40 mt-1 w-56 menu-panel p-1">
-                <MenuItem
-                  onClick={() => {
-                    setGhostMenu(false);
-                    keepChat(chat.id);
-                    setIncognito(false);
-                    router.push(`/c/${chat.id}`);
-                  }}
-                >
-                  <Check size={15} /> Chat behalten & speichern
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    setGhostMenu(false);
-                    setIncognito(false);
-                    deleteChat(chat.id);
-                    newChat(false); // fresh normal chat (stays on "/")
-                  }}
-                >
-                  <Trash2 size={15} /> Chat jetzt löschen
-                </MenuItem>
-              </div>
-            )}
+            </div>
           </div>
 
-          {/* Share menu */}
-          <div className="relative" ref={shareRef}>
+          <span aria-hidden className="mx-2 h-4 w-px bg-black/10 dark:bg-white/10" />
+
+          {/* Gruppe 2 — Kontext & Ressourcen */}
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setShareOpen((v) => !v)}
-              disabled={!hasMessages}
-              title="Teilen / Exportieren"
-              className="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-200 disabled:opacity-30 dark:hover:bg-white/10"
+              onClick={() => {
+                setArchiveOpen((v) => !v);
+                setNotesOpen(false);
+              }}
+              title="Dateimanager öffnen (Dateien dieses Chats)"
+              className={clsx(
+                "relative rounded-lg p-2 transition-colors duration-200",
+                archiveOpen
+                  ? "bg-accent/15 text-accent"
+                  : "text-zinc-400 hover:bg-neutral-200 hover:text-zinc-100 dark:hover:bg-white/5"
+              )}
             >
-              <Share2 size={18} />
+              <FolderOpen size={18} />
+              {chatFiles.length > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium text-white">
+                  {chatFiles.length}
+                </span>
+              )}
             </button>
-            {shareOpen && (
+            <button
+              onClick={() => {
+                setNotesOpen((v) => !v);
+                setArchiveOpen(false);
+              }}
+              title="Notizen & Dokumente"
+              className={clsx(
+                "rounded-lg p-2 transition-colors duration-200",
+                notesOpen
+                  ? "bg-accent/15 text-accent"
+                  : "text-zinc-400 hover:bg-neutral-200 hover:text-zinc-100 dark:hover:bg-white/5"
+              )}
+            >
+              <StickyNote size={18} />
+            </button>
+          </div>
+
+          <span aria-hidden className="mx-2 h-4 w-px bg-black/10 dark:bg-white/10" />
+
+          {/* Gruppe 3 — Kollaboration & Teilen */}
+          <div className="flex items-center gap-3">
+            {activeChatId && <ParticipantsManager chatId={activeChatId} />}
+            <div className="relative" ref={shareRef}>
+              <button
+                onClick={() => setShareOpen((v) => !v)}
+                disabled={!hasMessages}
+                title="Chat teilen / exportieren"
+                className="rounded-lg p-2 text-zinc-400 transition-colors duration-200 hover:bg-neutral-200 hover:text-zinc-100 disabled:opacity-30 dark:hover:bg-white/5"
+              >
+                <Share2 size={18} />
+              </button>
+              {shareOpen && (
               <div className="absolute right-0 top-full z-40 mt-1 w-56 menu-panel p-1">
                 <MenuItem onClick={doShareLink}>
                   {copied ? <Check size={15} /> : <LinkIcon size={15} />}
@@ -1349,6 +1365,7 @@ export default function ChatWindow() {
                 )}
               </div>
             )}
+            </div>
           </div>
         </div>
       </header>

@@ -66,8 +66,8 @@ export default function ParticipantsManager({ chatId }: { chatId: string }) {
         )}
         <button
           onClick={openModal}
-          title="Teilnehmer verwalten"
-          className="rounded-lg p-1.5 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/10"
+          title="Nutzer einladen / Teilnehmer verwalten"
+          className="rounded-lg p-2 text-zinc-400 transition-colors duration-200 hover:bg-neutral-200 hover:text-zinc-100 dark:hover:bg-white/5"
         >
           <UserPlus size={18} />
         </button>
