@@ -17,10 +17,9 @@ const MAX_CELLS = 40_000;
  * cross/matrix table (row labels down the left, property headers across the
  * top): EVERY intersection is emitted as a standalone fact that carries both
  * the row label AND the column header —
- *   "Hamburg — NAS: 10.0.0.5"
- * so a query like "IP der NAS in Hamburg" matches the exact cell. A compact
- * per-row line is added too for whole-row context. Falls back to pipe-joined
- * cells when the sheet has no header labels.
+ *   "Standort-1 — Gerät A: 192.0.2.5"
+ * so a query like "Wert von Gerät A für Standort-1" matches the exact cell.
+ * Falls back to pipe-joined cells when the sheet has no header labels.
  */
 function sheetToText(name: string, sheet: XLSX.WorkSheet): string {
   // raw:false → dates/numbers as their displayed strings; defval keeps columns
@@ -55,8 +54,8 @@ function sheetToText(name: string, sheet: XLSX.WorkSheet): string {
 
     const label = cells[0] || rowLabelName;
     // One explicit, self-describing fact per cell (intersection), carrying the
-    // row label + column header — e.g. "Hamburg — NAS: 10.0.0.5". This is all
-    // retrieval needs and keeps the index compact (no redundant row echo).
+    // row label + column header — e.g. "Standort-1 — Gerät A: 192.0.2.5". This
+    // is all retrieval needs and keeps the index compact (no redundant echo).
     let any = false;
     for (let i = 1; i < cells.length; i++) {
       if (!cells[i]) continue;

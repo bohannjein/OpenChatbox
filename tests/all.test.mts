@@ -61,15 +61,15 @@ eq("detectCategory standard", detectCategory("wie geht es dir"), "standard");
 // ── officeParse: matrix table → per-cell facts ───────────────────────────
 async function tableTests() {
   const ws = XLSX.utils.aoa_to_sheet([
-    ["Filiale", "NAS", "Switch"],
-    ["Hamburg", "10.0.0.5", "10.0.0.6"],
+    ["Standort", "Gerät A", "Gerät B"],
+    ["Standort-1", "192.0.2.5", "192.0.2.6"],
   ]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Netz");
   const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
   const text = await parseOffice(new File([buf], "f.xlsx"));
-  ok("xlsx per-cell fact", text.includes("Hamburg — NAS: 10.0.0.5"));
-  ok("xlsx no redundant row echo", !text.includes("Filiale: Hamburg | NAS:"));
+  ok("xlsx per-cell fact", text.includes("Standort-1 — Gerät A: 192.0.2.5"));
+  ok("xlsx no redundant row echo", !text.includes("Standort: Standort-1 | Gerät A:"));
 }
 
 // ── kb: chunkText line-aware + searchChunks diversity (temp data dir) ─────
