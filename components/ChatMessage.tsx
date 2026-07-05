@@ -207,7 +207,7 @@ export default function ChatMessage({
     return (
       <div id={`msg-${message.id}`} className="group animate-fade-in px-4 py-3">
         <div className="mx-auto flex max-w-3xl justify-end gap-2.5">
-          <div className="flex min-w-0 flex-col items-end">
+          <div className="flex min-w-0 flex-1 flex-col items-end">
           {editing ? (
             <div className="w-full rounded-2xl border border-border-light bg-bubble-light p-2 dark:border-border-dark dark:bg-bubble-dark">
               <textarea

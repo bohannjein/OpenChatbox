@@ -221,6 +221,13 @@ export default function ChatWindow() {
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // Always land in the input: on opening a chat, after the AI finished, and
+  // after closing a side panel — so you can just start typing.
+  useEffect(() => {
+    if (streamingId || groupRunning || archiveOpen || notesOpen) return;
+    inputRef.current?.focus();
+  }, [activeChatId, streamingId, groupRunning, archiveOpen, notesOpen]);
+
   // Auto-open / continue the code splitscreen for the latest answer's code.
   useEffect(() => {
     if (!codeSplitEnabled) {
