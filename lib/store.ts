@@ -196,6 +196,9 @@ interface State {
   favorites: string[]; // model keys pinned to top
   aliases: Record<string, string>; // model key → friendly display name
   // chat appearance (per-user)
+  /** use the personal knowledge base (RAG) as chat context */
+  kbEnabled: boolean;
+  toggleKb: () => void;
   chatLayout: "classic" | "bubble";
   chatShowAvatar: boolean;
   chatShowTimestamps: boolean;
@@ -413,6 +416,8 @@ export const useStore = create<State>()(
       webSearchEnabled: false,
       toggleWebSearch: () =>
         set((s) => ({ webSearchEnabled: !s.webSearchEnabled })),
+      kbEnabled: false,
+      toggleKb: () => set((s) => ({ kbEnabled: !s.kbEnabled })),
       authUser: null,
       setAuthUser: (authUser) => set({ authUser }),
       plugins: null,
@@ -464,6 +469,7 @@ export const useStore = create<State>()(
           memory: p.memory ?? s.memory,
           memoryEnabled: p.memoryEnabled ?? s.memoryEnabled,
           webSearchEnabled: p.webSearchEnabled ?? s.webSearchEnabled,
+          kbEnabled: p.kbEnabled ?? s.kbEnabled,
           selectedModelKey:
             p.selectedModelKey !== undefined ? p.selectedModelKey : s.selectedModelKey,
           autoRouter: p.autoRouter ?? s.autoRouter,

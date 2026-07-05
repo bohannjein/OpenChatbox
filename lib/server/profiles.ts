@@ -27,6 +27,7 @@ export interface UserProfile {
   memory?: MemoryFact[];
   memoryEnabled?: boolean;
   webSearchEnabled?: boolean;
+  kbEnabled?: boolean;
   selectedModelKey?: string | null;
   autoRouter?: boolean;
   vramManaged?: boolean;
@@ -55,6 +56,7 @@ const KEYS: (keyof UserProfile)[] = [
   "memory",
   "memoryEnabled",
   "webSearchEnabled",
+  "kbEnabled",
   "selectedModelKey",
   "autoRouter",
   "vramManaged",

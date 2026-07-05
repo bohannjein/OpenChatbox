@@ -20,6 +20,7 @@ import {
   Cpu,
   Sparkles,
   Globe,
+  Library,
 } from "lucide-react";
 import clsx from "clsx";
 import { useStore } from "@/lib/store";
@@ -92,6 +93,8 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
   const prompts = useStore((s) => s.prompts);
   const toggleWebSearch = useStore((s) => s.toggleWebSearch);
   const webSearchEnabled = useStore((s) => s.webSearchEnabled);
+  const toggleKb = useStore((s) => s.toggleKb);
+  const kbEnabled = useStore((s) => s.kbEnabled);
   const providers = useStore((s) => s.providers);
   const aliases = useStore((s) => s.aliases);
   const selectModel = useStore((s) => s.selectModel);
@@ -648,6 +651,19 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
               )}
             >
               <Globe size={18} />
+            </button>
+            <button
+              onClick={() => toggleKb()}
+              disabled={disabled}
+              title={kbEnabled ? "Wissensdatenbank: an" : "Wissensdatenbank: aus"}
+              className={clsx(
+                "mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition disabled:opacity-40",
+                kbEnabled
+                  ? "bg-accent/15 text-accent"
+                  : "text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
+              )}
+            >
+              <Library size={18} />
             </button>
 
             <textarea

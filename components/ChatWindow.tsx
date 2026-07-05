@@ -122,6 +122,7 @@ export default function ChatWindow() {
   const chatBackgroundUrl = useStore((s) => s.chatBackgroundUrl);
   const webSearchEnabled = useStore((s) => s.webSearchEnabled);
   const searchAvailable = useStore((s) => s.searchAvailable);
+  const kbEnabled = useStore((s) => s.kbEnabled);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
   const addMessage = useStore((s) => s.addMessage);
@@ -498,8 +499,39 @@ export default function ChatWindow() {
         /* search failed → answer without web context */
       }
     }
+
+    // Optional knowledge base (RAG): retrieve the most relevant chunks and
+    // require the answer model to cite the source document.
+    let kbContext = "";
+    if (kbEnabled && !sk && lastUser?.content?.trim()) {
+      try {
+        setMessagePipeline(chatId, assistantId, "knowledge");
+        const r = await fetch("/api/kb/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: lastUser.content }),
+          signal: ac.signal,
+        });
+        const d = await r.json().catch(() => ({ results: [] }));
+        const hits = (d.results ?? []) as { docName: string; text: string }[];
+        if (hits.length)
+          kbContext =
+            "Auszüge aus der Wissensdatenbank. Beantworte die Frage AUSSCHLIESSLICH " +
+            "auf Basis dieser Auszüge und belege JEDE Aussage sichtbar mit der Quelle " +
+            "als (Quelle: <Dokumentname>). Wenn die Auszüge nicht ausreichen, sage das " +
+            "ausdrücklich.\n\n" +
+            hits
+              .map((h) => `(Quelle: ${h.docName})\n${h.text}`)
+              .join("\n\n---\n\n");
+      } catch {
+        /* retrieval failed → answer without KB context */
+      }
+    }
+
+    // Combined external context (knowledge base first, then web results).
+    const extraContext = [kbContext, searchContext].filter(Boolean).join("\n\n");
     const withSearch = (sys: string) =>
-      searchContext ? searchContext + "\n\n" + sys : sys;
+      extraContext ? extraContext + "\n\n" + sys : sys;
 
     // Run one model of the pipeline: resolve key → build history → stream.
     // `stripImages` drops attachments from history (for text-only answer models).

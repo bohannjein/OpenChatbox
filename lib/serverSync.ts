@@ -50,6 +50,7 @@ function profileOf(s: State): ServerUserProfile {
     memory: s.memory,
     memoryEnabled: s.memoryEnabled,
     webSearchEnabled: s.webSearchEnabled,
+    kbEnabled: s.kbEnabled,
     selectedModelKey: s.selectedModelKey,
     autoRouter: s.autoRouter,
     vramManaged: s.vramManaged,

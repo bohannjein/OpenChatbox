@@ -11,7 +11,8 @@ export type PipelineStage =
   | "text"
   | "vision"
   | "imagegen"
-  | "search";
+  | "search"
+  | "knowledge";
 
 export interface Message {
   id: string;
@@ -222,6 +223,7 @@ export interface ServerUserProfile {
   memory?: MemoryFact[];
   memoryEnabled?: boolean;
   webSearchEnabled?: boolean;
+  kbEnabled?: boolean;
   selectedModelKey?: string | null;
   autoRouter?: boolean;
   vramManaged?: boolean;

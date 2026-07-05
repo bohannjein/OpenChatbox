@@ -69,6 +69,8 @@ export interface ServerConfig {
   routerModels?: RouterModels;
   /** admin-global web-search providers (apiKeys server-only) */
   search?: SearchConfig;
+  /** Ollama embedding model for the knowledge base (RAG). */
+  embeddingModel?: string;
   /** admin master-switches for server-side background services */
   plugins?: PluginFlags;
   /** epoch ms when setup was completed */

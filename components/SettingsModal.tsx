@@ -17,6 +17,7 @@ import {
   Server,
   ListChecks,
   Globe,
+  Library,
   Sun,
   Moon,
   type LucideIcon,
@@ -35,6 +36,7 @@ import MemoryManager from "./MemoryManager";
 import AccountPanel from "./AccountPanel";
 import DefaultModelsPanel from "./DefaultModelsPanel";
 import SearchProvidersPanel from "./SearchProvidersPanel";
+import KnowledgeBasePanel from "./KnowledgeBasePanel";
 import type { Provider, ProviderType } from "@/lib/types";
 
 type TestState = { status: "idle" | "loading" | "ok" | "err"; msg?: string };
@@ -44,6 +46,7 @@ type TabId =
   | "providers"
   | "defaults"
   | "search"
+  | "knowledge"
   | "chat"
   | "ai"
   | "plugins";
@@ -55,6 +58,7 @@ const TABS: { id: TabId; label: string; Icon: LucideIcon; adminOnly?: boolean }[
     { id: "providers", label: "Modellanbieter & Modelle", Icon: Server, adminOnly: true },
     { id: "defaults", label: "Standardmodelle", Icon: ListChecks, adminOnly: true },
     { id: "search", label: "Internetsuche", Icon: Globe },
+    { id: "knowledge", label: "Wissensdatenbank", Icon: Library },
     { id: "chat", label: "Chateinstellungen", Icon: MessageSquare },
     { id: "ai", label: "KI-Personalisierung", Icon: Brain },
     { id: "plugins", label: "System-Dienste/Plugins", Icon: Blocks, adminOnly: true },
@@ -872,6 +876,12 @@ export default function SettingsModal() {
                   </Section>
                 )}
               </>
+            )}
+
+            {activeTab === "knowledge" && (
+              <Section>
+                <KnowledgeBasePanel />
+              </Section>
             )}
 
             {activeTab === "plugins" && isAdmin && (

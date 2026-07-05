@@ -25,6 +25,7 @@ import {
   Bot,
   User,
   Globe,
+  Library,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Markdown from "./Markdown";
@@ -44,6 +45,7 @@ const PIPELINE_BADGE: Record<PipelineStage, { Icon: LucideIcon; key: StringKey }
   text: { Icon: Loader2, key: "pipeline.text" },
   imagegen: { Icon: Loader2, key: "pipeline.text" },
   search: { Icon: Globe, key: "pipeline.search" },
+  knowledge: { Icon: Library, key: "pipeline.knowledge" },
 };
 
 export default function ChatMessage({
