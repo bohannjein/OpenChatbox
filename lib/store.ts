@@ -405,7 +405,7 @@ export const useStore = create<State>()(
       theme: "dark",
       lang: null,
       titlePendingId: null,
-      accentColor: "#10a37f",
+      accentColor: "#4f46e5",
       logoUrl: "",
       appName: "OpenChatbox",
       favorites: [],
@@ -994,7 +994,7 @@ export const useStore = create<State>()(
     }),
     {
       name: "openchatbox-store",
-      version: 7,
+      version: 8,
       // localStorage-backed, but tolerant of quota errors (see safeStorage).
       storage: createJSONStorage(() => safeStorage),
       // Server is now the source of truth for per-user prefs + admin-global
@@ -1057,6 +1057,15 @@ export const useStore = create<State>()(
           // Agentic pipeline: add the "standard"/answer model slot.
           if (s.routerModels && (s.routerModels as { standard?: string | null }).standard === undefined)
             s.routerModels = { ...s.routerModels, standard: null };
+        }
+        if (version < 8) {
+          // Rebrand: migrate the legacy turquoise accent to the new indigo
+          // default (only if the user never picked a custom color).
+          if (
+            (s as { accentColor?: string }).accentColor === "#10a37f" ||
+            !(s as { accentColor?: string }).accentColor
+          )
+            (s as { accentColor?: string }).accentColor = "#4f46e5";
         }
         if (version < 7) {
           // Default-model assignments: add title (thread naming) + search

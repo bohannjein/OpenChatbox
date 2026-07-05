@@ -532,7 +532,7 @@ export default function SettingsModal() {
                       onClick={() => setAccentColor(DEFAULT_ACCENT)}
                       className="rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
                     >
-                      Zurücksetzen (Türkis)
+                      Zurücksetzen (Indigo)
                     </button>
                     <span
                       className="ml-auto h-6 w-6 rounded-full ring-1 ring-black/10"

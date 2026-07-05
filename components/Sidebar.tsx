@@ -244,7 +244,7 @@ export default function Sidebar() {
         <div className="px-3 pb-1 pt-0.5">
           <button
             onClick={startNewChat}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-hover"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-semibold text-neutral-700 shadow-sm transition-all duration-300 hover:border-indigo-500/30 hover:bg-gradient-to-r hover:from-indigo-600/20 hover:to-violet-600/20 hover:text-neutral-900 dark:bg-zinc-900/50 dark:text-neutral-100 dark:hover:text-white"
           >
             <Plus size={16} />
             {t("sidebar.newChat")}

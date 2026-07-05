@@ -1,5 +1,7 @@
-/** Default accent: the original türkis (ChatGPT-Grün). */
-export const DEFAULT_ACCENT = "#10a37f";
+/** Default accent: modern deep indigo (Tailwind indigo-600). */
+export const DEFAULT_ACCENT = "#4f46e5";
+/** The legacy turquoise/green default, migrated to the new accent. */
+export const LEGACY_ACCENT = "#10a37f";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 

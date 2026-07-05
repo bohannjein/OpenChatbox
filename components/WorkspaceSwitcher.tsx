@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Plus, Check, Trash2, Layers, Share2, Copy } from "lucide-react";
+import { Plus, Check, Trash2, Share2, Copy, User, Users } from "lucide-react";
+import clsx from "clsx";
 import { useStore, DEFAULT_WORKSPACE_ID } from "@/lib/store";
 import { useClickOutside } from "@/lib/useClickOutside";
 import { copyText } from "@/lib/clipboard";
@@ -51,6 +52,8 @@ export default function WorkspaceSwitcher() {
 
   const active =
     workspaces.find((w) => w.id === activeWorkspaceId) ?? workspaces[0];
+  const isPersonal = (active?.id ?? DEFAULT_WORKSPACE_ID) === DEFAULT_WORKSPACE_ID;
+  const teamWorkspaces = workspaces.filter((w) => w.id !== DEFAULT_WORKSPACE_ID);
 
   // Create server-side so it has an id + invite token shareable across users.
   const add = async () => {
@@ -85,21 +88,54 @@ export default function WorkspaceSwitcher() {
 
   return (
     <div className="relative px-3 pb-2" ref={ref}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-neutral-500 transition hover:bg-neutral-200/60 dark:text-neutral-400 dark:hover:bg-white/5"
-        title="Workspace wechseln"
-      >
-        <Layers size={14} className="shrink-0 text-accent/80" />
-        <span className="min-w-0 flex-1 truncate text-left">
-          {active?.name ?? "Workspace"}
-        </span>
-        <ChevronDown size={14} className="shrink-0 opacity-70" />
-      </button>
+      {/* Segmented control with a sliding pill: Persönlich | Workspace */}
+      <div className="relative flex rounded-lg bg-black/20 p-0.5 dark:bg-black/30">
+        <span
+          aria-hidden
+          className={clsx(
+            "pointer-events-none absolute inset-y-0.5 left-0.5 w-[calc(50%-4px)] rounded-md bg-white/10 shadow-sm backdrop-blur transition-transform duration-300 ease-out",
+            isPersonal ? "translate-x-0" : "translate-x-[calc(100%+4px)]"
+          )}
+        />
+        <button
+          onClick={() => {
+            switchWorkspace(DEFAULT_WORKSPACE_ID);
+            setOpen(false);
+          }}
+          className={clsx(
+            "relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition",
+            isPersonal
+              ? "font-medium text-neutral-900 dark:text-white"
+              : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+          )}
+        >
+          <User size={14} className="shrink-0" /> Persönlich
+        </button>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          title="Workspaces verwalten"
+          className={clsx(
+            "relative z-10 flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition",
+            !isPersonal
+              ? "font-medium text-neutral-900 dark:text-white"
+              : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+          )}
+        >
+          <Users size={14} className="shrink-0" />
+          <span className="min-w-0 truncate">
+            {isPersonal ? "Workspace" : active?.name ?? "Workspace"}
+          </span>
+        </button>
+      </div>
 
       {open && (
         <div className="absolute left-3 right-3 top-full z-40 mt-1 menu-panel p-1.5">
-          {workspaces.map((w) => (
+          {teamWorkspaces.length === 0 && (
+            <p className="px-2 py-1.5 text-xs text-neutral-400">
+              Noch kein Team-Workspace — lege einen an, um zu teilen.
+            </p>
+          )}
+          {teamWorkspaces.map((w) => (
             <div key={w.id} className="group flex items-center gap-1">
               <button
                 onClick={() => {
