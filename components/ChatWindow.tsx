@@ -307,12 +307,12 @@ export default function ChatWindow() {
     return { provider, model };
   };
 
-  /** Combined system prompt: sidekick role + custom instructions + memory. */
-  const buildSystem = (chatId: string) => {
+  /** Combined system prompt: sidekick role + custom instructions + memory.
+   *  `overrideSidekickId` picks a specific sidekick (used by the group chat). */
+  const buildSystem = (chatId: string, overrideSidekickId?: string) => {
     const chatObj = useStore.getState().chats.find((c) => c.id === chatId);
-    const sk = chatObj?.sidekickId
-      ? sidekicks.find((x) => x.id === chatObj.sidekickId)
-      : undefined;
+    const skId = overrideSidekickId ?? chatObj?.sidekickId;
+    const sk = skId ? sidekicks.find((x) => x.id === skId) : undefined;
     const parts: string[] = [];
     if (sk?.systemPrompt.trim()) parts.push(sk.systemPrompt.trim());
     if (customInstructions.trim()) parts.push(customInstructions.trim());
@@ -679,6 +679,101 @@ export default function ChatWindow() {
     }
   };
 
+  /**
+   * Virtual conference room: each invited sidekick answers in turn, seeing the
+   * discussion so far (prior sidekicks' messages are labeled with their name so
+   * the model knows who said what). One round; each message is stamped with its
+   * sidekick so the transcript shows who spoke.
+   */
+  const generateGroup = async (chatId: string, sidekickIds: string[]) => {
+    setError(null);
+    const ac = new AbortController();
+    abortRef.current = ac;
+    const nameOf = (id?: string) =>
+      (id && sidekicks.find((x) => x.id === id)?.name) || "Assistent";
+    try {
+      for (const skId of sidekickIds) {
+        const sk = sidekicks.find((x) => x.id === skId);
+        if (!sk) continue;
+        const assistantId = addMessage(chatId, "assistant", "", undefined, skId);
+        setStreamingId(assistantId);
+
+        let resolved: ReturnType<typeof resolveModel>;
+        try {
+          resolved = resolveModel(sk.modelKey || selectedModelKey);
+        } catch (e) {
+          setMessageContent(chatId, assistantId, `⚠️ ${(e as Error).message}`);
+          finalizeVariant(chatId, assistantId);
+          continue;
+        }
+        const { provider, model } = resolved;
+
+        const others = sidekickIds
+          .filter((i) => i !== skId)
+          .map((i) => nameOf(i));
+        const sys =
+          buildSystem(chatId, skId) +
+          `\n\nDu bist „${sk.name}" in einer Diskussionsrunde mit: ${
+            others.join(", ") || "weiteren Assistenten"
+          }. Antworte aus deiner Rolle — knapp, eigenständig, beziehe dich wenn ` +
+          `sinnvoll auf Vorredner und wiederhole nichts bereits Gesagtes. Stelle ` +
+          `deinem Beitrag KEIN Namensschild voran.`;
+
+        const cur = useStore.getState().chats.find((c) => c.id === chatId);
+        const idx = cur?.messages.findIndex((m) => m.id === assistantId) ?? -1;
+        const prior = idx >= 0 ? cur!.messages.slice(0, idx) : [];
+        const history: { role: Role; content: string; images?: string[] }[] = [
+          { role: "system" as Role, content: sys },
+          ...prior.map((m) => ({
+            role: m.role,
+            // Label other speakers so the model can follow the discussion.
+            content:
+              m.role === "assistant" && m.sidekickId
+                ? `[${nameOf(m.sidekickId)}]: ${m.content}`
+                : m.content,
+            ...(m.images && m.images.length ? { images: m.images } : {}),
+          })),
+        ].filter((m) => m.role === "system" || m.content.trim() || m.images);
+
+        try {
+          await streamChat(
+            {
+              type: provider.type,
+              baseUrl: provider.baseUrl,
+              apiKey: provider.apiKey,
+              providerId: provider.id,
+              model,
+              messages: history,
+              params: paramsCfg,
+              keepAlive: vramManaged ? ollamaKeepAlive : undefined,
+            },
+            (t, textDelta) =>
+              t === "r"
+                ? appendReasoning(chatId, assistantId, textDelta)
+                : appendToMessage(chatId, assistantId, textDelta),
+            ac.signal
+          );
+        } catch (e) {
+          if ((e as Error)?.name === "AbortError") break;
+          const m = useStore
+            .getState()
+            .chats.find((c) => c.id === chatId)
+            ?.messages.find((x) => x.id === assistantId);
+          if (m && !m.content)
+            setMessageContent(
+              chatId,
+              assistantId,
+              `⚠️ Fehler: ${e instanceof Error ? e.message : String(e)}`
+            );
+        }
+        finalizeVariant(chatId, assistantId);
+      }
+    } finally {
+      abortRef.current = null;
+      setStreamingId(null);
+    }
+  };
+
   const handleSend = async (
     text: string,
     images?: string[],
@@ -719,14 +814,21 @@ export default function ChatWindow() {
         }).catch(() => {});
       }
     }
-    // Which sidekick "speaks" this answer (group chat → primary/first invited).
-    const speakerChat = useStore.getState().chats.find((x) => x.id === chatId);
-    const speakerId =
-      speakerChat?.sidekickIds?.[0] ?? speakerChat?.sidekickId ?? undefined;
-    const assistantId = addMessage(chatId, "assistant", "", undefined, speakerId);
-    // Promote a fresh chat to its own URL (no remount: activeChatId unchanged).
     const c = useStore.getState().chats.find((x) => x.id === chatId);
+    // Promote a fresh chat to its own URL (no remount: activeChatId unchanged).
     if (c && !c.temporary) router.push(`/c/${chatId}`);
+
+    // Virtual conference room: >1 invited sidekick → autonomous discussion round
+    // (each speaks in turn). Skips the single-answer doc/search/kb augmentation.
+    if (c?.isGroupChat && (c.sidekickIds?.length ?? 0) > 1) {
+      await generateGroup(chatId, c.sidekickIds!);
+      autoTitle(chatId);
+      return;
+    }
+
+    // Which sidekick "speaks" this answer (single-sidekick chat).
+    const speakerId = c?.sidekickId ?? undefined;
+    const assistantId = addMessage(chatId, "assistant", "", undefined, speakerId);
     await generate(chatId, assistantId);
 
     // After the first complete answer: name the chat via a hidden model call.
