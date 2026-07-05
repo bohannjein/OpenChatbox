@@ -92,24 +92,54 @@ export function deleteDocument(uid: string, id: string): boolean {
   return true;
 }
 
-/** Split text into overlapping chunks (~1000 chars, break on whitespace). */
+/**
+ * Split text into overlapping chunks (~1000 chars). Line-aware: never cuts
+ * through a line, so table rows / CSV rows / self-describing xlsx rows stay
+ * intact. Overlap re-includes trailing lines; a single over-long line is hard
+ * split as a fallback.
+ */
 export function chunkText(text: string, size = 1000, overlap = 150): string[] {
-  const clean = text.replace(/\r/g, "").replace(/[ \t]+/g, " ").trim();
-  if (!clean) return [];
+  const lines = text
+    .replace(/\r/g, "")
+    .replace(/[ \t]+/g, " ")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return [];
+
   const chunks: string[] = [];
-  let i = 0;
-  while (i < clean.length) {
-    let end = Math.min(i + size, clean.length);
-    if (end < clean.length) {
-      const ws = clean.lastIndexOf(" ", end);
-      if (ws > i + size * 0.6) end = ws; // prefer a word boundary
+  let cur: string[] = [];
+  let curLen = 0;
+  const flush = () => {
+    if (cur.length) chunks.push(cur.join("\n"));
+  };
+
+  for (const line of lines) {
+    // Pathologically long single line → hard split (word-ish boundaries).
+    if (line.length > size) {
+      flush();
+      cur = [];
+      curLen = 0;
+      for (let i = 0; i < line.length; i += size - overlap)
+        chunks.push(line.slice(i, i + size));
+      continue;
     }
-    const piece = clean.slice(i, end).trim();
-    if (piece) chunks.push(piece);
-    if (end >= clean.length) break;
-    i = end - overlap;
-    if (i < 0) i = 0;
+    if (curLen + line.length + 1 > size && cur.length) {
+      flush();
+      // Keep trailing lines as overlap for context continuity.
+      const keep: string[] = [];
+      let kl = 0;
+      for (let i = cur.length - 1; i >= 0 && kl < overlap; i--) {
+        keep.unshift(cur[i]);
+        kl += cur[i].length + 1;
+      }
+      cur = keep;
+      curLen = kl;
+    }
+    cur.push(line);
+    curLen += line.length + 1;
   }
+  flush();
   return chunks;
 }
 

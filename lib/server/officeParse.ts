@@ -6,8 +6,48 @@ import JSZip from "jszip";
 export const OFFICE_EXT = /\.(docx|xlsx|xlsm|xlsb|xls|pptx)$/i;
 export const isOfficeFile = (name: string) => OFFICE_EXT.test(name);
 
-const clip = (s: string, max = 200_000) =>
+const clip = (s: string, max = 500_000) =>
   s.length > max ? s.slice(0, max) + "\n…[gekürzt]" : s;
+
+const MAX_ROWS = 5000;
+
+/**
+ * Render a worksheet to retrieval-friendly text: each data row becomes a
+ * self-describing line ("Header: value | Header2: value2 …") so embeddings and
+ * chunking keep the column meaning of every row. Falls back to plain
+ * pipe-joined cells when the sheet has no header labels.
+ */
+function sheetToText(name: string, sheet: XLSX.WorkSheet): string {
+  // raw:false → dates/numbers as their displayed strings; defval keeps columns
+  // aligned; blankrows:false drops empty rows.
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
+    defval: "",
+    blankrows: false,
+    raw: false,
+  });
+  if (!rows.length) return "";
+
+  const cellStr = (c: unknown) => String(c ?? "").replace(/\s+/g, " ").trim();
+  const header = (rows[0] ?? []).map(cellStr);
+  // Treat the first row as a header only if it carries non-numeric labels.
+  const hasHeader = header.some((h) => h && isNaN(Number(h)));
+  const body = hasHeader ? rows.slice(1) : rows;
+
+  const lines: string[] = [`# Tabelle: ${name}`];
+  for (const row of body.slice(0, MAX_ROWS)) {
+    const cells = (row ?? []).map(cellStr);
+    if (cells.every((c) => !c)) continue; // skip empty rows
+    const line = hasHeader
+      ? cells
+          .map((c, i) => (c ? `${header[i] || `Spalte ${i + 1}`}: ${c}` : ""))
+          .filter(Boolean)
+          .join(" | ")
+      : cells.filter(Boolean).join(" | ");
+    if (line) lines.push(line);
+  }
+  return lines.length > 1 ? lines.join("\n") : "";
+}
 
 /**
  * Extract structured text from an Office file (server-side). Throws on failure
@@ -39,11 +79,10 @@ export async function parseOffice(file: File): Promise<string> {
     return clip(out.join("\n\n").trim());
   }
 
-  // xlsx / xls / xlsm / xlsb → each sheet as CSV.
-  const wb = XLSX.read(buf, { type: "buffer" });
-  const parts = wb.SheetNames.map((name) => {
-    const csv = XLSX.utils.sheet_to_csv(wb.Sheets[name]).trim();
-    return csv ? `# Tabelle: ${name}\n${csv}` : "";
-  }).filter(Boolean);
+  // xlsx / xls / xlsm / xlsb → each sheet as self-describing rows.
+  const wb = XLSX.read(buf, { type: "buffer", cellDates: true });
+  const parts = wb.SheetNames.map((name) =>
+    sheetToText(name, wb.Sheets[name])
+  ).filter(Boolean);
   return clip(parts.join("\n\n"));
 }
