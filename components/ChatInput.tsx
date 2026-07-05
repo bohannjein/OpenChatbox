@@ -120,24 +120,29 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
         cmd: "/file",
         label: "Datei hochladen",
         Icon: Paperclip,
+        inline: false,
         run: () => fileRef.current?.click(),
       },
       {
+        // inline: completing "/model " opens the model list INSIDE this menu.
         cmd: "/model",
         label: "Modell wählen",
         Icon: Cpu,
+        inline: true,
         run: () => window.dispatchEvent(new Event("openModelSwitcher")),
       },
       {
         cmd: "/sidekick",
         label: "Sidekick wechseln / erstellen",
         Icon: Sparkles,
+        inline: false,
         run: () => window.dispatchEvent(new Event("openModelSwitcher")),
       },
       {
         cmd: "/search",
         label: "Internetsuche umschalten",
         Icon: Globe,
+        inline: false,
         run: () => toggleWebSearch(),
       },
     ],
@@ -239,6 +244,14 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
     caretEnd(content);
   };
 
+  // Complete a command name into the field ("/mo" → "/model ") — used by inline
+  // commands (e.g. /model) so their picker opens right here in the slash menu.
+  const completeCommand = (cmd: string) => {
+    const text = cmd + " ";
+    changeValue(text);
+    caretEnd(text);
+  };
+
   // Enter / Tab → run the command's action, then clear the slash text
   const runCommand = (c: (typeof COMMANDS)[number]) => {
     changeValue("");
@@ -260,6 +273,9 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
   const chooseItem = (it: Item) => {
     if (it.type === "model") return applyModel(it.option);
     if (it.type === "prompt") return applyPrompt(it.prompt.content);
+    // inline commands (e.g. /model) expand into their picker inside this menu;
+    // the rest run their action directly.
+    if (it.cmd.inline) return completeCommand(it.cmd.cmd);
     runCommand(it.cmd);
   };
 
