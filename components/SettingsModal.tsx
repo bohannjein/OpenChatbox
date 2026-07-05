@@ -146,8 +146,8 @@ export default function SettingsModal() {
   const activeTab = visibleTabs.some((t) => t.id === tab) ? tab : "account";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex h-[85vh] max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border-light bg-white shadow-2xl dark:border-border-dark dark:bg-sidebar-dark">
+    <div className="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-black/50 p-4">
+      <div className="flex h-[85vh] max-h-[85vh] w-full max-w-3xl origin-center animate-modal-in flex-col overflow-hidden rounded-2xl border border-border-light bg-white shadow-2xl dark:border-border-dark dark:bg-sidebar-dark">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border-light px-5 py-3 dark:border-border-dark">
           <h2 className="text-lg font-semibold">Einstellungen</h2>
@@ -167,7 +167,7 @@ export default function SettingsModal() {
                 key={id}
                 onClick={() => setTab(id)}
                 className={clsx(
-                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
+                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors duration-150 ease-out",
                   activeTab === id
                     ? "bg-neutral-200 font-medium dark:bg-white/10"
                     : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-white/5"

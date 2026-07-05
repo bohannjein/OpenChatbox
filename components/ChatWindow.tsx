@@ -180,6 +180,9 @@ export default function ChatWindow() {
   const [notesOpen, setNotesOpen] = useState(false);
   const [ghostMenu, setGhostMenu] = useState(false);
   const ghostRef = useRef<HTMLDivElement>(null);
+  // Last rendered side-panel node — retained during the slide-out so the
+  // closing panel keeps its content while it animates off-screen.
+  const panelNodeRef = useRef<React.ReactNode>(null);
 
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -1493,47 +1496,69 @@ export default function ChatWindow() {
       </div>
       </CodePanelContext.Provider>
 
-      {/* Right splitscreen — notes/archive take precedence, else code. Resizable. */}
-      {(notesOpen || archiveOpen || codePanel) && (
-        <div
-          className="relative flex min-w-0 shrink-0 overflow-hidden"
-          style={{ width: panelWidth, maxWidth: "85vw" }}
-        >
-          {/* Draggable divider — wide hit area, visible line, accent while dragging */}
-          <div
-            onMouseDown={startResize}
-            className="group absolute left-0 top-0 z-20 flex h-full w-3 -translate-x-1/2 cursor-col-resize items-center justify-center"
-            title="Breite ziehen"
-          >
-            <div
-              className={clsx(
-                "h-full w-px transition-all",
-                resizing
-                  ? "w-1 bg-accent"
-                  : "bg-border-light group-hover:w-1 group-hover:bg-accent/60 dark:bg-border-dark"
-              )}
-            />
-          </div>
-          {notesOpen ? (
-            <NotesPanel onClose={() => setNotesOpen(false)} />
-          ) : archiveOpen ? (
-            <ArchivePanel
-              files={chatFiles}
-              onJump={jumpToMessage}
-              onClose={() => setArchiveOpen(false)}
-            />
-          ) : (
-            codePanel && (
+      {/* Right splitscreen — slides in/out. Notes/archive take precedence, else
+          code. Always mounted so the width + translateX transition runs in BOTH
+          directions; the last content is retained during the slide-out. */}
+      {(() => {
+        const kind = notesOpen
+          ? "notes"
+          : archiveOpen
+          ? "archive"
+          : codePanel
+          ? "code"
+          : null;
+        const open = kind !== null;
+        if (open) {
+          panelNodeRef.current =
+            kind === "notes" ? (
+              <NotesPanel onClose={() => setNotesOpen(false)} />
+            ) : kind === "archive" ? (
+              <ArchivePanel
+                files={chatFiles}
+                onJump={jumpToMessage}
+                onClose={() => setArchiveOpen(false)}
+              />
+            ) : (
               <CodePanel
-                code={codePanel.code}
-                language={codePanel.lang}
-                name={codePanel.name}
+                code={codePanel!.code}
+                language={codePanel!.lang}
+                name={codePanel!.name}
                 onClose={closeCodePanel}
               />
-            )
-          )}
-        </div>
-      )}
+            );
+        }
+        return (
+          <div
+            className="relative flex shrink-0 overflow-hidden transition-[width] duration-300 ease-expo motion-reduce:transition-none"
+            style={{ width: open ? panelWidth : 0, maxWidth: "85vw" }}
+          >
+            <div
+              className="relative flex h-full shrink-0 transition-transform duration-300 ease-expo motion-reduce:transition-none"
+              style={{
+                width: panelWidth,
+                transform: open ? "translateX(0)" : "translateX(100%)",
+              }}
+            >
+              {/* Draggable divider — wide hit area, visible line, accent while dragging */}
+              <div
+                onMouseDown={startResize}
+                className="group absolute left-0 top-0 z-20 flex h-full w-3 -translate-x-1/2 cursor-col-resize items-center justify-center"
+                title="Breite ziehen"
+              >
+                <div
+                  className={clsx(
+                    "h-full w-px transition-all",
+                    resizing
+                      ? "w-1 bg-accent"
+                      : "bg-border-light group-hover:w-1 group-hover:bg-accent/60 dark:bg-border-dark"
+                  )}
+                />
+              </div>
+              {panelNodeRef.current}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -1549,7 +1574,7 @@ function MenuItem({
     <button
       onClick={onClick}
       className={clsx(
-        "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition",
+        "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors duration-150 ease-out",
         "hover:bg-neutral-100 dark:hover:bg-white/10"
       )}
     >
