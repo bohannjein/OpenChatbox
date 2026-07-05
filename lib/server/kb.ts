@@ -195,12 +195,19 @@ export interface KbHit {
   score: number;
 }
 
-/** Top-k most similar chunks to the query embedding (optionally by category). */
+/**
+ * Top-k most similar chunks to the query embedding. Diversified across
+ * documents: a single file can supply at most `perDocCap` chunks in the first
+ * pass, so relevant passages from OTHER documents surface too instead of one
+ * file monopolizing the whole top-k. Remaining slots are then filled with the
+ * next-best chunks regardless of document.
+ */
 export function searchChunks(
   uid: string,
   queryEmbedding: number[],
-  k = 5,
-  categoryIds?: string[]
+  k = 8,
+  categoryIds?: string[],
+  perDocCap = 3
 ): KbHit[] {
   if (!queryEmbedding.length) return [];
   const s = load(uid);
@@ -208,9 +215,25 @@ export function searchChunks(
     categoryIds && categoryIds.length
       ? s.chunks.filter((c) => categoryIds.includes(c.categoryId))
       : s.chunks;
-  return pool
+
+  const scored = pool
     .map((c) => ({ docName: c.docName, text: c.text, score: cosine(queryEmbedding, c.embedding) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, k)
-    .filter((h) => h.score > 0.2); // drop near-irrelevant matches
+    .filter((h) => h.score > 0.2) // drop near-irrelevant matches
+    .sort((a, b) => b.score - a.score);
+
+  // First pass: spread across documents (respect the per-doc cap).
+  const perDoc = new Map<string, number>();
+  const primary: KbHit[] = [];
+  const overflow: KbHit[] = [];
+  for (const h of scored) {
+    const n = perDoc.get(h.docName) ?? 0;
+    if (n < perDocCap) {
+      primary.push(h);
+      perDoc.set(h.docName, n + 1);
+    } else {
+      overflow.push(h);
+    }
+  }
+  // Diverse hits first, then fill remaining slots with the next best.
+  return [...primary, ...overflow].slice(0, k);
 }

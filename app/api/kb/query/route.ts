@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     const results = searchChunks(
       user.id,
       emb,
-      Math.min(Math.max(b.k ?? 5, 1), 10),
+      Math.min(Math.max(b.k ?? 8, 1), 12),
       Array.isArray(b.categoryIds) ? b.categoryIds : undefined
     );
     return NextResponse.json({ results });
