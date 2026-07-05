@@ -170,7 +170,7 @@ export default function SettingsModal() {
           </nav>
 
           {/* Content */}
-          <div className="min-w-0 flex-1 space-y-6 overflow-y-auto p-5">
+          <div className="min-w-0 flex-1 space-y-6 overflow-y-auto overflow-x-hidden break-words p-5">
             {activeTab === "account" && (
               <Section>
                 <AccountPanel />

@@ -83,41 +83,31 @@ export default function ProvidersPanel() {
 
   return (
     <div>
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <h3 className="font-medium">Provider & API-Endpunkte</h3>
-          <p className="text-sm text-neutral-500">
-            Ollama (lokal) oder OpenAI-kompatible/Anthropic-APIs. Global,
-            serverseitig gespeichert (Keys verlassen den Server nicht).
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <select
-            value=""
-            onChange={(e) => {
-              if (e.target.value !== "") addFromPreset(Number(e.target.value));
-              e.target.value = "";
-            }}
-            className="rounded-lg border border-border-light px-2 py-1.5 text-sm dark:border-border-dark dark:bg-sidebar-dark"
-            title="Anbieter aus Vorlage hinzufügen"
-          >
-            <option value="">+ Anbieter</option>
-            {PRESETS.map((p, i) => (
-              <option key={p.name} value={i}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={save}
-            disabled={saving || loading}
-            className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
-          >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : null}
-            {saved ? "Gespeichert" : "Speichern"}
-          </button>
-        </div>
+      <div className="mb-3">
+        <h3 className="font-medium">Provider & API-Endpunkte</h3>
+        <p className="text-sm text-neutral-500">
+          Ollama (lokal) oder OpenAI-kompatible/Anthropic-APIs. Global,
+          serverseitig gespeichert (Keys verlassen den Server nicht).
+        </p>
       </div>
+
+      {/* Compact add control — its own row, full width on narrow screens. */}
+      <select
+        value=""
+        onChange={(e) => {
+          if (e.target.value !== "") addFromPreset(Number(e.target.value));
+          e.target.value = "";
+        }}
+        className="mb-3 w-full rounded-lg border border-border-light px-2 py-2 text-sm dark:border-border-dark dark:bg-sidebar-dark"
+        title="Anbieter aus Vorlage hinzufügen"
+      >
+        <option value="">+ Anbieter hinzufügen…</option>
+        {PRESETS.map((p, i) => (
+          <option key={p.name} value={i}>
+            {p.name}
+          </option>
+        ))}
+      </select>
 
       {loading ? (
         <p className="py-4 text-center text-sm text-neutral-400">Lädt…</p>
@@ -226,6 +216,16 @@ export default function ProvidersPanel() {
           })}
         </div>
       )}
+
+      {/* Save — always visible directly under the list (also after adding). */}
+      <button
+        onClick={save}
+        disabled={saving || loading}
+        className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
+      >
+        {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : null}
+        {saved ? "Gespeichert" : "Anbieter speichern"}
+      </button>
     </div>
   );
 }
