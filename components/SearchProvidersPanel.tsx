@@ -31,7 +31,7 @@ export default function SearchProvidersPanel() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/config")
+    fetch("/api/admin/config", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setCfg((d?.config?.search as SearchCfg) ?? {}))
       .catch(() => setCfg({}))

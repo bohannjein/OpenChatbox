@@ -50,7 +50,7 @@ export default function KnowledgeBasePanel() {
   useEffect(() => {
     load();
     if (isAdmin)
-      fetch("/api/admin/config")
+      fetch("/api/admin/config", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => setEmbModel(d?.config?.embeddingModel ?? ""))
         .catch(() => {});

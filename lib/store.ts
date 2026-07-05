@@ -244,6 +244,8 @@ interface State {
   // fetched from the server on load (server is the source of truth).
   applyGlobalConfig: (c: GlobalConfigPayload) => void;
   hydrateProfile: (p: ServerUserProfile) => void;
+  /** Replace chats with the server copy (only when the server has any). */
+  hydrateChats: (chats: Chat[], activeChatId: string | null) => void;
   settingsOpen: boolean;
   searchOpen: boolean;
   setSearchOpen: (v: boolean) => void;
@@ -481,6 +483,15 @@ export const useStore = create<State>()(
           sidekicks: p.sidekicks ?? s.sidekicks,
           prompts: p.prompts ?? s.prompts,
         })),
+
+      // Server chats win when present; an empty server copy keeps local chats
+      // (first-run migration → they get pushed up by the write-through).
+      hydrateChats: (chats, activeChatId) =>
+        set((s) =>
+          chats && chats.length
+            ? { chats, activeChatId: activeChatId ?? s.activeChatId }
+            : {}
+        ),
 
       settingsOpen: false,
       searchOpen: false,

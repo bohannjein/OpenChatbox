@@ -1,5 +1,5 @@
 import { useStore } from "./store";
-import type { GlobalConfigPayload, ServerUserProfile } from "./types";
+import type { Chat, GlobalConfigPayload, ServerUserProfile } from "./types";
 
 /**
  * Server-persistence bridge. On load we hydrate the store from the server
@@ -12,11 +12,30 @@ type State = ReturnType<typeof useStore.getState>;
 
 let hydrating = false;
 let ready = false; // becomes true only after the first server hydration
+let chatsLoaded = false; // true only after a successful /api/chats fetch
 let lastSnapshot = "";
 let lastGlobal = "";
+let lastChats = "";
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let globalTimer: ReturnType<typeof setTimeout> | null = null;
+let chatTimer: ReturnType<typeof setTimeout> | null = null;
 let unsub: (() => void) | null = null;
+
+/** Chat history for server storage — strips volatile blobs (images/docs/
+ *  pipeline + file dataUrls) and drops temporary chats, mirroring the local
+ *  persist shape. Files themselves live in the server file store. */
+function chatsOf(s: State): { chats: unknown[]; activeChatId: string | null } {
+  return {
+    chats: s.chats
+      .filter((c) => !c.temporary)
+      .map((c) => ({
+        ...c,
+        messages: c.messages.map(({ images, docs, pipeline, ...m }) => m),
+        files: c.files?.map(({ dataUrl, ...f }) => f),
+      })),
+    activeChatId: s.activeChatId,
+  };
+}
 
 /** Admin-global subset (branding + router + providers incl. locally-held keys). */
 function globalOf(s: State): GlobalConfigPayload {
@@ -64,18 +83,28 @@ function profileOf(s: State): ServerUserProfile {
 export async function loadServerState(): Promise<void> {
   hydrating = true;
   try {
-    const [cfg, prof] = await Promise.all([
-      fetch("/api/config").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      fetch("/api/profile").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    const [cfg, prof, chatsRes] = await Promise.all([
+      fetch("/api/config", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch("/api/profile", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch("/api/chats", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
     ]);
     const st = useStore.getState();
     if (cfg) st.applyGlobalConfig(cfg as GlobalConfigPayload);
     if (prof?.profile) st.hydrateProfile(prof.profile as ServerUserProfile);
+    if (chatsRes) {
+      // Successful fetch → safe to write chats back afterwards. Empty server
+      // copy keeps local chats (first-run migration → pushed up on next change).
+      chatsLoaded = true;
+      st.hydrateChats((chatsRes.chats ?? []) as Chat[], chatsRes.activeChatId ?? null);
+    }
   } finally {
     // Baselines so the initial hydration doesn't immediately echo back.
     const st2 = useStore.getState();
     lastSnapshot = JSON.stringify(profileOf(st2));
     lastGlobal = JSON.stringify(globalOf(st2));
+    lastChats = JSON.stringify(chatsOf(st2));
     hydrating = false;
     ready = true;
   }
@@ -94,6 +123,22 @@ function schedulePush() {
       /* offline / transient — next change retries */
     });
   }, 1000);
+}
+
+function scheduleChatPush() {
+  if (chatTimer) clearTimeout(chatTimer);
+  // Longer debounce: chats change on every streamed token; save ~2s after the
+  // last change (i.e. shortly after a stream ends).
+  chatTimer = setTimeout(() => {
+    chatTimer = null;
+    fetch("/api/chats", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(chatsOf(useStore.getState())),
+    }).catch(() => {
+      /* offline / transient — next change retries */
+    });
+  }, 2000);
 }
 
 function scheduleGlobalPush() {
@@ -124,6 +169,15 @@ export function startProfileSync(): () => void {
     if (snap !== lastSnapshot) {
       lastSnapshot = snap;
       schedulePush();
+    }
+    // Chats → server (only after a successful initial fetch, so a failed load
+    // never clobbers the server copy with an empty local one).
+    if (chatsLoaded) {
+      const cs = JSON.stringify(chatsOf(s));
+      if (cs !== lastChats) {
+        lastChats = cs;
+        scheduleChatPush();
+      }
     }
     // Admin-global config is only pushed by admins (server 403s otherwise).
     if (s.authUser?.role === "admin") {

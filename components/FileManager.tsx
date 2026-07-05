@@ -55,7 +55,7 @@ export default function FileManager() {
 
   const load = useCallback(() => {
     setLoading(true);
-    fetch("/api/files")
+    fetch("/api/files", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : { files: [] }))
       .then((d) => setFiles(Array.isArray(d.files) ? d.files : []))
       .catch(() => setFiles([]))
