@@ -10,12 +10,17 @@ const clip = (s: string, max = 500_000) =>
   s.length > max ? s.slice(0, max) + "\n…[gekürzt]" : s;
 
 const MAX_ROWS = 5000;
+const MAX_CELLS = 40_000;
 
 /**
- * Render a worksheet to retrieval-friendly text: each data row becomes a
- * self-describing line ("Header: value | Header2: value2 …") so embeddings and
- * chunking keep the column meaning of every row. Falls back to plain
- * pipe-joined cells when the sheet has no header labels.
+ * Render a worksheet to retrieval-friendly text for RAG. Handles the common
+ * cross/matrix table (row labels down the left, property headers across the
+ * top): EVERY intersection is emitted as a standalone fact that carries both
+ * the row label AND the column header —
+ *   "Hamburg — NAS: 10.0.0.5"
+ * so a query like "IP der NAS in Hamburg" matches the exact cell. A compact
+ * per-row line is added too for whole-row context. Falls back to pipe-joined
+ * cells when the sheet has no header labels.
  */
 function sheetToText(name: string, sheet: XLSX.WorkSheet): string {
   // raw:false → dates/numbers as their displayed strings; defval keeps columns
@@ -33,18 +38,39 @@ function sheetToText(name: string, sheet: XLSX.WorkSheet): string {
   // Treat the first row as a header only if it carries non-numeric labels.
   const hasHeader = header.some((h) => h && isNaN(Number(h)));
   const body = hasHeader ? rows.slice(1) : rows;
+  // Name of the row-label column (top-left cell), e.g. "Filiale". Blank corner
+  // cells are common in matrix tables → fall back to a neutral label.
+  const rowLabelName = (hasHeader && header[0]) || "Eintrag";
 
   const lines: string[] = [`# Tabelle: ${name}`];
+  let cellCount = 0;
   for (const row of body.slice(0, MAX_ROWS)) {
     const cells = (row ?? []).map(cellStr);
     if (cells.every((c) => !c)) continue; // skip empty rows
-    const line = hasHeader
-      ? cells
-          .map((c, i) => (c ? `${header[i] || `Spalte ${i + 1}`}: ${c}` : ""))
-          .filter(Boolean)
-          .join(" | ")
-      : cells.filter(Boolean).join(" | ");
-    if (line) lines.push(line);
+
+    if (!hasHeader) {
+      lines.push(cells.filter(Boolean).join(" | "));
+      continue;
+    }
+
+    const label = cells[0] || rowLabelName;
+    // Compact whole-row line (context) …
+    const rowLine = cells
+      .map((c, i) => (c ? `${header[i] || `Spalte ${i + 1}`}: ${c}` : ""))
+      .filter(Boolean)
+      .join(" | ");
+    lines.push(`${rowLabelName}: ${label}`);
+    if (rowLine) lines.push(rowLine);
+    // … plus one explicit fact per cell (intersection), carrying row + column.
+    for (let i = 1; i < cells.length; i++) {
+      if (!cells[i]) continue;
+      lines.push(`${label} — ${header[i] || `Spalte ${i + 1}`}: ${cells[i]}`);
+      if (++cellCount >= MAX_CELLS) break;
+    }
+    if (cellCount >= MAX_CELLS) {
+      lines.push("…[gekürzt]");
+      break;
+    }
   }
   return lines.length > 1 ? lines.join("\n") : "";
 }
