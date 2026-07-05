@@ -80,8 +80,17 @@ function loadAll(): Record<string, UserProfile> {
 function saveAll(map: Record<string, UserProfile>) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   const tmp = `${FILE}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(map, null, 2), "utf8");
-  fs.renameSync(tmp, FILE);
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(map, null, 2), "utf8");
+    fs.renameSync(tmp, FILE);
+  } catch (e) {
+    try {
+      fs.rmSync(tmp, { force: true });
+    } catch {
+      /* ignore */
+    }
+    throw e;
+  }
 }
 
 export function getProfile(userId: string): UserProfile {

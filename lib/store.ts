@@ -240,6 +240,9 @@ interface State {
   setPluginFlags: (p: State["plugins"]) => void;
   /** whether an admin web-search provider is configured (transient, from /api/config) */
   searchAvailable: boolean;
+  /** transient: last server write-through (profile/chats) failed → data may be local only */
+  syncError: boolean;
+  setSyncError: (v: boolean) => void;
   // Server-persistence bridge: apply admin-global config + per-user profile
   // fetched from the server on load (server is the source of truth).
   applyGlobalConfig: (c: GlobalConfigPayload) => void;
@@ -428,6 +431,8 @@ export const useStore = create<State>()(
       plugins: null,
       setPluginFlags: (plugins) => set({ plugins }),
       searchAvailable: false,
+      syncError: false,
+      setSyncError: (syncError) => set({ syncError }),
 
       // Apply admin-global config from the server. Only overwrite a field when
       // the server actually provides it, so a fresh instance (empty config)

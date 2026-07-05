@@ -119,9 +119,9 @@ function schedulePush() {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profile }),
-    }).catch(() => {
-      /* offline / transient — next change retries */
-    });
+    })
+      .then((r) => useStore.getState().setSyncError(!r.ok))
+      .catch(() => useStore.getState().setSyncError(true));
   }, 1000);
 }
 
@@ -135,9 +135,9 @@ function scheduleChatPush() {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(chatsOf(useStore.getState())),
-    }).catch(() => {
-      /* offline / transient — next change retries */
-    });
+    })
+      .then((r) => useStore.getState().setSyncError(!r.ok))
+      .catch(() => useStore.getState().setSyncError(true));
   }, 2000);
 }
 

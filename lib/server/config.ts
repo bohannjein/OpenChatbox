@@ -119,8 +119,17 @@ export function setConfig(patch: Partial<ServerConfig>): ServerConfig {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   // Atomic write (tmp + rename) so a crash never leaves a truncated config.
   const tmp = `${FILE}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(next, null, 2), "utf8");
-  fs.renameSync(tmp, FILE);
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(next, null, 2), "utf8");
+    fs.renameSync(tmp, FILE);
+  } catch (e) {
+    try {
+      fs.rmSync(tmp, { force: true });
+    } catch {
+      /* ignore */
+    }
+    throw e;
+  }
   return next;
 }
 

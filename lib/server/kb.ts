@@ -49,8 +49,18 @@ function save(uid: string, store: KbStore) {
   fs.mkdirSync(DIR, { recursive: true });
   const f = fileFor(uid);
   const tmp = `${f}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(store), "utf8");
-  fs.renameSync(tmp, f);
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(store), "utf8");
+    fs.renameSync(tmp, f);
+  } catch (e) {
+    // Never leave a half-written tmp behind (worsens a full disk).
+    try {
+      fs.rmSync(tmp, { force: true });
+    } catch {
+      /* ignore */
+    }
+    throw e;
+  }
 }
 
 /** Public view (no embeddings) for the management UI. */
@@ -169,7 +179,9 @@ export function addDocument(
       categoryId,
       docName: doc.name,
       text,
-      embedding: embeddings[idx],
+      // Quantize to ~5 decimals → roughly halves the stored size; cosine
+      // similarity is unaffected in practice.
+      embedding: embeddings[idx].map((v) => Math.round(v * 1e5) / 1e5),
     });
   });
   save(uid, s);

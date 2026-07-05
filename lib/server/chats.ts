@@ -39,7 +39,16 @@ export function setChats(userId: string, data: unknown): ChatsData {
   fs.mkdirSync(DIR, { recursive: true });
   const f = fileFor(userId);
   const tmp = `${f}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, json, "utf8");
-  fs.renameSync(tmp, f);
+  try {
+    fs.writeFileSync(tmp, json, "utf8");
+    fs.renameSync(tmp, f);
+  } catch (e) {
+    try {
+      fs.rmSync(tmp, { force: true });
+    } catch {
+      /* ignore */
+    }
+    throw e;
+  }
   return next;
 }

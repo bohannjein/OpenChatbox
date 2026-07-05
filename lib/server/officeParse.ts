@@ -54,19 +54,18 @@ function sheetToText(name: string, sheet: XLSX.WorkSheet): string {
     }
 
     const label = cells[0] || rowLabelName;
-    // Compact whole-row line (context) …
-    const rowLine = cells
-      .map((c, i) => (c ? `${header[i] || `Spalte ${i + 1}`}: ${c}` : ""))
-      .filter(Boolean)
-      .join(" | ");
-    lines.push(`${rowLabelName}: ${label}`);
-    if (rowLine) lines.push(rowLine);
-    // … plus one explicit fact per cell (intersection), carrying row + column.
+    // One explicit, self-describing fact per cell (intersection), carrying the
+    // row label + column header — e.g. "Hamburg — NAS: 10.0.0.5". This is all
+    // retrieval needs and keeps the index compact (no redundant row echo).
+    let any = false;
     for (let i = 1; i < cells.length; i++) {
       if (!cells[i]) continue;
       lines.push(`${label} — ${header[i] || `Spalte ${i + 1}`}: ${cells[i]}`);
+      any = true;
       if (++cellCount >= MAX_CELLS) break;
     }
+    // Row that only has a label (no other cells) → keep the label itself.
+    if (!any) lines.push(`${rowLabelName}: ${label}`);
     if (cellCount >= MAX_CELLS) {
       lines.push("…[gekürzt]");
       break;

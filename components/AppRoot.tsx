@@ -37,6 +37,7 @@ export default function AppRoot() {
   const selectChat = useStore((s) => s.selectChat);
   const setAuthUser = useStore((s) => s.setAuthUser);
   const setSearchOpen = useStore((s) => s.setSearchOpen);
+  const syncError = useStore((s) => s.syncError);
   const lang = useStore((s) => s.lang);
   const setLang = useStore((s) => s.setLang);
   const upsertWorkspace = useStore((s) => s.upsertWorkspace);
@@ -222,6 +223,12 @@ export default function AppRoot() {
       <SettingsModal />
       <SearchModal />
       <FileManager />
+      {syncError && (
+        <div className="fixed bottom-3 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-700 shadow-lg dark:border-red-900 dark:bg-red-950/80 dark:text-red-300">
+          Serverspeicherung fehlgeschlagen — Änderungen evtl. nur lokal
+          (Speicherplatz voll?).
+        </div>
+      )}
     </div>
   );
 }
