@@ -108,10 +108,23 @@ export async function loadServerState(): Promise<void> {
     if (cfg) st.applyGlobalConfig(cfg as GlobalConfigPayload);
     if (prof?.profile) st.hydrateProfile(prof.profile as ServerUserProfile);
     if (chatsRes) {
-      // Successful fetch → safe to write chats back afterwards. Empty server
-      // copy keeps local chats (first-run migration → pushed up on next change).
+      // Successful fetch → safe to write chats back afterwards.
       chatsLoaded = true;
-      st.hydrateChats((chatsRes.chats ?? []) as Chat[], chatsRes.activeChatId ?? null);
+      const serverChats = (chatsRes.chats ?? []) as Chat[];
+      st.hydrateChats(serverChats, chatsRes.activeChatId ?? null);
+      // First-run migration: server has no chats yet but this device still holds
+      // some (from the old local-only store) → push them up once now.
+      if (!serverChats.length) {
+        const local = chatsOf(useStore.getState());
+        if (local.chats.length)
+          fetch("/api/chats", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(local),
+          })
+            .catch(() => {})
+            .finally(markPushed);
+      }
     }
   } finally {
     // Baselines so the initial hydration doesn't immediately echo back.

@@ -991,21 +991,13 @@ export const useStore = create<State>()(
       // cache of theme/branding read by the pre-hydration script in layout.tsx.
       // Images (base64 data URLs) are stripped: they'd blow the ~5MB quota.
       partialize: (s) => ({
-        chats: s.chats
-          .filter((c) => !c.temporary)
-          .map((c) => ({
-            ...c,
-            messages: c.messages.map(({ images, docs, pipeline, ...m }) => m),
-            files: c.files?.map(({ dataUrl, ...f }) => f),
-          })),
-        activeChatId: s.activeChatId,
+        // Server is the source of truth. localStorage keeps ONLY appearance (for
+        // a no-flash first paint) + a small workspace-UI cache. Chats, providers
+        // and every per-user setting are loaded from the server on each login —
+        // NOT persisted locally. (Existing local chats are still read once on
+        // upgrade and migrated up by the write-through.)
         workspaces: s.workspaces,
         activeWorkspaceId: s.activeWorkspaceId,
-        // provider registry: cached locally so the admin's typed apiKeys survive
-        // a reload (server public config is key-stripped). Non-admins just cache
-        // the global keyless list.
-        providers: s.providers,
-        // no-flash cache (authoritative copy lives on the server)
         theme: s.theme,
         lang: s.lang,
         accentColor: s.accentColor,
