@@ -19,7 +19,17 @@ let lastChats = "";
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let globalTimer: ReturnType<typeof setTimeout> | null = null;
 let chatTimer: ReturnType<typeof setTimeout> | null = null;
+let liveTimer: ReturnType<typeof setInterval> | null = null;
+let lastPushAt = 0; // epoch ms of the last completed write-through
 let unsub: (() => void) | null = null;
+
+const markPushed = () => {
+  try {
+    lastPushAt = Date.now();
+  } catch {
+    /* ignore */
+  }
+};
 
 /** Chat history for server storage — strips volatile blobs (images/docs/
  *  pipeline + file dataUrls) and drops temporary chats, mirroring the local
@@ -121,7 +131,8 @@ function schedulePush() {
       body: JSON.stringify({ profile }),
     })
       .then((r) => useStore.getState().setSyncError(!r.ok))
-      .catch(() => useStore.getState().setSyncError(true));
+      .catch(() => useStore.getState().setSyncError(true))
+      .finally(markPushed);
   }, 1000);
 }
 
@@ -137,7 +148,8 @@ function scheduleChatPush() {
       body: JSON.stringify(chatsOf(useStore.getState())),
     })
       .then((r) => useStore.getState().setSyncError(!r.ok))
-      .catch(() => useStore.getState().setSyncError(true));
+      .catch(() => useStore.getState().setSyncError(true))
+      .finally(markPushed);
   }, 2000);
 }
 
@@ -149,9 +161,11 @@ function scheduleGlobalPush() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(globalOf(useStore.getState())),
-    }).catch(() => {
-      /* non-admin (403) or offline — ignore */
-    });
+    })
+      .catch(() => {
+        /* non-admin (403) or offline — ignore */
+      })
+      .finally(markPushed);
   }, 1000);
 }
 
@@ -189,4 +203,32 @@ export function startProfileSync(): () => void {
     }
   });
   return unsub;
+}
+
+/**
+ * Live sync across devices: periodically re-hydrate from the server so another
+ * device's changes appear. Only runs when idle — no pending write-through
+ * (which also covers typing + streaming, since those keep a debounce timer
+ * armed) and a short cooldown after the last push (so an in-flight PUT isn't
+ * overwritten by a stale read). Reuses loadServerState (sets hydrating +
+ * rebaselines, so it never echoes back).
+ */
+export function startLiveSync(intervalMs = 20000): () => void {
+  if (liveTimer) return () => {};
+  liveTimer = setInterval(() => {
+    if (!ready || hydrating) return;
+    if (pushTimer || chatTimer || globalTimer) return; // local changes not settled
+    let now = 0;
+    try {
+      now = Date.now();
+    } catch {
+      /* ignore */
+    }
+    if (now && now - lastPushAt < 6000) return; // just wrote — let it land first
+    loadServerState().catch(() => {});
+  }, intervalMs);
+  return () => {
+    if (liveTimer) clearInterval(liveTimer);
+    liveTimer = null;
+  };
 }

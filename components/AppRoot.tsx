@@ -8,7 +8,7 @@ import SettingsModal from "@/components/SettingsModal";
 import SearchModal from "@/components/SearchModal";
 import FileManager from "@/components/FileManager";
 import { useStore } from "@/lib/store";
-import { loadServerState, startProfileSync } from "@/lib/serverSync";
+import { loadServerState, startProfileSync, startLiveSync } from "@/lib/serverSync";
 import { hexToRgbChannels, darkenChannels } from "@/lib/branding";
 import { detectBrowserLang } from "@/lib/i18n";
 import clsx from "clsx";
@@ -101,9 +101,12 @@ export default function AppRoot() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // Write-through: push per-user preference changes back to the server (debounced).
+  // Write-through: push per-user preference changes back to the server (debounced)
+  // + periodic live re-hydration so another device's changes appear.
   useEffect(() => {
     startProfileSync();
+    const stopLive = startLiveSync();
+    return () => stopLive();
   }, []);
 
   // Load session; ensure the per-user storage namespace matches the user.

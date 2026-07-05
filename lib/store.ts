@@ -490,13 +490,18 @@ export const useStore = create<State>()(
         })),
 
       // Server chats win when present; an empty server copy keeps local chats
-      // (first-run migration → they get pushed up by the write-through).
+      // (first-run migration → they get pushed up by the write-through). Skips
+      // the update when nothing changed (live-sync polls periodically → avoids
+      // needless re-renders / scroll churn).
       hydrateChats: (chats, activeChatId) =>
-        set((s) =>
-          chats && chats.length
-            ? { chats, activeChatId: activeChatId ?? s.activeChatId }
-            : {}
-        ),
+        set((s) => {
+          if (!chats || !chats.length) return {};
+          const sig = (list: typeof chats) =>
+            list.map((c) => `${c.id}:${c.updatedAt}:${c.messages.length}`).join("|");
+          if (sig(chats) === sig(s.chats) && (activeChatId ?? s.activeChatId) === s.activeChatId)
+            return {};
+          return { chats, activeChatId: activeChatId ?? s.activeChatId };
+        }),
 
       settingsOpen: false,
       searchOpen: false,
