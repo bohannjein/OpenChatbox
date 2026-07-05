@@ -62,6 +62,7 @@ import { uid } from "@/lib/uid";
 import { copyText } from "@/lib/clipboard";
 import ModelSwitcher from "./ModelSwitcher";
 import ParamsPopover from "./ParamsPopover";
+import ParticipantsManager from "./ParticipantsManager";
 import ChatMessage from "./ChatMessage";
 import ChatInput, { type ChatInputHandle } from "./ChatInput";
 import clsx from "clsx";
@@ -709,7 +710,11 @@ export default function ChatWindow() {
         }).catch(() => {});
       }
     }
-    const assistantId = addMessage(chatId, "assistant", "");
+    // Which sidekick "speaks" this answer (group chat → primary/first invited).
+    const speakerChat = useStore.getState().chats.find((x) => x.id === chatId);
+    const speakerId =
+      speakerChat?.sidekickIds?.[0] ?? speakerChat?.sidekickId ?? undefined;
+    const assistantId = addMessage(chatId, "assistant", "", undefined, speakerId);
     // Promote a fresh chat to its own URL (no remount: activeChatId unchanged).
     const c = useStore.getState().chats.find((x) => x.id === chatId);
     if (c && !c.temporary) router.push(`/c/${chatId}`);
@@ -924,6 +929,7 @@ export default function ChatWindow() {
         )}
 
         <div className="ml-auto flex items-center gap-1">
+          {activeChatId && <ParticipantsManager chatId={activeChatId} />}
           <button
             onClick={() => {
               setArchiveOpen((v) => !v);

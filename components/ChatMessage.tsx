@@ -33,6 +33,7 @@ import { useStore } from "@/lib/store";
 import { copyText } from "@/lib/clipboard";
 import { download } from "@/lib/share";
 import { useT, type StringKey } from "@/lib/i18n";
+import { SidekickAvatar } from "./SidekickIcon";
 import type { Message, PipelineStage } from "@/lib/types";
 
 /** Live Auto-pipeline stage → badge icon + i18n label. */
@@ -69,6 +70,7 @@ export default function ChatMessage({
   const showTimestamps = useStore((s) => s.chatShowTimestamps);
   const showStats = useStore((s) => s.chatShowStats);
   const assistantAvatarUrl = useStore((s) => s.assistantAvatarUrl);
+  const sidekicks = useStore((s) => s.sidekicks);
   const t = useT();
 
   // Non-image uploads attached to this message (images already render inline).
@@ -113,6 +115,11 @@ export default function ChatMessage({
 
   // ── Chat appearance (per-user settings) ────────────────────────────────
   const bubble = chatLayout === "bubble";
+  // Which sidekick authored this assistant message (virtual conference room).
+  const speaker =
+    !isUser && message.sidekickId
+      ? sidekicks.find((s) => s.id === message.sidekickId)
+      : undefined;
   const time = new Date(message.createdAt).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -293,8 +300,14 @@ export default function ChatMessage({
     <div id={`msg-${message.id}`} className="group animate-fade-in px-4 py-4">
       <div className="mx-auto max-w-3xl">
         <div className="flex gap-2.5">
-          {showAvatar && assistantAvatar}
+          {showAvatar && !speaker && assistantAvatar}
           <div className="min-w-0 flex-1">
+          {speaker && (
+            <div className="mb-1.5 flex items-center gap-2">
+              <SidekickAvatar icon={speaker.icon} color={speaker.color} size={22} />
+              <span className="text-sm font-semibold">{speaker.name}</span>
+            </div>
+          )}
           {message.reasoning && message.reasoning.trim() && (
             <div className="mb-3 rounded-xl border border-border-light dark:border-border-dark">
               <button

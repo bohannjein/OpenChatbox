@@ -35,6 +35,8 @@ export interface Message {
   /** assistant only, transient: current Auto-pipeline stage (live badge).
    *  Cleared when streaming finishes; stripped on persist. */
   pipeline?: PipelineStage;
+  /** assistant only: which sidekick authored this message (group chats). */
+  sidekickId?: string;
 }
 
 /** A backend-generated, downloadable file attached under an assistant answer. */
@@ -66,8 +68,12 @@ export interface Chat {
   temporary?: boolean;
   /** pinned to the top of the sidebar. */
   pinned?: boolean;
-  /** id of the Sidekick profile this chat runs under (optional). */
+  /** id of the Sidekick profile this chat runs under (optional, single). */
   sidekickId?: string;
+  /** Virtual conference room: sidekicks invited into this chat. */
+  sidekickIds?: string[];
+  /** true when more than one sidekick is active (multi-sidekick collaboration). */
+  isGroupChat?: boolean;
   /** unsent input text, restored when returning to this chat. */
   draft?: string;
   /** archive of files uploaded to / generated in this chat. */

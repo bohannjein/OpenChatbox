@@ -268,7 +268,8 @@ interface State {
     chatId: string,
     role: Role,
     content: string,
-    images?: string[]
+    images?: string[],
+    sidekickId?: string
   ) => string;
   appendToMessage: (chatId: string, msgId: string, delta: string) => void;
   appendReasoning: (chatId: string, msgId: string, delta: string) => void;
@@ -338,6 +339,8 @@ interface State {
   /** add/update a workspace from the server (invites, cross-device sync) */
   upsertWorkspace: (ws: { id: string; name: string }) => void;
   setChatSidekick: (chatId: string, sidekickId: string | null) => void;
+  /** Invite multiple sidekicks (virtual conference room). */
+  setChatSidekicks: (chatId: string, sidekickIds: string[]) => void;
 
   // memory
   addMemory: (text: string) => void;
@@ -611,13 +614,14 @@ export const useStore = create<State>()(
           return { chats: kept, activeChatId: kept[0]?.id ?? null };
         }),
 
-      addMessage: (chatId, role, content, images) => {
+      addMessage: (chatId, role, content, images, sidekickId) => {
         const msg: Message = {
           id: uid(),
           role,
           content,
           createdAt: now(),
           ...(images && images.length ? { images } : {}),
+          ...(sidekickId ? { sidekickId } : {}),
         };
         set((s) => ({
           chats: s.chats.map((c) => {
@@ -893,6 +897,22 @@ export const useStore = create<State>()(
           chats: s.chats.map((c) =>
             c.id === chatId
               ? { ...c, sidekickId: sidekickId ?? undefined, updatedAt: now() }
+              : c
+          ),
+        })),
+      setChatSidekicks: (chatId, sidekickIds) =>
+        set((s) => ({
+          chats: s.chats.map((c) =>
+            c.id === chatId
+              ? {
+                  ...c,
+                  sidekickIds: sidekickIds.length ? sidekickIds : undefined,
+                  isGroupChat: sidekickIds.length > 1,
+                  // keep the single-sidekick field in sync (first = primary)
+                  // so buildSystem / model resolution keep working.
+                  sidekickId: sidekickIds[0] ?? undefined,
+                  updatedAt: now(),
+                }
               : c
           ),
         })),
