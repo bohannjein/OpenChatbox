@@ -43,6 +43,7 @@ export default function AppRoot() {
   const upsertWorkspace = useStore((s) => s.upsertWorkspace);
 
   const prevPath = useRef<string | null>(null);
+  const hydratedRef = useRef(false);
   const isAuthRoute =
     pathname.startsWith("/login") || pathname.startsWith("/share");
   const isSetupRoute = pathname.startsWith("/setup");
@@ -86,11 +87,16 @@ export default function AppRoot() {
     return () => window.removeEventListener("keydown", h);
   }, [setSearchOpen]);
 
-  // Hydrate admin-global config + per-user profile from the server (source of
-  // truth) and load workspaces the user is a member of.
+  // Hydrate admin-global config + per-user profile + chats from the server ONCE
+  // per load. NOT on every navigation — re-hydrating on the router.push that
+  // promotes a brand-new chat would clobber it with the (not-yet-saved) server
+  // copy and abort the stream. Cross-device updates come from the live-sync poll.
   useEffect(() => {
     if (isAuthRoute || isSetupRoute || isJoinRoute) return;
-    loadServerState();
+    if (!hydratedRef.current) {
+      hydratedRef.current = true;
+      loadServerState();
+    }
     // Server is the source of truth for workspace membership (invites) → merge.
     fetch("/api/workspaces")
       .then((r) => r.json())
