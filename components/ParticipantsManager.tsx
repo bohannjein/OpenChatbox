@@ -16,12 +16,14 @@ export default function ParticipantsManager({ chatId }: { chatId: string }) {
   const sidekicks = useStore((s) => s.sidekicks);
   const chat = useStore((s) => s.chats.find((c) => c.id === chatId));
   const setChatSidekicks = useStore((s) => s.setChatSidekicks);
+  const setChatModerated = useStore((s) => s.setChatModerated);
 
   const invited =
     chat?.sidekickIds ?? (chat?.sidekickId ? [chat.sidekickId] : []);
 
   const [open, setOpen] = useState(false);
   const [sel, setSel] = useState<string[]>(invited);
+  const [mod, setMod] = useState(!!chat?.moderated);
 
   const invitedSks = invited
     .map((id) => sidekicks.find((s) => s.id === id))
@@ -29,12 +31,14 @@ export default function ParticipantsManager({ chatId }: { chatId: string }) {
 
   const openModal = () => {
     setSel(invited);
+    setMod(!!chat?.moderated);
     setOpen(true);
   };
   const toggle = (id: string) =>
     setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const saveSel = () => {
     setChatSidekicks(chatId, sel);
+    setChatModerated(chatId, mod);
     setOpen(false);
   };
 
@@ -111,6 +115,23 @@ export default function ParticipantsManager({ chatId }: { chatId: string }) {
               })}
             </div>
           )}
+
+          {/* Moderator mode — only meaningful with >1 sidekick. */}
+          <label className="mt-4 flex cursor-pointer items-start gap-2 rounded-xl border border-border-light p-2.5 text-sm dark:border-border-dark">
+            <input
+              type="checkbox"
+              checked={mod}
+              onChange={(e) => setMod(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[rgb(var(--accent))]"
+            />
+            <span>
+              <span className="font-medium">Automatische Moderation</span>
+              <span className="block text-xs text-neutral-400">
+                Ein Moderator-Modell wählt vor jedem Beitrag den passendsten
+                Sidekick (statt fester Reihenfolge).
+              </span>
+            </span>
+          </label>
 
           <div className="mt-4 flex justify-end gap-2">
             <button

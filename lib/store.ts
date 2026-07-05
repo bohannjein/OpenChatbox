@@ -349,6 +349,8 @@ interface State {
   setChatSidekick: (chatId: string, sidekickId: string | null) => void;
   /** Invite multiple sidekicks (virtual conference room). */
   setChatSidekicks: (chatId: string, sidekickIds: string[]) => void;
+  /** Toggle moderator-driven speaker selection for a group chat. */
+  setChatModerated: (chatId: string, moderated: boolean) => void;
 
   // memory
   addMemory: (text: string) => void;
@@ -949,6 +951,12 @@ export const useStore = create<State>()(
                   updatedAt: now(),
                 }
               : c
+          ),
+        })),
+      setChatModerated: (chatId, moderated) =>
+        set((s) => ({
+          chats: s.chats.map((c) =>
+            c.id === chatId ? { ...c, moderated, updatedAt: now() } : c
           ),
         })),
 

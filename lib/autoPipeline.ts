@@ -74,6 +74,14 @@ export const OCR_EXTRACT_ONLY =
   "Frage, füge KEINE Anrede oder Erklärung hinzu. Ausschließlich der extrahierte " +
   "Inhalt.";
 
+/** System prompt for the conference-room moderator (picks the next speaker). */
+export const MODERATOR_SYSTEM =
+  "Du bist der Moderator einer KI-Diskussionsrunde. Wähle den Teilnehmer, der als " +
+  "Nächstes den WERTVOLLSTEN Beitrag zum aktuellen Stand leisten kann (z. B. wer " +
+  "auf das gerade Gesagte reagieren oder es prüfen sollte). Gib AUSSCHLIESSLICH " +
+  'JSON aus: {"nextSpeaker":"<id>","reason":"<kurz>"} — <id> MUSS exakt eine der ' +
+  "id aus der Teilnehmerliste sein. Kein weiterer Text, kein Markdown.";
+
 /** System prompt for the search-query construction model. */
 export const SEARCH_QUERY_SYSTEM =
   "Formuliere aus der folgenden Nutzerfrage eine knappe, präzise Web-Suchanfrage " +

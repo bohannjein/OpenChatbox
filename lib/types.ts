@@ -74,6 +74,8 @@ export interface Chat {
   sidekickIds?: string[];
   /** true when more than one sidekick is active (multi-sidekick collaboration). */
   isGroupChat?: boolean;
+  /** conference room: a moderator model picks the next speaker (vs. round-robin). */
+  moderated?: boolean;
   /** unsent input text, restored when returning to this chat. */
   draft?: string;
   /** archive of files uploaded to / generated in this chat. */

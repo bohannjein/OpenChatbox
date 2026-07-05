@@ -17,6 +17,7 @@ import {
   FolderOpen,
   Trash2,
   StickyNote,
+  Square,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import {
@@ -47,6 +48,7 @@ import {
   SEARCH_QUERY_SYSTEM,
   buildSearchContext,
   needsCurrentInfo,
+  MODERATOR_SYSTEM,
   type PipelinePlan,
 } from "@/lib/autoPipeline";
 import { languageConstraint } from "@/lib/langDetect";
@@ -159,6 +161,7 @@ export default function ChatWindow() {
   const addMemory = useStore((s) => s.addMemory);
 
   const [streamingId, setStreamingId] = useState<string | null>(null);
+  const [groupRunning, setGroupRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [codePanel, setCodePanel] = useState<{
     code: string;
@@ -738,74 +741,71 @@ export default function ChatWindow() {
    */
   const generateGroup = async (chatId: string, sidekickIds: string[]) => {
     setError(null);
+    setGroupRunning(true);
     const ac = new AbortController();
     abortRef.current = ac;
     const nameOf = (id?: string) =>
       (id && sidekicks.find((x) => x.id === id)?.name) || "Assistent";
-    try {
-      for (const skId of sidekickIds) {
-        const sk = sidekicks.find((x) => x.id === skId);
-        if (!sk) continue;
-        const assistantId = addMessage(chatId, "assistant", "", undefined, skId);
-        setStreamingId(assistantId);
 
-        let resolved: ReturnType<typeof resolveModel>;
-        try {
-          resolved = resolveModel(sk.modelKey || selectedModelKey);
-        } catch (e) {
-          setMessageContent(chatId, assistantId, `⚠️ ${(e as Error).message}`);
-          finalizeVariant(chatId, assistantId);
-          continue;
-        }
-        const { provider, model } = resolved;
+    // Stream one sidekick's contribution into a message stamped with its id.
+    const runSidekick = async (skId: string) => {
+      const sk = sidekicks.find((x) => x.id === skId);
+      if (!sk) return;
+      const assistantId = addMessage(chatId, "assistant", "", undefined, skId);
+      setStreamingId(assistantId);
+      let resolved: ReturnType<typeof resolveModel>;
+      try {
+        resolved = resolveModel(sk.modelKey || selectedModelKey);
+      } catch (e) {
+        setMessageContent(chatId, assistantId, `⚠️ ${(e as Error).message}`);
+        finalizeVariant(chatId, assistantId);
+        return;
+      }
+      const { provider, model } = resolved;
+      const others = sidekickIds.filter((i) => i !== skId).map((i) => nameOf(i));
+      const sys =
+        buildSystem(chatId, skId) +
+        `\n\nDu bist „${sk.name}" in einer Diskussionsrunde mit: ${
+          others.join(", ") || "weiteren Assistenten"
+        }. Antworte aus deiner Rolle — knapp, eigenständig, beziehe dich wenn ` +
+        `sinnvoll auf Vorredner und wiederhole nichts bereits Gesagtes. Stelle ` +
+        `deinem Beitrag KEIN Namensschild voran.`;
 
-        const others = sidekickIds
-          .filter((i) => i !== skId)
-          .map((i) => nameOf(i));
-        const sys =
-          buildSystem(chatId, skId) +
-          `\n\nDu bist „${sk.name}" in einer Diskussionsrunde mit: ${
-            others.join(", ") || "weiteren Assistenten"
-          }. Antworte aus deiner Rolle — knapp, eigenständig, beziehe dich wenn ` +
-          `sinnvoll auf Vorredner und wiederhole nichts bereits Gesagtes. Stelle ` +
-          `deinem Beitrag KEIN Namensschild voran.`;
+      const cur = useStore.getState().chats.find((c) => c.id === chatId);
+      const idx = cur?.messages.findIndex((m) => m.id === assistantId) ?? -1;
+      const prior = idx >= 0 ? cur!.messages.slice(0, idx) : [];
+      const history: { role: Role; content: string; images?: string[] }[] = [
+        { role: "system" as Role, content: sys },
+        ...prior.map((m) => ({
+          role: m.role,
+          content:
+            m.role === "assistant" && m.sidekickId
+              ? `[${nameOf(m.sidekickId)}]: ${m.content}`
+              : m.content,
+          ...(m.images && m.images.length ? { images: m.images } : {}),
+        })),
+      ].filter((m) => m.role === "system" || m.content.trim() || m.images);
 
-        const cur = useStore.getState().chats.find((c) => c.id === chatId);
-        const idx = cur?.messages.findIndex((m) => m.id === assistantId) ?? -1;
-        const prior = idx >= 0 ? cur!.messages.slice(0, idx) : [];
-        const history: { role: Role; content: string; images?: string[] }[] = [
-          { role: "system" as Role, content: sys },
-          ...prior.map((m) => ({
-            role: m.role,
-            // Label other speakers so the model can follow the discussion.
-            content:
-              m.role === "assistant" && m.sidekickId
-                ? `[${nameOf(m.sidekickId)}]: ${m.content}`
-                : m.content,
-            ...(m.images && m.images.length ? { images: m.images } : {}),
-          })),
-        ].filter((m) => m.role === "system" || m.content.trim() || m.images);
-
-        try {
-          await streamChat(
-            {
-              type: provider.type,
-              baseUrl: provider.baseUrl,
-              apiKey: provider.apiKey,
-              providerId: provider.id,
-              model,
-              messages: history,
-              params: paramsCfg,
-              keepAlive: vramManaged ? ollamaKeepAlive : undefined,
-            },
-            (t, textDelta) =>
-              t === "r"
-                ? appendReasoning(chatId, assistantId, textDelta)
-                : appendToMessage(chatId, assistantId, textDelta),
-            ac.signal
-          );
-        } catch (e) {
-          if ((e as Error)?.name === "AbortError") break;
+      try {
+        await streamChat(
+          {
+            type: provider.type,
+            baseUrl: provider.baseUrl,
+            apiKey: provider.apiKey,
+            providerId: provider.id,
+            model,
+            messages: history,
+            params: paramsCfg,
+            keepAlive: vramManaged ? ollamaKeepAlive : undefined,
+          },
+          (t, textDelta) =>
+            t === "r"
+              ? appendReasoning(chatId, assistantId, textDelta)
+              : appendToMessage(chatId, assistantId, textDelta),
+          ac.signal
+        );
+      } catch (e) {
+        if ((e as Error)?.name !== "AbortError") {
           const m = useStore
             .getState()
             .chats.find((c) => c.id === chatId)
@@ -817,11 +817,99 @@ export default function ChatWindow() {
               `⚠️ Fehler: ${e instanceof Error ? e.message : String(e)}`
             );
         }
-        finalizeVariant(chatId, assistantId);
+      }
+      finalizeVariant(chatId, assistantId);
+    };
+
+    // Moderator: ask a small/fast model (title → standard → selected) which
+    // sidekick should speak next, as JSON. Falls back to the first on any issue.
+    const pickNextSpeaker = async (): Promise<string | null> => {
+      const modKey = routerModels.title || routerModels.standard || selectedModelKey;
+      if (!modKey) return sidekickIds[0] ?? null;
+      let resolved: ReturnType<typeof resolveModel>;
+      try {
+        resolved = resolveModel(modKey);
+      } catch {
+        return sidekickIds[0] ?? null;
+      }
+      const { provider, model } = resolved;
+      const list = sidekickIds
+        .map((id) => {
+          const sk = sidekicks.find((x) => x.id === id);
+          return sk
+            ? `- ${id} (${sk.name}): ${sk.systemPrompt.slice(0, 160).replace(/\s+/g, " ")}`
+            : "";
+        })
+        .filter(Boolean)
+        .join("\n");
+      const cur = useStore.getState().chats.find((c) => c.id === chatId);
+      const transcript = (cur?.messages ?? [])
+        .slice(-12)
+        .map((m) =>
+          m.role === "user" ? `Nutzer: ${m.content}` : `[${nameOf(m.sidekickId)}]: ${m.content}`
+        )
+        .join("\n")
+        .slice(0, 3000);
+      let out = "";
+      try {
+        await streamChat(
+          {
+            type: provider.type,
+            baseUrl: provider.baseUrl,
+            apiKey: provider.apiKey,
+            providerId: provider.id,
+            model,
+            messages: [
+              { role: "system", content: `${MODERATOR_SYSTEM}\n\nTeilnehmer:\n${list}` },
+              { role: "user", content: `Gesprächsverlauf:\n${transcript}\n\nWer soll als Nächstes sprechen? Nur JSON.` },
+            ],
+            params: paramsCfg,
+          },
+          (t, d) => {
+            if (t === "c") out += d;
+          },
+          ac.signal
+        );
+      } catch {
+        return sidekickIds[0] ?? null;
+      }
+      const m = out.match(/\{[\s\S]*\}/);
+      if (m) {
+        try {
+          const id = String((JSON.parse(m[0]) as { nextSpeaker?: string }).nextSpeaker || "");
+          if (sidekickIds.includes(id)) return id;
+          const byName = sidekickIds.find(
+            (sid) => sidekicks.find((x) => x.id === sid)?.name?.toLowerCase() === id.toLowerCase()
+          );
+          if (byName) return byName;
+        } catch {
+          /* bad JSON → fallback */
+        }
+      }
+      return sidekickIds[0] ?? null;
+    };
+
+    try {
+      const chat0 = useStore.getState().chats.find((c) => c.id === chatId);
+      if (chat0?.moderated) {
+        // Moderator-driven: bounded number of turns, speaker chosen each step.
+        const maxTurns = Math.min(8, sidekickIds.length * 2);
+        for (let i = 0; i < maxTurns && !ac.signal.aborted; i++) {
+          const next = await pickNextSpeaker();
+          if (ac.signal.aborted || !next) break;
+          await runSidekick(next);
+        }
+      } else {
+        // Round-robin: each invited sidekick once, in order.
+        for (const skId of sidekickIds) {
+          if (ac.signal.aborted) break;
+          await runSidekick(skId);
+        }
       }
     } finally {
       abortRef.current = null;
       setStreamingId(null);
+      setGroupRunning(false);
     }
   };
 
@@ -1317,12 +1405,25 @@ export default function ChatWindow() {
             </div>
           )}
 
+          {/* Conference room: pause the discussion loop (stops after the
+              current sidekick; the user can then send feedback to restart it). */}
+          {groupRunning && (
+            <div className="mx-auto mb-2 flex w-full max-w-3xl justify-center px-4">
+              <button
+                onClick={stop}
+                className="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-red-700"
+              >
+                <Square size={16} /> Diskussion pausieren
+              </button>
+            </div>
+          )}
+
           {/* Input (docked bottom) */}
           <ChatInput
             ref={inputRef}
             onSend={handleSend}
             onStop={stop}
-            streaming={streamingId !== null}
+            streaming={streamingId !== null || groupRunning}
             initialText={chat?.draft ?? ""}
             onDraftChange={(t) => activeChatId && setDraft(activeChatId, t)}
             placeholder={t("input.placeholder")}
