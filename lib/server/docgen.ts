@@ -308,11 +308,20 @@ function htmlToMarkdown(html: string): string {
  * structured pdf-lib render (headings/lists/tables) so it always produces a PDF.
  */
 export async function htmlToPdf(title: string, html: string): Promise<Buffer> {
-  if (process.env.PUPPETEER === "1") {
+  // Enabled by PUPPETEER=1 (bundled puppeteer) OR simply by pointing
+  // PUPPETEER_EXECUTABLE_PATH at a system Chromium (lighter: puppeteer-core).
+  const wantBrowser = process.env.PUPPETEER === "1" || !!process.env.PUPPETEER_EXECUTABLE_PATH;
+  if (wantBrowser) {
     try {
       // Opaque require so the bundler never tries to resolve puppeteer at build.
       const req = eval("require") as NodeRequire;
-      const puppeteer = req("puppeteer");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let puppeteer: any;
+      try {
+        puppeteer = req("puppeteer-core"); // system Chromium, no download
+      } catch {
+        puppeteer = req("puppeteer");
+      }
       const browser = await puppeteer.launch({
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,

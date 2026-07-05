@@ -30,6 +30,15 @@ ENV NODE_ENV=production \
 # Run as an unprivileged user.
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 
+# ── Optional: full-fidelity HTML→PDF (Tailwind/CSS) via headless Chromium ──
+# The doc generator falls back to a pure-JS pdf-lib renderer by default (lean
+# image, no browser). For pixel-accurate PDFs, install system Chromium +
+# puppeteer-core and point the app at it — uncomment the two lines below and set
+# PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser in the environment:
+#
+# RUN apk add --no-cache chromium nss freetype harfbuzz ttf-freefont
+# RUN npm i --no-save puppeteer-core
+
 # Static assets + the standalone server bundle.
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
