@@ -507,10 +507,19 @@ export default function ChatWindow() {
     if (kbEnabled && !sk && lastUser?.content?.trim()) {
       try {
         setMessagePipeline(chatId, assistantId, "knowledge");
+        // Enrich the retrieval query with the last few user turns so a terse
+        // follow-up ("und die IP?") still carries the topic — and can match a
+        // DIFFERENT document than the previous answer. Every turn re-searches
+        // the whole knowledge base fresh (retrieval is stateless).
+        const recentUser = (chatObj?.messages ?? [])
+          .filter((m) => m.role === "user" && m.content.trim())
+          .slice(-3)
+          .map((m) => m.content.trim());
+        const kbQuery = (recentUser.join("\n") || lastUser.content).slice(0, 800);
         const r = await fetch("/api/kb/query", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: lastUser.content }),
+          body: JSON.stringify({ query: kbQuery }),
           signal: ac.signal,
         });
         const d = await r.json().catch(() => ({ results: [] }));
