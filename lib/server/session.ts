@@ -1,14 +1,42 @@
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 import type { NextRequest } from "next/server";
+import { DATA_DIR } from "./paths";
 
-// HMAC key for session cookies. SET AUTH_SECRET in production to a long random
-// value — the fallback below is a well-known default: anyone who knows it can
-// forge session cookies. It only exists so a fresh deployment boots.
-const SECRET = process.env.AUTH_SECRET || "openchatbox";
-if (!process.env.AUTH_SECRET)
-  console.warn(
-    "[auth] AUTH_SECRET not set — using the insecure default. Set AUTH_SECRET to a random value in production."
-  );
+/**
+ * HMAC key for session cookies. Priority:
+ *  1. AUTH_SECRET env (recommended — controls the key explicitly).
+ *  2. A persistent, RANDOM per-instance secret stored in /data/.auth_secret
+ *     (auto-generated on first run) so the app "just works" without env config
+ *     yet sessions are NOT forgeable (unlike a hard-coded public default).
+ *  3. Last-resort constant only if /data is unwritable (logged as insecure).
+ * Changing the secret invalidates all existing sessions (users re-login once).
+ */
+let cachedSecret: string | null = null;
+function getSecret(): string {
+  if (cachedSecret) return cachedSecret;
+  if (process.env.AUTH_SECRET) return (cachedSecret = process.env.AUTH_SECRET);
+  try {
+    const f = path.join(DATA_DIR, ".auth_secret");
+    if (fs.existsSync(f)) {
+      const s = fs.readFileSync(f, "utf8").trim();
+      if (s) return (cachedSecret = s);
+    }
+    const s = crypto.randomBytes(32).toString("hex");
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(f, s, { encoding: "utf8", mode: 0o600 });
+    console.warn(
+      "[auth] AUTH_SECRET not set — generated a persistent random secret in /data/.auth_secret. Set AUTH_SECRET to control it."
+    );
+    return (cachedSecret = s);
+  } catch {
+    console.warn(
+      "[auth] AUTH_SECRET not set and /data not writable — using an INSECURE fallback. Set AUTH_SECRET!"
+    );
+    return (cachedSecret = "openchatbox-insecure-fallback");
+  }
+}
 
 export const SESSION_COOKIE = "nexus_session";
 const SESSION_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days
@@ -27,7 +55,7 @@ export interface SessionPayload {
 
 export function sign(payload: SessionPayload): string {
   const body = b64u(JSON.stringify(payload));
-  const sig = b64u(crypto.createHmac("sha256", SECRET).update(body).digest());
+  const sig = b64u(crypto.createHmac("sha256", getSecret()).update(body).digest());
   return `${body}.${sig}`;
 }
 
@@ -36,7 +64,7 @@ export function verify(token: string | undefined): SessionPayload | null {
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
   const expected = b64u(
-    crypto.createHmac("sha256", SECRET).update(body).digest()
+    crypto.createHmac("sha256", getSecret()).update(body).digest()
   );
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
