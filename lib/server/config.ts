@@ -34,6 +34,8 @@ export interface RouterModels {
 export interface SearchProviderCfg {
   enabled: boolean;
   apiKey?: string;
+  /** optional endpoint override (correct/self-host Bocha/Qureit etc.) */
+  baseUrl?: string;
 }
 export type SearchProviderName = "bing" | "tavily" | "bocha" | "qureit";
 export interface SearchConfig {
@@ -171,12 +173,16 @@ export function getImageGenConfig(): ImageGenConfig | null {
 }
 
 /** The active search provider (first enabled + keyed in order), or null. */
-export function activeSearchProvider(): { name: SearchProviderName; apiKey: string } | null {
+export function activeSearchProvider(): {
+  name: SearchProviderName;
+  apiKey: string;
+  baseUrl?: string;
+} | null {
   const sc = getSearchConfig();
   for (const name of SEARCH_PROVIDER_ORDER) {
     const p = sc[name];
     if (p?.enabled && p.apiKey && p.apiKey.trim())
-      return { name, apiKey: p.apiKey.trim() };
+      return { name, apiKey: p.apiKey.trim(), baseUrl: p.baseUrl?.trim() || undefined };
   }
   return null;
 }

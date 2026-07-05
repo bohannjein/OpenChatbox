@@ -8,6 +8,7 @@ type ProviderKey = "bing" | "tavily" | "bocha" | "qureit";
 interface ProviderCfg {
   enabled: boolean;
   apiKey?: string;
+  baseUrl?: string;
 }
 type SearchCfg = Partial<Record<ProviderKey, ProviderCfg>>;
 
@@ -114,6 +115,12 @@ export default function SearchProvidersPanel() {
                   value={p.apiKey ?? ""}
                   onChange={(e) => patch(key, { apiKey: e.target.value })}
                   placeholder="API-Key"
+                  className="mt-2 w-full input-base font-mono"
+                />
+                <input
+                  value={p.baseUrl ?? ""}
+                  onChange={(e) => patch(key, { baseUrl: e.target.value })}
+                  placeholder="Endpoint-URL (optional, überschreibt Standard)"
                   className="mt-2 w-full input-base font-mono"
                 />
               </div>

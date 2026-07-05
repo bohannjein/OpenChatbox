@@ -56,6 +56,15 @@ const IMAGE_GEN_RE =
 export const isImageGenRequest = (text: string, hasAttachment: boolean): boolean =>
   !hasAttachment && IMAGE_GEN_RE.test(text || "");
 
+// Signals that an answer likely needs fresh/live info → auto-trigger web search
+// even if the user toggle is off (German + English).
+const CURRENT_INFO_RE =
+  /\b(aktuell\w*|neueste\w*|neuste\w*|heute|gestern|jetzt|derzeit|momentan|news|nachrichten|wetter|kurs|kurse|preis(e)?|börse|aktie|wechselkurs|ergebnis(se)?|spielstand|fahrplan|öffnungszeit\w*|2024|2025|2026|latest|current(ly)?|today|right now|recent|breaking|weather|stock|price)\b/i;
+
+/** Heuristic: does the question likely need up-to-date/live information? */
+export const needsCurrentInfo = (text: string): boolean =>
+  CURRENT_INFO_RE.test(text || "");
+
 /** System prompt for stage 1 of the OCR chain: extract only, never answer. */
 export const OCR_EXTRACT_ONLY =
   "Du bist ein reines OCR- und Extraktions-Modul. Gib den GESAMTEN Text- und " +

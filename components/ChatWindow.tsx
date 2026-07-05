@@ -46,6 +46,7 @@ import {
   buildOcrContext,
   SEARCH_QUERY_SYSTEM,
   buildSearchContext,
+  needsCurrentInfo,
   type PipelinePlan,
 } from "@/lib/autoPipeline";
 import { languageConstraint } from "@/lib/langDetect";
@@ -508,7 +509,9 @@ export default function ChatWindow() {
     // Optional web search: build a query with the dedicated search model, run it
     // via the admin's provider, and inject the results as answer context.
     let searchContext = "";
-    if (webSearchEnabled && searchAvailable && !sk && lastUser?.content?.trim()) {
+    const wantSearch =
+      (webSearchEnabled || needsCurrentInfo(lastUser?.content ?? "")) && searchAvailable;
+    if (wantSearch && !sk && lastUser?.content?.trim()) {
       try {
         setMessagePipeline(chatId, assistantId, "search");
         const queryKey = routerModels.search || routerModels.standard || effectiveKey;
