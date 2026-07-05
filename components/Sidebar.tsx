@@ -27,6 +27,10 @@ import Modal from "./Modal";
 import { useT } from "@/lib/i18n";
 import type { Chat } from "@/lib/types";
 
+// Soft top/bottom fade so chat titles melt into the edges instead of hard-cutting.
+const LIST_FADE =
+  "linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%)";
+
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -40,6 +44,7 @@ export default function Sidebar() {
   const sidekicks = useStore((s) => s.sidekicks);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const titlePendingId = useStore((s) => s.titlePendingId);
+  const authUser = useStore((s) => s.authUser);
   const t = useT();
   const newChat = useStore((s) => s.newChat);
   const deleteChat = useStore((s) => s.deleteChat);
@@ -97,16 +102,26 @@ export default function Sidebar() {
       <div
         key={c.id}
         className={clsx(
-          "group mb-0.5 flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition",
+          "group relative mb-0.5 flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors duration-200",
           active
-            ? "bg-neutral-200 dark:bg-white/10"
-            : "hover:bg-neutral-200/60 dark:hover:bg-white/5"
+            ? "bg-zinc-200/60 dark:bg-white/[0.03]"
+            : "hover:bg-zinc-200/40 dark:hover:bg-white/[0.02]"
         )}
       >
+        {active && (
+          <span
+            aria-hidden
+            className="absolute left-0 top-1/4 h-1/2 w-[3px] rounded-r bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]"
+          />
+        )}
         {c.pinned ? (
-          <Pin size={15} className="shrink-0 text-accent" />
+          <Pin size={15} strokeWidth={1.5} className="shrink-0 text-accent" />
         ) : (
-          <MessageSquare size={16} className="shrink-0 text-neutral-500" />
+          <MessageSquare
+            size={16}
+            strokeWidth={1.5}
+            className="shrink-0 text-zinc-400"
+          />
         )}
         {editing ? (
           <>
@@ -124,13 +139,13 @@ export default function Sidebar() {
               onClick={commitEdit}
               className="text-neutral-500 hover:text-accent"
             >
-              <Check size={15} />
+              <Check size={15} strokeWidth={1.5} />
             </button>
             <button
               onClick={() => setEditingId(null)}
               className="text-neutral-500 hover:text-red-500"
             >
-              <X size={15} />
+              <X size={15} strokeWidth={1.5} />
             </button>
           </>
         ) : (
@@ -159,21 +174,25 @@ export default function Sidebar() {
               )}
               title={c.pinned ? "Lösen" : "Anpinnen"}
             >
-              {c.pinned ? <PinOff size={14} /> : <Pin size={14} />}
+              {c.pinned ? (
+                <PinOff size={14} strokeWidth={1.5} />
+              ) : (
+                <Pin size={14} strokeWidth={1.5} />
+              )}
             </button>
             <button
               onClick={() => startEdit(c.id, c.title)}
               className="shrink-0 text-neutral-400 opacity-0 transition hover:text-neutral-700 group-hover:opacity-100 dark:hover:text-neutral-200"
               title="Umbenennen"
             >
-              <Pencil size={14} />
+              <Pencil size={14} strokeWidth={1.5} />
             </button>
             <button
               onClick={() => setPendingDelete(c)}
               className="shrink-0 text-neutral-400 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
               title="Löschen"
             >
-              <Trash2 size={14} />
+              <Trash2 size={14} strokeWidth={1.5} />
             </button>
           </>
         )}
@@ -217,23 +236,23 @@ export default function Sidebar() {
           <button
             onClick={() => setSearchOpen(true)}
             title="Suchen (⌘K)"
-            className="shrink-0 rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/5"
+            className="shrink-0 rounded-lg p-2 text-zinc-400 transition hover:bg-neutral-200 hover:text-zinc-200 dark:hover:bg-white/5"
           >
-            <Search size={17} />
+            <Search size={17} strokeWidth={1.5} />
           </button>
           <button
             onClick={() => setFilesOpen(true)}
             title="Dateimanager"
-            className="shrink-0 rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/5"
+            className="shrink-0 rounded-lg p-2 text-zinc-400 transition hover:bg-neutral-200 hover:text-zinc-200 dark:hover:bg-white/5"
           >
-            <FolderOpen size={17} />
+            <FolderOpen size={17} strokeWidth={1.5} />
           </button>
           <button
             onClick={() => setSidebarOpen(false)}
             title="Sidebar einklappen"
-            className="shrink-0 rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/5"
+            className="shrink-0 rounded-lg p-2 text-zinc-400 transition hover:bg-neutral-200 hover:text-zinc-200 dark:hover:bg-white/5"
           >
-            <PanelLeftClose size={18} />
+            <PanelLeftClose size={18} strokeWidth={1.5} />
           </button>
         </div>
 
@@ -274,7 +293,10 @@ export default function Sidebar() {
       )}
 
       {/* Chat list */}
-      <nav className="flex-1 overflow-y-auto px-2 pb-1 pt-3">
+      <nav
+        className="flex-1 overflow-y-auto px-2 pb-1 pt-3"
+        style={{ WebkitMaskImage: LIST_FADE, maskImage: LIST_FADE }}
+      >
         {chats.length === 0 && (
           <p className="px-3 py-4 text-sm text-neutral-500">
             {t("sidebar.noChats")}
@@ -297,22 +319,50 @@ export default function Sidebar() {
         {rest.map(chatRow)}
       </nav>
 
-      {/* Footer */}
-      <div className="border-t border-border-light p-2 dark:border-border-dark">
-        <button
-          onClick={toggleTheme}
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-neutral-200/60 dark:hover:bg-white/5"
-        >
-          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-          {theme === "dark" ? "Light Mode" : "Dark Mode"}
-        </button>
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-neutral-200/60 dark:hover:bg-white/5"
-        >
-          <Settings size={16} />
-          Einstellungen
-        </button>
+      {/* Footer — floating profile card */}
+      <div className="p-2">
+        <div className="flex items-center justify-between gap-2 rounded-xl border border-black/[0.06] bg-black/[0.02] p-2 backdrop-blur-sm dark:border-white/[0.05] dark:bg-zinc-950/20">
+          {/* Profile */}
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="relative shrink-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
+                {(authUser?.username ?? "?").trim().charAt(0).toUpperCase()}
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-white dark:ring-zinc-900" />
+            </div>
+            <div className="min-w-0 leading-tight">
+              <div className="truncate text-sm font-medium">
+                {authUser?.username ?? "Nutzer"}
+              </div>
+              <div className="truncate font-mono text-xs text-zinc-500">
+                {authUser?.role
+                  ? authUser.role.charAt(0).toUpperCase() + authUser.role.slice(1)
+                  : "—"}
+              </div>
+            </div>
+          </div>
+          {/* Actions */}
+          <div className="flex shrink-0 items-center gap-0.5">
+            <button
+              onClick={() => setSettingsOpen(true)}
+              title="Einstellungen"
+              className="rounded-lg p-1.5 text-zinc-500 transition-colors hover:text-neutral-900 dark:hover:text-white"
+            >
+              <Settings size={17} strokeWidth={1.5} />
+            </button>
+            <button
+              onClick={toggleTheme}
+              title={theme === "dark" ? "Light Mode" : "Dark Mode"}
+              className="rounded-lg p-1.5 text-zinc-500 transition-colors hover:text-neutral-900 dark:hover:text-white"
+            >
+              {theme === "dark" ? (
+                <Sun size={17} strokeWidth={1.5} />
+              ) : (
+                <Moon size={17} strokeWidth={1.5} />
+              )}
+            </button>
+          </div>
+        </div>
       </div>
       </div>
     </aside>
