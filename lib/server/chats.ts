@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./paths";
-import type { Chat } from "@/lib/types";
+import type { Chat, Folder } from "@/lib/types";
 
 /**
  * Chat persistence in the /data volume.
@@ -15,6 +15,8 @@ import type { Chat } from "@/lib/types";
  */
 export interface ChatsData {
   chats: Chat[];
+  /** per-user chat folders (personal organization layer). */
+  folders?: Folder[];
   activeChatId: string | null;
 }
 
@@ -46,9 +48,13 @@ function atomicWrite(file: string, json: string) {
 function readUser(uid: string): ChatsData {
   try {
     const d = JSON.parse(fs.readFileSync(path.join(DIR, `${uid}.json`), "utf8")) as ChatsData;
-    return { chats: Array.isArray(d.chats) ? d.chats : [], activeChatId: d.activeChatId ?? null };
+    return {
+      chats: Array.isArray(d.chats) ? d.chats : [],
+      folders: Array.isArray(d.folders) ? d.folders : [],
+      activeChatId: d.activeChatId ?? null,
+    };
   } catch {
-    return { chats: [], activeChatId: null };
+    return { chats: [], folders: [], activeChatId: null };
   }
 }
 function readWs(wsId: string): Chat[] {
@@ -80,7 +86,11 @@ export function getChatsForUser(userId: string, memberWsIds: string[]): ChatsDat
   const shared = memberWsIds
     .filter((id) => id && id !== DEFAULT_WS)
     .flatMap((id) => readWs(id));
-  return { chats: [...personal.chats, ...shared], activeChatId: personal.activeChatId };
+  return {
+    chats: [...personal.chats, ...shared],
+    folders: personal.folders ?? [],
+    activeChatId: personal.activeChatId,
+  };
 }
 
 /** Persist: personal chats → user file (replace); workspace chats → per-ws file
@@ -92,12 +102,13 @@ export function setChatsForUser(
 ): void {
   const src = (data && typeof data === "object" ? data : {}) as Partial<ChatsData>;
   const incoming = Array.isArray(src.chats) ? src.chats : [];
+  const folders = Array.isArray(src.folders) ? src.folders : [];
   const activeChatId = typeof src.activeChatId === "string" ? src.activeChatId : null;
 
-  // Personal file: only personal chats + the active id.
+  // Personal file: only personal chats + folders + the active id.
   atomicWrite(
     path.join(DIR, `${userId}.json`),
-    JSON.stringify({ chats: incoming.filter(isPersonal), activeChatId })
+    JSON.stringify({ chats: incoming.filter(isPersonal), folders, activeChatId })
   );
 
   // Group the workspace chats by workspace (members only).

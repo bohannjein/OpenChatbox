@@ -28,6 +28,7 @@ model User {
   createdAt        DateTime @default(now())
 
   chats           Chat[]
+  folders         Folder[]
   sidekicks       Sidekick[]
   memberships     WorkspaceMember[]
   ownedWorkspaces Workspace[]       @relation("WorkspaceOwner")
@@ -53,6 +54,7 @@ model Workspace {
 
   members   WorkspaceMember[]
   chats     Chat[]
+  folders   Folder[]
   sidekicks Sidekick[]
 }
 
@@ -68,12 +70,33 @@ model WorkspaceMember {
   @@index([userId])
 }
 
+// Chat organization folder — per user + workspace. Deleting a folder cascades
+// to its chats (onDelete: Cascade on Chat.folder).
+model Folder {
+  id          String     @id @default(uuid())
+  userId      String // owner — strict tenancy filter
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String? // null = personal space
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  icon        String     @default("Folder")
+  color       String?
+  createdAt   DateTime   @default(now())
+
+  chats Chat[]
+
+  @@index([userId])
+  @@index([workspaceId])
+}
+
 model Chat {
   id          String     @id @default(uuid())
   userId      String // owner — strict tenancy filter
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspaceId String? // null = personal space
   workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  folderId    String? // null = not in a folder
+  folder      Folder?    @relation(fields: [folderId], references: [id], onDelete: Cascade)
   title       String
   modelKey    String?
   sidekickId  String?
@@ -86,6 +109,7 @@ model Chat {
 
   @@index([userId])
   @@index([workspaceId])
+  @@index([folderId])
 }
 
 model Message {

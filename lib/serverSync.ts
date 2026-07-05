@@ -1,5 +1,5 @@
 import { useStore } from "./store";
-import type { Chat, GlobalConfigPayload, ServerUserProfile } from "./types";
+import type { Chat, Folder, GlobalConfigPayload, ServerUserProfile } from "./types";
 
 /**
  * Server-persistence bridge. On load we hydrate the store from the server
@@ -34,7 +34,11 @@ const markPushed = () => {
 /** Chat history for server storage — strips volatile blobs (images/docs/
  *  pipeline + file dataUrls) and drops temporary chats, mirroring the local
  *  persist shape. Files themselves live in the server file store. */
-function chatsOf(s: State): { chats: unknown[]; activeChatId: string | null } {
+function chatsOf(s: State): {
+  chats: unknown[];
+  folders: Folder[];
+  activeChatId: string | null;
+} {
   return {
     chats: s.chats
       .filter((c) => !c.temporary)
@@ -43,6 +47,7 @@ function chatsOf(s: State): { chats: unknown[]; activeChatId: string | null } {
         messages: c.messages.map(({ images, docs, pipeline, toolEvents, ...m }) => m),
         files: c.files?.map(({ dataUrl, ...f }) => f),
       })),
+    folders: s.folders,
     activeChatId: s.activeChatId,
   };
 }
@@ -111,7 +116,8 @@ export async function loadServerState(): Promise<void> {
       // Successful fetch → safe to write chats back afterwards.
       chatsLoaded = true;
       const serverChats = (chatsRes.chats ?? []) as Chat[];
-      st.hydrateChats(serverChats, chatsRes.activeChatId ?? null);
+      const serverFolders = (chatsRes.folders ?? []) as Folder[];
+      st.hydrateChats(serverChats, chatsRes.activeChatId ?? null, serverFolders);
       // First-run migration: server has no chats yet but this device still holds
       // some (from the old local-only store) → push them up once now.
       if (!serverChats.length) {

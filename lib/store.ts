@@ -6,6 +6,7 @@ import type {
   Chat,
   ChatFile,
   Feedback,
+  Folder,
   GeneratedDoc,
   GenParams,
   MemoryFact,
@@ -253,8 +254,20 @@ interface State {
   // fetched from the server on load (server is the source of truth).
   applyGlobalConfig: (c: GlobalConfigPayload) => void;
   hydrateProfile: (p: ServerUserProfile) => void;
-  /** Replace chats with the server copy (only when the server has any). */
-  hydrateChats: (chats: Chat[], activeChatId: string | null) => void;
+  /** Replace chats (+ folders) with the server copy (only when it has any). */
+  hydrateChats: (
+    chats: Chat[],
+    activeChatId: string | null,
+    folders?: Folder[]
+  ) => void;
+  // chat folders (accordion + drag&drop)
+  folders: Folder[];
+  createFolder: (name: string) => string;
+  renameFolder: (id: string, name: string) => void;
+  /** delete a folder AND cascade-delete every chat filed under it. */
+  deleteFolder: (id: string) => void;
+  /** move a chat into a folder (or to root with null). */
+  setChatFolder: (chatId: string, folderId: string | null) => void;
   settingsOpen: boolean;
   /** One-shot: which settings tab to open next (consumed by SettingsModal). */
   settingsTab: string | null;
@@ -512,15 +525,78 @@ export const useStore = create<State>()(
       // (first-run migration → they get pushed up by the write-through). Skips
       // the update when nothing changed (live-sync polls periodically → avoids
       // needless re-renders / scroll churn).
-      hydrateChats: (chats, activeChatId) =>
+      hydrateChats: (chats, activeChatId, folders) =>
         set((s) => {
-          if (!chats || !chats.length) return {};
+          const nextFolders = folders ?? s.folders;
+          const foldersChanged =
+            JSON.stringify(nextFolders) !== JSON.stringify(s.folders);
+          if (!chats || !chats.length) return foldersChanged ? { folders: nextFolders } : {};
           const sig = (list: typeof chats) =>
-            list.map((c) => `${c.id}:${c.updatedAt}:${c.messages.length}`).join("|");
-          if (sig(chats) === sig(s.chats) && (activeChatId ?? s.activeChatId) === s.activeChatId)
+            list.map((c) => `${c.id}:${c.updatedAt}:${c.messages.length}:${c.folderId ?? ""}`).join("|");
+          if (
+            sig(chats) === sig(s.chats) &&
+            (activeChatId ?? s.activeChatId) === s.activeChatId &&
+            !foldersChanged
+          )
             return {};
-          return { chats, activeChatId: activeChatId ?? s.activeChatId };
+          return {
+            chats,
+            activeChatId: activeChatId ?? s.activeChatId,
+            folders: nextFolders,
+          };
         }),
+
+      folders: [],
+      createFolder: (name) => {
+        const id = uid();
+        const folder: Folder = {
+          id,
+          name: name.trim() || "Neuer Ordner",
+          icon: "Folder",
+          workspaceId: get().activeWorkspaceId,
+          createdAt: now(),
+        };
+        set((s) => ({ folders: [...s.folders, folder] }));
+        return id;
+      },
+      renameFolder: (id, name) =>
+        set((s) => ({
+          folders: s.folders.map((f) =>
+            f.id === id ? { ...f, name: name.trim() || f.name } : f
+          ),
+        })),
+      deleteFolder: (id) => {
+        // Cascade: every chat filed under this folder is deleted too. Remove
+        // their server-side files, mirroring deleteChat.
+        const doomed = get().chats.filter((c) => c.folderId === id);
+        for (const c of doomed) {
+          try {
+            fetch(`/api/files?chatId=${encodeURIComponent(c.id)}`, {
+              method: "DELETE",
+            }).catch(() => {});
+          } catch {
+            /* SSR / no fetch — ignore */
+          }
+        }
+        set((s) => {
+          const gone = new Set(doomed.map((c) => c.id));
+          const chats = s.chats.filter((c) => !gone.has(c.id));
+          const activeChatId = gone.has(s.activeChatId ?? "")
+            ? chats.find((c) => !c.temporary)?.id ?? chats[0]?.id ?? null
+            : s.activeChatId;
+          return {
+            chats,
+            folders: s.folders.filter((f) => f.id !== id),
+            activeChatId,
+          };
+        });
+      },
+      setChatFolder: (chatId, folderId) =>
+        set((s) => ({
+          chats: s.chats.map((c) =>
+            c.id === chatId ? { ...c, folderId, updatedAt: now() } : c
+          ),
+        })),
 
       settingsOpen: false,
       settingsTab: null,

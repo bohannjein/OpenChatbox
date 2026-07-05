@@ -78,6 +78,8 @@ export interface Chat {
   messages: Message[];
   /** owning workspace; undefined = the default personal workspace. */
   workspaceId?: string;
+  /** id of the Folder this chat is filed under; null/undefined = root. */
+  folderId?: string | null;
   /** model id used for this chat, e.g. "ollama::llama3.1" */
   modelKey?: string;
   /** temporary (Inkognito) chat: never persisted, not shown in history. */
@@ -98,6 +100,18 @@ export interface Chat {
   files?: ChatFile[];
   createdAt: number;
   updatedAt: number;
+}
+
+/** A chat-organization folder (accordion in the sidebar). */
+export interface Folder {
+  id: string;
+  name: string;
+  /** lucide icon name (default "Folder"). */
+  icon: string;
+  color?: string;
+  /** owning workspace; undefined = the default personal workspace. */
+  workspaceId?: string;
+  createdAt: number;
 }
 
 /** A file tracked in a chat's archive (upload or AI-generated). */

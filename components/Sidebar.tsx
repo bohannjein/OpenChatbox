@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type DragEvent } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import clsx from "clsx";
 import {
@@ -20,9 +20,14 @@ import {
   User,
   Users,
   LogOut,
+  Folder as FolderIcon,
+  FolderPlus,
+  ChevronRight,
+  MoreVertical,
 } from "lucide-react";
 import { useStore, inWorkspace } from "@/lib/store";
 import { useClickOutside } from "@/lib/useClickOutside";
+import type { Folder } from "@/lib/types";
 import { SidekickAvatar } from "./SidekickIcon";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import AsciiSpinner from "./AsciiSpinner";
@@ -59,9 +64,55 @@ export default function Sidebar() {
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
 
   const setSearchOpen = useStore((s) => s.setSearchOpen);
+  const folders = useStore((s) => s.folders);
+  const createFolder = useStore((s) => s.createFolder);
+  const renameFolder = useStore((s) => s.renameFolder);
+  const deleteFolder = useStore((s) => s.deleteFolder);
+  const setChatFolder = useStore((s) => s.setChatFolder);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [pendingDelete, setPendingDelete] = useState<Chat | null>(null);
+  // folders: open/collapsed set, inline rename, 3-dot menu, delete confirm
+  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
+  const [folderDraft, setFolderDraft] = useState("");
+  const [folderMenuId, setFolderMenuId] = useState<string | null>(null);
+  const [pendingFolderDelete, setPendingFolderDelete] = useState<Folder | null>(null);
+  // drag & drop
+  const [draggingChatId, setDraggingChatId] = useState<string | null>(null);
+  const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
+  const folderMenuRef = useRef<HTMLDivElement>(null);
+  useClickOutside(folderMenuRef, () => setFolderMenuId(null));
+
+  const toggleFolder = (id: string) =>
+    setOpenFolders((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  const startFolderEdit = (id: string, name: string) => {
+    setFolderMenuId(null);
+    setEditingFolderId(id);
+    setFolderDraft(name);
+  };
+  const commitFolderEdit = () => {
+    if (editingFolderId && folderDraft.trim())
+      renameFolder(editingFolderId, folderDraft.trim());
+    setEditingFolderId(null);
+  };
+  const handleCreateFolder = () => {
+    const id = createFolder("Neuer Ordner");
+    setOpenFolders((prev) => new Set(prev).add(id));
+    startFolderEdit(id, "Neuer Ordner");
+  };
+  const dropOnFolder = (e: DragEvent, folderId: string | null) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData("text/chatid");
+    if (id) setChatFolder(id, folderId);
+    if (folderId) setOpenFolders((prev) => new Set(prev).add(folderId));
+    setDragOverFolder(null);
+    setDraggingChatId(null);
+  };
   const [menuOpen, setMenuOpen] = useState(false);
   const footerRef = useRef<HTMLDivElement>(null);
   useClickOutside(footerRef, () => setMenuOpen(false));
@@ -118,8 +169,13 @@ export default function Sidebar() {
   const wsSidekicks = sidekicks.filter((sk) =>
     inWorkspace(sk, activeWorkspaceId)
   );
+  const wsFolders = folders.filter((f) => inWorkspace(f, activeWorkspaceId));
+  const folderIds = new Set(wsFolders.map((f) => f.id));
   const pinned = wsChats.filter((c) => c.pinned);
-  const rest = wsChats.filter((c) => !c.pinned);
+  // Root = unpinned chats not filed under a (known) folder.
+  const rest = wsChats.filter(
+    (c) => !c.pinned && !(c.folderId && folderIds.has(c.folderId))
+  );
 
   const chatRow = (c: Chat) => {
     const active = c.id === activeChatId;
@@ -127,8 +183,20 @@ export default function Sidebar() {
     return (
       <div
         key={c.id}
+        draggable={!editing}
+        onDragStart={(e) => {
+          e.dataTransfer.setData("text/chatid", c.id);
+          e.dataTransfer.effectAllowed = "move";
+          setDraggingChatId(c.id);
+        }}
+        onDragEnd={() => {
+          setDraggingChatId(null);
+          setDragOverFolder(null);
+        }}
         className={clsx(
-          "group relative mb-0.5 flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors duration-200 ease-out",
+          "group relative mb-0.5 flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-all duration-150 ease-out",
+          !editing && "cursor-grab active:cursor-grabbing",
+          draggingChatId === c.id && "opacity-40",
           active
             ? "bg-zinc-200/60 dark:bg-white/[0.03]"
             : "hover:bg-zinc-200/40 dark:hover:bg-white/[0.02]"
@@ -283,14 +351,21 @@ export default function Sidebar() {
           </button>
         </div>
 
-        {/* Zeile 3 — Haupt-Aktion: Neuer Chat (volle Breite, gefüllt) */}
-        <div className="px-3 pb-1 pt-0.5">
+        {/* Zeile 3 — Haupt-Aktion: Neuer Chat + Ordner erstellen */}
+        <div className="flex items-center gap-2 px-3 pb-1 pt-0.5">
           <button
             onClick={startNewChat}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-violet-500/20 bg-zinc-950/40 px-3 py-2.5 text-sm font-medium tracking-wide text-violet-700 shadow-[0_0_15px_rgba(139,92,246,0.05)] backdrop-blur-md transition-all duration-150 ease-out hover:scale-[1.01] hover:border-violet-400/40 hover:bg-gradient-to-r hover:from-violet-600/10 hover:to-indigo-600/10 hover:text-violet-900 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] active:scale-[0.98] dark:text-violet-200 dark:hover:text-white"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-violet-500/20 bg-zinc-950/40 px-3 py-2.5 text-sm font-medium tracking-wide text-violet-700 shadow-[0_0_15px_rgba(139,92,246,0.05)] backdrop-blur-md transition-all duration-150 ease-out hover:scale-[1.01] hover:border-violet-400/40 hover:bg-gradient-to-r hover:from-violet-600/10 hover:to-indigo-600/10 hover:text-violet-900 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] active:scale-[0.98] dark:text-violet-200 dark:hover:text-white"
           >
             <Plus size={16} />
             {t("sidebar.newChat")}
+          </button>
+          <button
+            onClick={handleCreateFolder}
+            title="Ordner erstellen"
+            className="flex shrink-0 items-center justify-center rounded-xl border border-violet-500/20 bg-zinc-950/40 p-2.5 text-violet-700 shadow-[0_0_15px_rgba(139,92,246,0.05)] backdrop-blur-md transition-all duration-150 ease-out hover:scale-[1.03] hover:border-violet-400/40 hover:text-violet-900 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] active:scale-95 dark:text-violet-200 dark:hover:text-white"
+          >
+            <FolderPlus size={16} />
           </button>
         </div>
 
@@ -321,26 +396,168 @@ export default function Sidebar() {
         className="flex-1 overflow-y-auto px-2 pb-1 pt-3"
         style={{ WebkitMaskImage: LIST_FADE, maskImage: LIST_FADE }}
       >
-        {chats.length === 0 && (
+        {chats.length === 0 && wsFolders.length === 0 && (
           <p className="px-3 py-4 text-sm text-neutral-500">
             {t("sidebar.noChats")}
           </p>
         )}
 
+        {/* Folders — collapsible accordions + drop zones */}
+        {wsFolders.map((f) => {
+          const open = openFolders.has(f.id);
+          const fChats = wsChats.filter((c) => c.folderId === f.id && !c.pinned);
+          const editingF = editingFolderId === f.id;
+          return (
+            <div key={f.id} className="mb-0.5">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dragOverFolder !== f.id) setDragOverFolder(f.id);
+                }}
+                onDragLeave={() =>
+                  setDragOverFolder((cur) => (cur === f.id ? null : cur))
+                }
+                onDrop={(e) => dropOnFolder(e, f.id)}
+                className={clsx(
+                  "group/f relative flex items-center gap-1.5 rounded-xl px-2 py-2 text-sm transition-all duration-150 ease-out",
+                  dragOverFolder === f.id
+                    ? "scale-[1.02] border border-violet-500/40 bg-violet-500/10 shadow-[0_0_12px_rgba(139,92,246,0.25)]"
+                    : "border border-transparent hover:bg-neutral-200/40 dark:hover:bg-white/[0.02]"
+                )}
+              >
+                {editingF ? (
+                  <>
+                    <ChevronRight size={14} className="shrink-0 text-zinc-400" />
+                    <FolderIcon size={15} className="shrink-0 text-violet-400" />
+                    <input
+                      autoFocus
+                      value={folderDraft}
+                      onChange={(e) => setFolderDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitFolderEdit();
+                        if (e.key === "Escape") setEditingFolderId(null);
+                      }}
+                      onBlur={commitFolderEdit}
+                      className="min-w-0 flex-1 rounded bg-transparent outline-none ring-1 ring-accent"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => toggleFolder(f.id)}
+                      className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                    >
+                      <ChevronRight
+                        size={14}
+                        className={clsx(
+                          "shrink-0 text-zinc-400 transition-transform duration-200 ease-out",
+                          open && "rotate-90"
+                        )}
+                      />
+                      <FolderIcon size={15} className="shrink-0 text-violet-400" />
+                      <span className="min-w-0 flex-1 truncate font-medium">
+                        {f.name}
+                      </span>
+                      {fChats.length > 0 && (
+                        <span className="shrink-0 text-[10px] text-neutral-400">
+                          {fChats.length}
+                        </span>
+                      )}
+                    </button>
+                    <div
+                      className="relative"
+                      ref={folderMenuId === f.id ? folderMenuRef : undefined}
+                    >
+                      <button
+                        onClick={() =>
+                          setFolderMenuId((v) => (v === f.id ? null : f.id))
+                        }
+                        title="Ordner-Menü"
+                        className="shrink-0 rounded p-1 text-neutral-400 opacity-0 transition hover:text-neutral-700 group-hover/f:opacity-100 dark:hover:text-neutral-200"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+                      {folderMenuId === f.id && (
+                        <div className="absolute right-0 top-full z-40 mt-1 w-44 animate-pop-in menu-panel p-1">
+                          <button
+                            onClick={() => startFolderEdit(f.id, f.name)}
+                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors duration-150 ease-out hover:bg-neutral-100 dark:hover:bg-white/10"
+                          >
+                            <Pencil size={14} /> Umbenennen
+                          </button>
+                          <button
+                            onClick={() => {
+                              setFolderMenuId(null);
+                              setPendingFolderDelete(f);
+                            }}
+                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-500 transition-colors duration-150 ease-out hover:bg-red-500/10"
+                          >
+                            <Trash2 size={14} /> Ordner löschen
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+              {/* Accordion body — grid-rows height animation */}
+              <div
+                className={clsx(
+                  "grid transition-all duration-200 ease-out",
+                  open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                )}
+              >
+                <div className="overflow-hidden">
+                  <div className="pl-3 pt-0.5">
+                    {fChats.length ? (
+                      fChats.map(chatRow)
+                    ) : (
+                      <p className="px-3 py-1 text-xs text-neutral-400">
+                        Leer — zieh Chats hierher.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
         {pinned.length > 0 && (
-          <div className="mb-2">
+          <div className="mb-2 mt-1">
             <div className="flex items-center gap-1 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500 opacity-60">
               <Pin size={10} /> Angepinnt
             </div>
             {pinned.map(chatRow)}
           </div>
         )}
-        {pinned.length > 0 && rest.length > 0 && (
-          <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500 opacity-60">
-            Chats
-          </div>
-        )}
-        {rest.map(chatRow)}
+
+        {/* Root drop zone — drop a chat here to remove it from any folder */}
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            if (dragOverFolder !== "__root__") setDragOverFolder("__root__");
+          }}
+          onDragLeave={() =>
+            setDragOverFolder((cur) => (cur === "__root__" ? null : cur))
+          }
+          onDrop={(e) => dropOnFolder(e, null)}
+          className={clsx(
+            "min-h-[2rem] rounded-xl transition-colors duration-150 ease-out",
+            dragOverFolder === "__root__" &&
+              draggingChatId &&
+              "bg-violet-500/5 ring-1 ring-violet-500/20"
+          )}
+        >
+          {(wsFolders.length > 0 || pinned.length > 0) && rest.length > 0 && (
+            <div className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500 opacity-60">
+              Chats
+            </div>
+          )}
+          {rest.map(chatRow)}
+        </div>
       </nav>
 
       {/* Footer — floating profile card + popover menu */}
@@ -461,6 +678,57 @@ export default function Sidebar() {
             </button>
           </div>
         </Modal>
+      )}
+
+      {/* Cyber-Glass folder delete confirmation — cascades to the chats inside. */}
+      {pendingFolderDelete && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 print:hidden">
+          <div
+            className="absolute inset-0 animate-fade-in bg-black/50"
+            onClick={() => setPendingFolderDelete(null)}
+          />
+          <div className="relative z-10 w-full max-w-md animate-pop-in rounded-2xl border border-red-500/20 bg-zinc-950/80 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.7)] backdrop-blur-xl">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-400">
+                <Trash2 size={18} />
+              </span>
+              <h2 className="text-lg font-bold text-zinc-100">
+                Ordner „{pendingFolderDelete.name}" löschen?
+              </h2>
+            </div>
+            {(() => {
+              const count = chats.filter(
+                (c) => c.folderId === pendingFolderDelete.id
+              ).length;
+              return (
+                <p className="mt-3 text-sm text-zinc-400">
+                  Achtung: Dabei werden auch alle{" "}
+                  <span className="font-medium text-red-300">
+                    {count} darin enthaltenen Chats
+                  </span>{" "}
+                  unwiderruflich gelöscht.
+                </p>
+              );
+            })()}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setPendingFolderDelete(null)}
+                className="rounded-xl px-4 py-2 text-sm text-zinc-400 transition-colors duration-150 ease-out hover:text-zinc-200"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={() => {
+                  deleteFolder(pendingFolderDelete.id);
+                  setPendingFolderDelete(null);
+                }}
+                className="rounded-xl border border-red-500/30 bg-red-950/40 px-4 py-2 text-sm font-medium text-red-200 transition-all duration-150 ease-out hover:bg-red-900/60 active:scale-95"
+              >
+                Ordner &amp; Chats löschen
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
