@@ -1,8 +1,14 @@
 import crypto from "crypto";
 import type { NextRequest } from "next/server";
 
-const SECRET =
-  process.env.AUTH_SECRET || "dev-insecure-secret-change-me-in-.env";
+// HMAC key for session cookies. SET AUTH_SECRET in production to a long random
+// value — the fallback below is a well-known default: anyone who knows it can
+// forge session cookies. It only exists so a fresh deployment boots.
+const SECRET = process.env.AUTH_SECRET || "openchatbox";
+if (!process.env.AUTH_SECRET)
+  console.warn(
+    "[auth] AUTH_SECRET not set — using the insecure default. Set AUTH_SECRET to a random value in production."
+  );
 
 export const SESSION_COOKIE = "nexus_session";
 const SESSION_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days

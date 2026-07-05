@@ -20,6 +20,10 @@ export interface User {
 
 /** The permanent built-in admin (always present, cannot be deleted/blocked). */
 export const BUILTIN_ADMIN = "administrator";
+/** Default password for a freshly-seeded built-in admin. CHANGE IT after first
+ *  login — it's a well-known default, only meant to bootstrap a new deployment. */
+export const DEFAULT_ADMIN_PASSWORD =
+  process.env.ADMIN_DEFAULT_PASSWORD || "openchatbox";
 export const isBuiltinAdmin = (u: { username: string }) =>
   u.username.toLowerCase() === BUILTIN_ADMIN;
 
@@ -63,8 +67,10 @@ export function countUsers(): number {
 }
 
 /**
- * Ensure the permanent built-in admin exists (administrator/administrator).
- * Idempotent; never clobbers a corrupt file (only seeds when readable).
+ * Ensure the permanent built-in admin exists (administrator / openchatbox by
+ * default, or ADMIN_DEFAULT_PASSWORD). Idempotent — only seeds when the account
+ * is missing, so an existing (possibly password-changed) admin is untouched;
+ * never clobbers a corrupt file (only seeds when readable).
  */
 export function ensureSeed() {
   let users: User[];
@@ -75,7 +81,7 @@ export function ensureSeed() {
     return; // unreadable/corrupt → don't overwrite
   }
   if (!users.some(isBuiltinAdmin)) {
-    const { salt, passHash } = hashPassword(BUILTIN_ADMIN);
+    const { salt, passHash } = hashPassword(DEFAULT_ADMIN_PASSWORD);
     users.push({
       id: uid(),
       username: BUILTIN_ADMIN,
