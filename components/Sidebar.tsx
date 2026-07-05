@@ -393,7 +393,7 @@ export default function Sidebar() {
 
       {/* Chat list */}
       <nav
-        className="flex-1 overflow-y-auto px-2 pb-1 pt-3"
+        className="flex flex-1 flex-col overflow-y-auto px-2 pb-1 pt-3"
         style={{ WebkitMaskImage: LIST_FADE, maskImage: LIST_FADE }}
       >
         {chats.length === 0 && wsFolders.length === 0 && (
@@ -408,17 +408,23 @@ export default function Sidebar() {
           const fChats = wsChats.filter((c) => c.folderId === f.id && !c.pinned);
           const editingF = editingFolderId === f.id;
           return (
-            <div key={f.id} className="mb-0.5">
+            <div
+              key={f.id}
+              className="mb-0.5"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (dragOverFolder !== f.id) setDragOverFolder(f.id);
+              }}
+              onDragLeave={() =>
+                setDragOverFolder((cur) => (cur === f.id ? null : cur))
+              }
+              onDrop={(e) => {
+                e.stopPropagation();
+                dropOnFolder(e, f.id);
+              }}
+            >
               <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "move";
-                  if (dragOverFolder !== f.id) setDragOverFolder(f.id);
-                }}
-                onDragLeave={() =>
-                  setDragOverFolder((cur) => (cur === f.id ? null : cur))
-                }
-                onDrop={(e) => dropOnFolder(e, f.id)}
                 className={clsx(
                   "group/f relative flex items-center gap-1.5 rounded-xl px-2 py-2 text-sm transition-all duration-150 ease-out",
                   dragOverFolder === f.id
@@ -524,16 +530,8 @@ export default function Sidebar() {
           );
         })}
 
-        {pinned.length > 0 && (
-          <div className="mb-2 mt-1">
-            <div className="flex items-center gap-1 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500 opacity-60">
-              <Pin size={10} /> Angepinnt
-            </div>
-            {pinned.map(chatRow)}
-          </div>
-        )}
-
-        {/* Root drop zone — drop a chat here to remove it from any folder */}
+        {/* Root drop zone — fills the rest of the list so dropping a chat
+            anywhere below the folders removes it from its folder. */}
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -545,12 +543,20 @@ export default function Sidebar() {
           }
           onDrop={(e) => dropOnFolder(e, null)}
           className={clsx(
-            "min-h-[2rem] rounded-xl transition-colors duration-150 ease-out",
+            "mt-1 flex-1 rounded-xl transition-colors duration-150 ease-out",
             dragOverFolder === "__root__" &&
               draggingChatId &&
               "bg-violet-500/5 ring-1 ring-violet-500/20"
           )}
         >
+          {pinned.length > 0 && (
+            <div className="mb-2">
+              <div className="flex items-center gap-1 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500 opacity-60">
+                <Pin size={10} /> Angepinnt
+              </div>
+              {pinned.map(chatRow)}
+            </div>
+          )}
           {(wsFolders.length > 0 || pinned.length > 0) && rest.length > 0 && (
             <div className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500 opacity-60">
               Chats
