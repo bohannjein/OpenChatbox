@@ -1,6 +1,8 @@
 import http from "node:http";
 import https from "node:https";
-import { getBookstackConfig, type BookstackResolved } from "./config";
+import { getBookstackConfig, getConfig, getProviders, type BookstackResolved } from "./config";
+import { parseModelKey } from "@/lib/providers";
+import { completeOnce } from "./complete";
 
 /**
  * BookStack integration: translate LLM tool calls into BookStack REST API
@@ -175,7 +177,10 @@ TROUBLESHOOTING, FEHLERBEHEBUNG & ALTERNATIVEN:
    - Wenn im Troubleshooting-Abschnitt der aktuellen Seite auf eine andere Wiki-Seite oder ein anderes Buch verwiesen wird (z. B. "Nutzen Sie stattdessen die Anleitung für den blauen Keyreader [Link/ID 456]"), darfst du nicht stoppen.
    - Rufe SOFORT und autonom im selben Schritt diese verlinkte Seite mit 'bookstack_get_page' ab, um die Alternative direkt parat zu haben.
 4. Lösungsorientierte Antwortstruktur: Formuliere deine Antwort bei Problemen immer proaktiv und biete Auswege an:
-   - "Ich sehe, dass die Einrichtung des schwarzen Keyreaders bei dir fehlschlägt. Laut Wiki gibt es dafür folgenden Fallback: [Schritt-für-Schritt-Alternative aus dem Wiki]. Alternativ verweist der Eintrag auf die Anleitung für den blauen Keyreader. Soll ich diese für dich öffnen?"`;
+   - "Ich sehe, dass die Einrichtung des schwarzen Keyreaders bei dir fehlschlägt. Laut Wiki gibt es dafür folgenden Fallback: [Schritt-für-Schritt-Alternative aus dem Wiki]. Alternativ verweist der Eintrag auf die Anleitung für den blauen Keyreader. Soll ich diese für dich öffnen?"
+
+RECHTSCHREIBUNG & AUTOMATISCHE KORREKTUR:
+- Wenn ein Suchergebnis einen Hinweis auf eine automatische Korrektur enthält (der ursprüngliche Begriff ergab 0 Treffer und es wurde stattdessen ein korrigierter Begriff gesucht), weise den Nutzer charmant und knapp darauf hin, z. B.: "Ich habe in deinem Suchbegriff einen Tippfehler vermutet und stattdessen erfolgreich nach 'laufwerk sasdir' gesucht. Folgendes habe ich gefunden …". Verschweige die Korrektur nicht.`;
 
 // ── REST helpers ────────────────────────────────────────────────────────────
 
@@ -431,6 +436,120 @@ async function pageUrl(
     : `${cfg.baseUrl}`;
 }
 
+// ── Search with fuzzy + spellcheck fallback ──────────────────────────────────
+
+const SPELLCHECK_SYSTEM = `Du bist ein extrem schneller, präziser Rechtschreibprüfer für IT-Dokumentationen.
+Deine Aufgabe ist es, Tippfehler, Buchstabendreher oder falsche Trennungen im Suchbegriff des Nutzers zu korrigieren.
+Gib AUSSCHLIESSLICH den korrigierten Suchbegriff zurück – keine Erklärungen, kein Smalltalk, keine Anführungszeichen.
+
+Beispiel-Input: "alufwerk sasdir"
+Beispiel-Output: "laufwerk sasdir"`;
+
+/** One raw /search call → the hit array. */
+async function searchRaw(
+  cfg: BookstackResolved,
+  query: string,
+  count: number
+): Promise<Array<Record<string, unknown>>> {
+  const r = await api<{ data?: Array<Record<string, unknown>> }>(
+    cfg,
+    "GET",
+    `/search?query=${encodeURIComponent(query)}&count=${count}`
+  );
+  return r.data ?? [];
+}
+
+/**
+ * Tokenize + wildcard: drop fillers under 3 chars, append a `*` wildcard to
+ * every word longer than 4 chars ("alufwer" → "alufwer*") so a near-miss still
+ * matches BookStack's stricter full-text index.
+ */
+export function wildcardQuery(query: string): string {
+  return query
+    .split(/\s+/)
+    .map((w) => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")) // trim punctuation
+    .filter((w) => w.length >= 3)
+    .map((w) => (w.length > 4 ? `${w}*` : w))
+    .join(" ")
+    .trim();
+}
+
+/** LLM spellcheck via the configured search/standard query model. */
+async function spellcheckQuery(query: string): Promise<string | null> {
+  const conf = getConfig();
+  const key = conf.routerModels?.search || conf.routerModels?.standard;
+  if (!key) return null;
+  const { providerId, model } = parseModelKey(key);
+  const provider = getProviders().find((p) => p.id === providerId);
+  if (!provider || !model) return null;
+  try {
+    const out = await completeOnce({
+      type: provider.type,
+      baseUrl: provider.baseUrl,
+      apiKey: provider.apiKey,
+      model,
+      system: SPELLCHECK_SYSTEM,
+      user: query,
+      maxTokens: 32,
+      timeoutMs: 10_000,
+    });
+    const corrected = out.split("\n")[0].replace(/^["'`]+|["'`]+$/g, "").trim();
+    if (!corrected || corrected.length > 200) return null;
+    return corrected;
+  } catch (e) {
+    console.error(
+      `[bookstack] Spellcheck fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`
+    );
+    return null;
+  }
+}
+
+export interface SearchOutcome {
+  items: Array<Record<string, unknown>>;
+  /** set only when stage-2 spellcheck correction produced the hits. */
+  correctedQuery?: string;
+}
+
+/**
+ * Two-stage search fallback. Stage 0: exact query. Stage 1 (on 0 hits): tokenized
+ * wildcard. Stage 2 (still 0 hits): LLM spellcheck → search the corrected term
+ * (and its wildcard form). `correctedQuery` is set only for a successful stage-2
+ * correction, so the UI/model can tell the user about the typo fix.
+ */
+async function searchWithFallback(
+  cfg: BookstackResolved,
+  query: string,
+  count: number
+): Promise<SearchOutcome> {
+  let items = await searchRaw(cfg, query, count);
+  if (items.length) return { items };
+  console.log(`[bookstack] „${query}": 0 Treffer → Wildcard-Fallback.`);
+
+  // Stage 1 — tokenized wildcard.
+  const wq = wildcardQuery(query);
+  if (wq && wq !== query) {
+    items = await searchRaw(cfg, wq, count);
+    if (items.length) {
+      console.log(`[bookstack] Wildcard „${wq}": ${items.length} Treffer.`);
+      return { items };
+    }
+  }
+
+  // Stage 2 — LLM spellcheck.
+  const corrected = await spellcheckQuery(query);
+  if (corrected && corrected.toLowerCase() !== query.toLowerCase()) {
+    console.log(`[bookstack] Rechtschreibkorrektur: „${query}" → „${corrected}".`);
+    items = await searchRaw(cfg, corrected, count);
+    if (items.length) return { items, correctedQuery: corrected };
+    const cwq = wildcardQuery(corrected);
+    if (cwq && cwq !== corrected) {
+      items = await searchRaw(cfg, cwq, count);
+      if (items.length) return { items, correctedQuery: corrected };
+    }
+  }
+  return { items: [] };
+}
+
 /**
  * Deterministic BookStack retrieval for the knowledge-base toggle. Searches the
  * wiki, reads the top matching pages' Markdown, and returns a compact context
@@ -442,20 +561,18 @@ async function pageUrl(
 export async function retrieveContext(
   query: string,
   maxPages = 3
-): Promise<{ text: string; sources: SourceLink[] }> {
+): Promise<{ text: string; sources: SourceLink[]; correctedQuery?: string }> {
   const cfg = getBookstackConfig();
   if (!cfg) return { text: "", sources: [] };
   const q = query.trim();
   if (!q) return { text: "", sources: [] };
 
   let hits: Array<Record<string, unknown>> = [];
+  let correctedQuery: string | undefined;
   try {
-    const r = await api<{ data?: Array<Record<string, unknown>> }>(
-      cfg,
-      "GET",
-      `/search?query=${encodeURIComponent(q)}&count=8`
-    );
-    hits = r.data ?? [];
+    const outcome = await searchWithFallback(cfg, q, 8);
+    hits = outcome.items;
+    correctedQuery = outcome.correctedQuery;
   } catch (e) {
     console.error(
       `[bookstack] KB-Suche „${q}" fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`
@@ -498,15 +615,26 @@ export async function retrieveContext(
     return { text: "", sources: [] };
   }
 
-  console.log(`[bookstack] KB-Suche „${q}": ${blocks.length} Seite(n) eingebettet.`);
+  console.log(
+    `[bookstack] KB-Suche „${q}"${
+      correctedQuery ? ` (korrigiert → „${correctedQuery}")` : ""
+    }: ${blocks.length} Seite(n) eingebettet.`
+  );
+  const correctionNote = correctedQuery
+    ? `Hinweis: Der ursprüngliche Suchbegriff „${q}" ergab 0 Treffer; er wurde automatisch zu ` +
+      `„${correctedQuery}" korrigiert. Weise den Nutzer charmant auf diese Tippfehler-Korrektur ` +
+      `hin, z. B.: „Ich habe in deinem Suchbegriff einen Tippfehler vermutet und stattdessen ` +
+      `nach ‚${correctedQuery}' gesucht. Folgendes habe ich gefunden …“.\n\n`
+    : "";
   const text =
+    correctionNote +
     "Auszüge aus dem BookStack-Wiki. Beantworte die Frage bevorzugt auf Basis dieser " +
     "Auszüge und belege Aussagen mit der Quelle als (Quelle: <Seitenname>, BookStack-ID <id>). " +
     "Wenn die Auszüge die Frage NICHT beantworten, sage klar, dass du dazu nichts im Wiki " +
     "gefunden hast, und erfinde nichts. Gib NICHT deinen Denkprozess oder deine Suchschritte " +
     "aus — antworte nur mit dem Ergebnis.\n\n" +
     blocks.join("\n\n---\n\n");
-  return { text, sources };
+  return { text, sources, correctedQuery };
 }
 
 // ── Tool execution ───────────────────────────────────────────────────────────
@@ -544,13 +672,11 @@ export async function runTool(
         const query = String(args.query ?? "").trim();
         const count = Math.min(Math.max(num(args.count) ?? 6, 1), 15);
         if (!query) return { text: "Kein Suchbegriff angegeben." };
-        const r = await api<{ data?: Array<Record<string, unknown>> }>(
-          cfg,
-          "GET",
-          `/search?query=${encodeURIComponent(query)}&count=${count}`
-        );
-        const items = r.data ?? [];
-        if (!items.length) return { text: `Keine Treffer für „${query}".` };
+        const { items, correctedQuery } = await searchWithFallback(cfg, query, count);
+        if (!items.length)
+          return {
+            text: `Keine Treffer für „${query}" (auch nach Fuzzy-Suche und automatischer Rechtschreibkorrektur).`,
+          };
         const sources: SourceLink[] = [];
         const lines = items.map((it) => {
           const type = String(it.type ?? "eintrag");
@@ -565,10 +691,11 @@ export async function runTool(
             preview ? ` — ${preview.slice(0, 160)}` : ""
           }${url ? ` (${url})` : ""}`;
         });
-        return {
-          text: `Treffer für „${query}":\n${lines.join("\n")}`,
-          sources,
-        };
+        const header = correctedQuery
+          ? `Hinweis: „${query}" ergab 0 Treffer; automatisch zu „${correctedQuery}" korrigiert. ` +
+            `Weise den Nutzer charmant auf diese Tippfehler-Korrektur hin. Treffer für „${correctedQuery}":`
+          : `Treffer für „${query}":`;
+        return { text: `${header}\n${lines.join("\n")}`, sources };
       }
 
       case "bookstack_list_books": {

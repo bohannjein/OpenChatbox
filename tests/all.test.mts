@@ -144,7 +144,17 @@ async function bookstackTests() {
   eq("crypto: decrypt round-trip", decryptSecret(enc), plain);
   eq("crypto: legacy plaintext passthrough", decryptSecret("legacy-plain"), "legacy-plain");
 
-  const { toolDefs } = await import("../lib/server/bookstack");
+  const { toolDefs, wildcardQuery } = await import("../lib/server/bookstack");
+  eq(
+    "bookstack wildcard: long words get *",
+    wildcardQuery("alufwerk sasdir"),
+    "alufwerk* sasdir*"
+  );
+  eq(
+    "bookstack wildcard: <3 dropped, ≤4 keeps no star",
+    wildcardQuery("die cd rom laufwerk"),
+    "die rom laufwerk*"
+  );
   const read = toolDefs(false).map((t) => t.name);
   const write = toolDefs(true).map((t) => t.name);
   const destructive = [

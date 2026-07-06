@@ -18,6 +18,6 @@ export async function POST(req: NextRequest) {
   if (typeof b.query !== "string" || !b.query.trim())
     return NextResponse.json({ context: "", sources: [] });
 
-  const { text, sources } = await retrieveContext(b.query);
-  return NextResponse.json({ context: text, sources });
+  const { text, sources, correctedQuery } = await retrieveContext(b.query);
+  return NextResponse.json({ context: text, sources, correctedQuery });
 }
