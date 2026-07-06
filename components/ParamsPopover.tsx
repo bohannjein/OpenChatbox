@@ -18,9 +18,9 @@ export default function ParamsPopover() {
       <button
         onClick={() => setOpen((v) => !v)}
         title="Parameter"
-        className="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-200/70 dark:hover:bg-white/10"
+        className="rounded-l-none rounded-r-xl p-2 text-zinc-400 transition-colors duration-150 hover:bg-neutral-200/70 hover:text-white dark:hover:bg-white/10"
       >
-        <SlidersHorizontal size={18} />
+        <SlidersHorizontal size={18} strokeWidth={1.5} />
       </button>
 
       {open && (

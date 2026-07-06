@@ -327,29 +327,26 @@ export default function Sidebar() {
               </span>
             )}
           </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            title="Sidebar einklappen"
-            className="shrink-0 rounded-lg p-2 text-zinc-400 transition hover:bg-neutral-200 hover:text-zinc-200 dark:hover:bg-white/5"
-          >
-            <PanelLeftClose size={18} strokeWidth={1.5} />
-          </button>
+          <div className="flex shrink-0 items-center gap-0.5">
+            <button
+              onClick={() => setSearchOpen(true)}
+              title="Chats durchsuchen (⌘K)"
+              className="cursor-pointer rounded-lg p-2 text-zinc-400 transition-all duration-150 hover:text-white active:scale-95 dark:hover:bg-white/5"
+            >
+              <Search size={18} strokeWidth={1.5} />
+            </button>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              title="Sidebar einklappen"
+              className="cursor-pointer rounded-lg p-2 text-zinc-400 transition-all duration-150 hover:text-white active:scale-95 dark:hover:bg-white/5"
+            >
+              <PanelLeftClose size={18} strokeWidth={1.5} />
+            </button>
+          </div>
         </div>
 
         {/* Zeile 2 — Workspace (schlank, untergeordnet) */}
         <WorkspaceSwitcher />
-
-        {/* Suche — flaches Feld, öffnet die Chat-Suche (⌘K) */}
-        <div className="px-3 pb-1 pt-0.5">
-          <button
-            onClick={() => setSearchOpen(true)}
-            title="Chats durchsuchen (⌘K)"
-            className="flex w-full items-center gap-2 rounded-lg border border-black/[0.06] bg-black/[0.02] px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-black/[0.04] dark:border-white/[0.05] dark:bg-white/[0.02] dark:hover:bg-white/[0.04]"
-          >
-            <Search size={15} strokeWidth={1.5} className="shrink-0" />
-            <span className="min-w-0 flex-1 truncate text-left">Suche (⌘K)…</span>
-          </button>
-        </div>
 
         {/* Zeile 3 — Haupt-Aktion: Neuer Chat + Ordner erstellen */}
         <div className="flex items-center gap-2 px-3 pb-1 pt-0.5">

@@ -179,7 +179,7 @@ export default function ModelSwitcher() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition hover:bg-neutral-200/70 dark:hover:bg-white/10"
+        className="flex items-center gap-1.5 rounded-l-xl rounded-r-none px-3 py-1.5 text-sm font-medium transition-colors duration-150 hover:bg-neutral-200/70 dark:hover:bg-white/10"
       >
         {activeSk && (
           <SidekickAvatar icon={activeSk.icon} color={activeSk.color} size={20} />
@@ -188,6 +188,7 @@ export default function ModelSwitcher() {
         {errorCount > 0 && <AlertCircle size={14} className="text-amber-500" />}
         <ChevronDown
           size={16}
+          strokeWidth={1.5}
           className={clsx("transition", open && "rotate-180")}
         />
       </button>

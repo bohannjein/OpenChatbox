@@ -1211,10 +1211,11 @@ export default function ChatWindow() {
           </span>
         )}
         {/* Modell-Selektor + Parameter als edle Kombipille */}
-        <div className="flex items-center gap-0.5 rounded-xl border border-black/[0.06] bg-black/[0.03] px-1 py-0.5 backdrop-blur-md dark:border-white/[0.05] dark:bg-zinc-950/40">
+        <div className="flex items-center rounded-xl border border-black/[0.06] bg-black/[0.03] backdrop-blur-md dark:border-white/[0.05] dark:bg-zinc-950/40">
           <ModelSwitcher />
-          <span aria-hidden className="mx-0.5 h-5 w-px bg-black/10 dark:bg-white/10" />
-          <ParamsPopover />
+          <div className="border-l border-black/10 dark:border-white/10">
+            <ParamsPopover />
+          </div>
         </div>
 
         {isTemp && (
@@ -1244,13 +1245,13 @@ export default function ChatWindow() {
                     : "Inkognito-Modus einschalten (temporärer Chat)"
                 }
                 className={clsx(
-                  "rounded-lg p-2 transition-colors duration-200",
+                  "rounded-lg p-2 transition-colors duration-150",
                   isTemp || incognito
                     ? "bg-accent/15 text-accent"
                     : "text-zinc-400 hover:bg-neutral-200 hover:text-zinc-100 dark:hover:bg-white/5"
                 )}
               >
-                <Ghost size={18} />
+                <Ghost size={18} strokeWidth={1.5} />
               </button>
               {ghostMenu && isTemp && chat && (
                 <div className="absolute right-0 top-full z-40 mt-1 w-56 menu-panel p-1">
@@ -1279,7 +1280,7 @@ export default function ChatWindow() {
             </div>
           </div>
 
-          <span aria-hidden className="mx-2 h-4 w-px bg-black/10 dark:bg-white/10" />
+          <span aria-hidden className="mx-2 h-4 w-[1px] bg-black/10 dark:bg-white/10" />
 
           {/* Gruppe 2 — Kontext & Ressourcen */}
           <div className="flex items-center gap-3">
@@ -1290,13 +1291,13 @@ export default function ChatWindow() {
               }}
               title="Dateimanager öffnen (Dateien dieses Chats)"
               className={clsx(
-                "relative rounded-lg p-2 transition-colors duration-200",
+                "relative rounded-lg p-2 transition-colors duration-150",
                 archiveOpen
                   ? "bg-accent/15 text-accent"
                   : "text-zinc-400 hover:bg-neutral-200 hover:text-zinc-100 dark:hover:bg-white/5"
               )}
             >
-              <FolderOpen size={18} />
+              <FolderOpen size={18} strokeWidth={1.5} />
               {chatFiles.length > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium text-white">
                   {chatFiles.length}
@@ -1310,17 +1311,17 @@ export default function ChatWindow() {
               }}
               title="Notizen & Dokumente"
               className={clsx(
-                "rounded-lg p-2 transition-colors duration-200",
+                "rounded-lg p-2 transition-colors duration-150",
                 notesOpen
                   ? "bg-accent/15 text-accent"
                   : "text-zinc-400 hover:bg-neutral-200 hover:text-zinc-100 dark:hover:bg-white/5"
               )}
             >
-              <StickyNote size={18} />
+              <StickyNote size={18} strokeWidth={1.5} />
             </button>
           </div>
 
-          <span aria-hidden className="mx-2 h-4 w-px bg-black/10 dark:bg-white/10" />
+          <span aria-hidden className="mx-2 h-4 w-[1px] bg-black/10 dark:bg-white/10" />
 
           {/* Gruppe 3 — Kollaboration & Teilen */}
           <div className="flex items-center gap-3">
@@ -1330,9 +1331,9 @@ export default function ChatWindow() {
                 onClick={() => setShareOpen((v) => !v)}
                 disabled={!hasMessages}
                 title="Chat teilen / exportieren"
-                className="rounded-lg p-2 text-zinc-400 transition-colors duration-200 hover:bg-neutral-200 hover:text-zinc-100 disabled:opacity-30 dark:hover:bg-white/5"
+                className="rounded-lg p-2 text-zinc-400 transition-colors duration-150 hover:bg-neutral-200 hover:text-zinc-100 disabled:opacity-30 dark:hover:bg-white/5"
               >
-                <Share2 size={18} />
+                <Share2 size={18} strokeWidth={1.5} />
               </button>
               {shareOpen && (
               <div className="absolute right-0 top-full z-40 mt-1 w-56 menu-panel p-1">
