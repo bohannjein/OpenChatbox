@@ -430,6 +430,9 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
     setValue("");
     onDraftChange?.("");
     setAttachments([]);
+    // Keep the cursor in the field so the user can type the next message right
+    // away (a button click would otherwise move focus off the textarea).
+    requestAnimationFrame(() => taRef.current?.focus());
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
