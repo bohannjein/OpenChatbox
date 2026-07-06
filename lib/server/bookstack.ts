@@ -249,10 +249,12 @@ function describeFetchError(e: unknown): string {
   const err = e as { name?: string; message?: string; code?: string; cause?: { code?: string } };
   const code = err?.code || err?.cause?.code || "";
   const byCode: Record<string, string> = {
-    ENOTFOUND: "Server nicht erreichbar (Hostname/DNS nicht gefunden).",
+    ENOTFOUND:
+      "Hostname nicht auflösbar (DNS). Prüfe die URL — oder trage die IP-Adresse statt des Hostnamens ein.",
     ECONNREFUSED: "Verbindung abgelehnt (Server aus, falscher Port oder Firewall).",
     ETIMEDOUT: "Zeitüberschreitung — Server antwortet nicht.",
-    EAI_AGAIN: "DNS-Auflösung fehlgeschlagen (Netzwerk/DNS-Problem).",
+    EAI_AGAIN:
+      "DNS-Auflösung fehlgeschlagen: Der Chatbox-Server (bzw. Docker-Container) kann diesen Hostnamen nicht auflösen. Nutze die IP-Adresse statt des Hostnamens, oder setze einen DNS-/extra_hosts-Eintrag. .local/.lan-Namen funktionieren aus Containern meist nicht.",
     ECONNRESET: "Verbindung zurückgesetzt (evtl. HTTP statt HTTPS oder umgekehrt).",
     DEPTH_ZERO_SELF_SIGNED_CERT:
       "SSL-Fehler: selbst-signiertes Zertifikat. Aktiviere „TLS-Zertifikat ignorieren“.",
