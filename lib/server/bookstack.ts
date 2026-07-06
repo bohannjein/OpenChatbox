@@ -162,7 +162,9 @@ export const BOOKSTACK_SYSTEM_PROMPT = `PRODUKTIV-REGELN FÜR DIE BOOKSTACK-SUCH
    - Schritt A: Nutze 'bookstack_search' mit '{in_name:Suchbegriff}' für eine präzise Suche.
    - Schritt B: Analysiere die IDs der Suchergebnisse.
    - Schritt C: Rufe die relevanteste Seite mit 'bookstack_get_page' ab und lies den Inhalt.
-   - Schritt D: Beantworte die Nutzerfrage präzise unter Angabe der BookStack-Seiten-ID als Quelle.`;
+   - Schritt D: Beantworte die Nutzerfrage präzise unter Angabe der BookStack-Seiten-ID als Quelle.
+4. Ausgabe: Diese Schritte (A–D) und deine Analyse der Quellen sind deine INTERNE Vorgehensweise. Gib sie NIEMALS im Antworttext aus (kein "Thinking Process", keine "Scan Sources"-Aufzählung). Antworte dem Nutzer ausschließlich mit dem fertigen Ergebnis.
+5. Nichts gefunden = sag es: Wenn du nach den erlaubten Suchversuchen nichts Passendes findest, teile dem Nutzer klar mit, dass die gesuchte Information nicht im Wiki steht. Erfinde niemals Inhalte.`;
 
 // ── REST helpers ────────────────────────────────────────────────────────────
 
@@ -489,7 +491,9 @@ export async function retrieveContext(
   const text =
     "Auszüge aus dem BookStack-Wiki. Beantworte die Frage bevorzugt auf Basis dieser " +
     "Auszüge und belege Aussagen mit der Quelle als (Quelle: <Seitenname>, BookStack-ID <id>). " +
-    "Wenn die Auszüge nicht ausreichen, sage das ausdrücklich.\n\n" +
+    "Wenn die Auszüge die Frage NICHT beantworten, sage klar, dass du dazu nichts im Wiki " +
+    "gefunden hast, und erfinde nichts. Gib NICHT deinen Denkprozess oder deine Suchschritte " +
+    "aus — antworte nur mit dem Ergebnis.\n\n" +
     blocks.join("\n\n---\n\n");
   return { text, sources };
 }

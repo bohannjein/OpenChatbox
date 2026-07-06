@@ -598,8 +598,10 @@ export default function ChatWindow() {
           kbContext =
             "Auszüge aus der Wissensdatenbank. Beantworte die Frage AUSSCHLIESSLICH " +
             "auf Basis dieser Auszüge und belege JEDE Aussage sichtbar mit der Quelle " +
-            "als (Quelle: <Dokumentname>). Wenn die Auszüge nicht ausreichen, sage das " +
-            "ausdrücklich.\n\n" +
+            "als (Quelle: <Dokumentname>). Wenn die Auszüge die Frage NICHT beantworten, " +
+            "sage klar, dass du dazu nichts in der Wissensdatenbank gefunden hast, und " +
+            "erfinde nichts. Gib NICHT deinen Denkprozess oder deine Suchschritte aus — " +
+            "antworte nur mit dem Ergebnis.\n\n" +
             hits
               .map((h) => `(Quelle: ${h.docName})\n${h.text}`)
               .join("\n\n---\n\n");
@@ -632,8 +634,26 @@ export default function ChatWindow() {
       }
     }
 
-    // Combined external context (knowledge base, then BookStack wiki, then web).
-    const extraContext = [kbContext, bookstackContext, searchContext]
+    // KB toggle on, but NOTHING was retrieved from any source → force an honest
+    // "not found" instead of a hallucinated answer or a dumped chain-of-thought.
+    let kbMiss = "";
+    if (
+      kbEnabled &&
+      !sk &&
+      lastUser?.content?.trim() &&
+      !kbContext &&
+      !bookstackContext &&
+      !searchContext
+    ) {
+      kbMiss =
+        "Die Wissensdatenbank bzw. das BookStack-Wiki enthält KEINE passenden Einträge " +
+        "zu dieser Frage. Teile dem Nutzer klar und knapp mit, dass du dazu nichts in " +
+        "der Wissensdatenbank gefunden hast. Erfinde KEINE Inhalte und rate nicht. Gib " +
+        "NICHT deinen Denkprozess oder deine Suchschritte im Antworttext aus.";
+    }
+
+    // Combined external context (knowledge base, BookStack wiki, web, then miss).
+    const extraContext = [kbContext, bookstackContext, searchContext, kbMiss]
       .filter(Boolean)
       .join("\n\n");
     const withSearch = (sys: string) =>
