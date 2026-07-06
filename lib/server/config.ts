@@ -76,6 +76,8 @@ export interface BookstackConfig {
   tokenId?: string;
   /** encrypted (enc:v1:…) — never returned to any client. */
   tokenSecret?: string;
+  /** ignore TLS cert errors (self-signed / .local homelab instances). */
+  allowInsecure?: boolean;
 }
 /** Fully resolved (decrypted) BookStack config — server-side only. */
 export interface BookstackResolved {
@@ -83,6 +85,7 @@ export interface BookstackResolved {
   tokenId: string;
   tokenSecret: string;
   writeEnabled: boolean;
+  allowInsecure: boolean;
 }
 
 export interface ServerConfig {
@@ -219,7 +222,13 @@ export function getBookstackConfig(): BookstackResolved | null {
   const tokenId = (b.tokenId ?? "").trim();
   const tokenSecret = decryptSecret(b.tokenSecret).trim();
   if (!baseUrl || !tokenId || !tokenSecret) return null;
-  return { baseUrl, tokenId, tokenSecret, writeEnabled: !!b.writeEnabled };
+  return {
+    baseUrl,
+    tokenId,
+    tokenSecret,
+    writeEnabled: !!b.writeEnabled,
+    allowInsecure: !!b.allowInsecure,
+  };
 }
 
 /** Strip the secret apiKey from a provider before sending it to a client. */

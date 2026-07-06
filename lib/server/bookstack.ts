@@ -1,3 +1,5 @@
+import http from "node:http";
+import https from "node:https";
 import { getBookstackConfig, type BookstackResolved } from "./config";
 
 /**
@@ -143,8 +145,106 @@ export function toolDefs(writeEnabled: boolean): ToolDef[] {
 
 // ── REST helpers ────────────────────────────────────────────────────────────
 
+/** BookStack token auth. Exact format the API expects: `Token <id>:<secret>`
+ *  (the literal word "Token", a space, then id and secret joined by a colon). */
 function authHeader(cfg: BookstackResolved): Record<string, string> {
   return { Authorization: `Token ${cfg.tokenId}:${cfg.tokenSecret}` };
+}
+
+const TIMEOUT_MS = 15_000;
+
+// Homelab escape hatch: many BookStack instances run on a self-signed cert or a
+// .local/.lan domain, which Node rejects by default. When the admin opts in we
+// attach an https.Agent that skips cert verification — ONLY for BookStack calls,
+// never the global NODE_TLS_REJECT_UNAUTHORIZED (which would weaken every fetch).
+let insecureAgent: https.Agent | null = null;
+function insecureHttpsAgent(): https.Agent {
+  if (!insecureAgent) insecureAgent = new https.Agent({ rejectUnauthorized: false });
+  return insecureAgent;
+}
+
+interface RawResponse {
+  status: number;
+  ok: boolean;
+  text: string;
+}
+
+/**
+ * Low-level HTTP(S) request via Node's http/https so we can control TLS per call
+ * (native fetch/undici can't disable cert checks per request). Rejects with an
+ * error carrying `.code` (e.g. DEPTH_ZERO_SELF_SIGNED_CERT, ECONNREFUSED).
+ */
+function rawRequest(
+  urlStr: string,
+  opts: {
+    method: string;
+    headers: Record<string, string>;
+    body?: string;
+    allowInsecure: boolean;
+  }
+): Promise<RawResponse> {
+  return new Promise((resolve, reject) => {
+    let url: URL;
+    try {
+      url = new URL(urlStr);
+    } catch {
+      reject(new Error(`Ungültige BookStack-URL: ${urlStr}`));
+      return;
+    }
+    const isHttps = url.protocol === "https:";
+    const lib = isHttps ? https : http;
+    const agent =
+      isHttps && opts.allowInsecure ? insecureHttpsAgent() : undefined;
+
+    const req = lib.request(
+      url,
+      { method: opts.method, headers: opts.headers, agent, timeout: TIMEOUT_MS },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (c: Buffer) => chunks.push(c));
+        res.on("end", () => {
+          const status = res.statusCode ?? 0;
+          resolve({
+            status,
+            ok: status >= 200 && status < 300,
+            text: Buffer.concat(chunks).toString("utf8"),
+          });
+        });
+      }
+    );
+    req.on("timeout", () => {
+      const e = new Error("timeout") as Error & { code?: string };
+      e.code = "ETIMEDOUT";
+      req.destroy(e);
+    });
+    req.on("error", reject);
+    if (opts.body) req.write(opts.body);
+    req.end();
+  });
+}
+
+/** Translate a thrown request error into a precise German diagnosis. */
+function describeFetchError(e: unknown): string {
+  const err = e as { name?: string; message?: string; code?: string; cause?: { code?: string } };
+  const code = err?.code || err?.cause?.code || "";
+  const byCode: Record<string, string> = {
+    ENOTFOUND: "Server nicht erreichbar (Hostname/DNS nicht gefunden).",
+    ECONNREFUSED: "Verbindung abgelehnt (Server aus, falscher Port oder Firewall).",
+    ETIMEDOUT: "Zeitüberschreitung — Server antwortet nicht.",
+    EAI_AGAIN: "DNS-Auflösung fehlgeschlagen (Netzwerk/DNS-Problem).",
+    ECONNRESET: "Verbindung zurückgesetzt (evtl. HTTP statt HTTPS oder umgekehrt).",
+    DEPTH_ZERO_SELF_SIGNED_CERT:
+      "SSL-Fehler: selbst-signiertes Zertifikat. Aktiviere „TLS-Zertifikat ignorieren“.",
+    SELF_SIGNED_CERT_IN_CHAIN:
+      "SSL-Fehler: selbst-signiertes Zertifikat in der Kette. Aktiviere „TLS-Zertifikat ignorieren“.",
+    UNABLE_TO_VERIFY_LEAF_SIGNATURE:
+      "SSL-Fehler: Zertifikatskette nicht verifizierbar. Aktiviere „TLS-Zertifikat ignorieren“.",
+    CERT_HAS_EXPIRED: "SSL-Fehler: Zertifikat abgelaufen.",
+    ERR_TLS_CERT_ALTNAME_INVALID:
+      "SSL-Fehler: Hostname passt nicht zum Zertifikat (CN/SAN).",
+  };
+  if (code && byCode[code]) return byCode[code];
+  return err?.message ? `${err.message}${code ? ` (${code})` : ""}` : String(e);
 }
 
 async function api<T = unknown>(
@@ -153,28 +253,102 @@ async function api<T = unknown>(
   pathAndQuery: string,
   body?: unknown
 ): Promise<T> {
-  const res = await fetch(`${cfg.baseUrl}/api${pathAndQuery}`, {
-    method,
-    headers: {
-      ...authHeader(cfg),
-      ...(body ? { "Content-Type": "application/json" } : {}),
-      Accept: "application/json",
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-    signal: AbortSignal.timeout(15_000),
-  });
-  const text = await res.text();
+  const url = `${cfg.baseUrl}/api${pathAndQuery}`;
+  const payload = body ? JSON.stringify(body) : undefined;
+
+  let res: RawResponse;
+  try {
+    res = await rawRequest(url, {
+      method,
+      headers: {
+        ...authHeader(cfg),
+        ...(payload ? { "Content-Type": "application/json" } : {}),
+        Accept: "application/json",
+      },
+      body: payload,
+      allowInsecure: cfg.allowInsecure,
+    });
+  } catch (e) {
+    const msg = describeFetchError(e);
+    console.error(`[bookstack] ${method} ${url} → Netzwerk-/TLS-Fehler: ${msg}`);
+    throw new Error(msg);
+  }
+
   if (!res.ok) {
-    let msg = text;
+    let msg = res.text;
     try {
-      const j = JSON.parse(text);
-      msg = j?.error?.message || j?.message || text;
+      const j = JSON.parse(res.text);
+      msg = j?.error?.message || j?.message || res.text;
     } catch {
       /* keep raw */
     }
+    console.error(
+      `[bookstack] ${method} ${url} → HTTP ${res.status}: ${String(msg).slice(0, 300)}`
+    );
     throw new Error(`BookStack HTTP ${res.status}: ${String(msg).slice(0, 300)}`);
   }
-  return (text ? JSON.parse(text) : {}) as T;
+  console.log(`[bookstack] ${method} ${url} → HTTP ${res.status} OK (${res.text.length} B)`);
+  return (res.text ? JSON.parse(res.text) : {}) as T;
+}
+
+export interface TestResult {
+  ok: boolean;
+  status?: number;
+  count?: number;
+  error?: string;
+}
+
+/**
+ * Connection self-test for the admin UI: hits GET /api/books?count=1 and reports
+ * the book total, or a precise reason (SSL / 401 / unreachable). Takes a resolved
+ * config directly so the admin can test credentials *before* saving them.
+ */
+export async function testConnection(cfg: BookstackResolved): Promise<TestResult> {
+  const url = `${cfg.baseUrl}/api/books?count=1`;
+  console.log(
+    `[bookstack] Verbindungstest → GET ${url} (allowInsecure=${cfg.allowInsecure})`
+  );
+  let res: RawResponse;
+  try {
+    res = await rawRequest(url, {
+      method: "GET",
+      headers: { ...authHeader(cfg), Accept: "application/json" },
+      allowInsecure: cfg.allowInsecure,
+    });
+  } catch (e) {
+    const error = describeFetchError(e);
+    console.error(`[bookstack] Verbindungstest fehlgeschlagen: ${error}`);
+    return { ok: false, error };
+  }
+
+  if (!res.ok) {
+    let msg = res.text;
+    try {
+      const j = JSON.parse(res.text);
+      msg = j?.error?.message || j?.message || res.text;
+    } catch {
+      /* keep raw */
+    }
+    const error =
+      res.status === 401
+        ? "401 Unauthorized — Token ID/Secret falsch oder Token ohne Berechtigung."
+        : res.status === 403
+        ? "403 Forbidden — Token hat keine API-Berechtigung in BookStack."
+        : `HTTP ${res.status}: ${String(msg).slice(0, 200)}`;
+    console.error(`[bookstack] Verbindungstest → ${error}`);
+    return { ok: false, status: res.status, error };
+  }
+
+  let count = 0;
+  try {
+    const j = JSON.parse(res.text) as { total?: number; data?: unknown[] };
+    count =
+      typeof j.total === "number" ? j.total : Array.isArray(j.data) ? j.data.length : 0;
+  } catch {
+    /* keep 0 */
+  }
+  console.log(`[bookstack] Verbindungstest erfolgreich — ${count} Bücher gefunden.`);
+  return { ok: true, status: res.status, count };
 }
 
 const num = (v: unknown): number | null => {
@@ -214,15 +388,23 @@ export async function runTool(
   args: Record<string, unknown>,
   writeEnabled: boolean
 ): Promise<ToolResult> {
+  console.log(
+    `[bookstack] Tool-Call „${name}" args=${JSON.stringify(args)} (writeEnabled=${writeEnabled})`
+  );
   const cfg = getBookstackConfig();
-  if (!cfg) return { text: "Fehler: BookStack ist nicht konfiguriert." };
+  if (!cfg) {
+    console.error("[bookstack] Tool-Call abgebrochen: nicht konfiguriert.");
+    return { text: "Fehler: BookStack ist nicht konfiguriert." };
+  }
 
   const def = ALL_TOOLS.find((t) => t.name === name);
   if (!def) return { text: `Unbekanntes Tool: ${name}` };
-  if (def.write && !writeEnabled)
+  if (def.write && !writeEnabled) {
+    console.error(`[bookstack] Tool „${name}" verweigert: Schreibzugriff deaktiviert.`);
     return {
       text: "Schreibzugriff ist deaktiviert. Diese Aktion (Erstellen/Ändern/Löschen) ist nicht erlaubt.",
     };
+  }
 
   try {
     switch (name) {
@@ -360,6 +542,8 @@ export async function runTool(
         return { text: `Unbekanntes Tool: ${name}` };
     }
   } catch (e) {
-    return { text: `Fehler beim Tool ${name}: ${e instanceof Error ? e.message : String(e)}` };
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[bookstack] Tool „${name}" fehlgeschlagen: ${msg}`);
+    return { text: `Fehler beim Tool ${name}: ${msg}` };
   }
 }

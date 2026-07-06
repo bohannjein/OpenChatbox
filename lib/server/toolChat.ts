@@ -63,6 +63,10 @@ export function runToolChat(o: ToolChatOpts): ReadableStream<Uint8Array> {
     type: "function",
     function: { name: d.name, description: d.description, parameters: d.parameters },
   }));
+  console.log(
+    `[bookstack] Tool-Chat gestartet (${o.type}, Modell ${o.model}) — ${defs.length} Tools ` +
+      `angehängt [${defs.map((d) => d.name).join(", ")}], writeEnabled=${writeEnabled}`
+  );
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -84,6 +88,10 @@ export function runToolChat(o: ToolChatOpts): ReadableStream<Uint8Array> {
               : await roundOpenai(o, msgs, tools, send);
 
           if (!toolCalls.length) break; // model answered → done
+          console.log(
+            `[bookstack] Runde ${round + 1}: Modell fordert ${toolCalls.length} Tool-Call(s) an — ` +
+              toolCalls.map((t) => t.name).join(", ")
+          );
 
           // Replay the assistant's tool request, then each tool's result.
           msgs.push(assistantMsg(o.type, content, toolCalls));

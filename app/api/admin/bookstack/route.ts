@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
     bookstack: {
       enabled: !!b?.enabled,
       writeEnabled: !!b?.writeEnabled,
+      allowInsecure: !!b?.allowInsecure,
       baseUrl: b?.baseUrl ?? "",
       tokenId: b?.tokenId ?? "",
       hasSecret: !!(b?.tokenSecret && b.tokenSecret.length),
@@ -35,6 +36,8 @@ export async function POST(req: NextRequest) {
     enabled: typeof body.enabled === "boolean" ? body.enabled : !!prev.enabled,
     writeEnabled:
       typeof body.writeEnabled === "boolean" ? body.writeEnabled : !!prev.writeEnabled,
+    allowInsecure:
+      typeof body.allowInsecure === "boolean" ? body.allowInsecure : !!prev.allowInsecure,
     baseUrl:
       typeof body.baseUrl === "string"
         ? body.baseUrl.trim().replace(/\/+$/, "").slice(0, 500)
@@ -52,6 +55,7 @@ export async function POST(req: NextRequest) {
     bookstack: {
       enabled: next.enabled,
       writeEnabled: next.writeEnabled,
+      allowInsecure: !!next.allowInsecure,
       baseUrl: next.baseUrl ?? "",
       tokenId: next.tokenId ?? "",
       hasSecret: !!(next.tokenSecret && next.tokenSecret.length),

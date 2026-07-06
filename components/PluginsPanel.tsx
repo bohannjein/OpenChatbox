@@ -8,6 +8,9 @@ import {
   FileOutput,
   BookOpen,
   Check,
+  PlugZap,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 
 type Flags = { officeParser: boolean; ocrEngine: boolean; docGenerator: boolean };
@@ -70,9 +73,16 @@ function Switch({
 interface BookstackState {
   enabled: boolean;
   writeEnabled: boolean;
+  allowInsecure: boolean;
   baseUrl: string;
   tokenId: string;
   hasSecret: boolean;
+}
+
+interface TestState {
+  ok: boolean;
+  count?: number;
+  error?: string;
 }
 
 /** BookStack wiki integration: connection + read/write permission + credentials. */
@@ -82,6 +92,8 @@ function BookstackSection() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [test, setTest] = useState<TestState | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/bookstack")
@@ -105,6 +117,7 @@ function BookstackSection() {
         body: JSON.stringify({
           enabled: bs.enabled,
           writeEnabled: bs.writeEnabled,
+          allowInsecure: bs.allowInsecure,
           baseUrl: bs.baseUrl,
           tokenId: bs.tokenId,
           // empty → keep the stored secret
@@ -121,6 +134,35 @@ function BookstackSection() {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Ping BookStack with the currently entered (unsaved) credentials.
+  const testConn = async () => {
+    if (!bs) return;
+    setTesting(true);
+    setTest(null);
+    try {
+      const r = await fetch("/api/admin/bookstack/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          baseUrl: bs.baseUrl,
+          tokenId: bs.tokenId,
+          allowInsecure: bs.allowInsecure,
+          ...(secret.trim() ? { tokenSecret: secret.trim() } : {}),
+        }),
+      });
+      const d = (await r.json()) as TestState & { error?: string };
+      setTest(
+        d.ok
+          ? { ok: true, count: d.count }
+          : { ok: false, error: d.error || `HTTP ${r.status}` }
+      );
+    } catch (e) {
+      setTest({ ok: false, error: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -167,6 +209,23 @@ function BookstackSection() {
             />
           </div>
 
+          {/* TLS bypass (homelab) */}
+          <div className="flex items-start gap-3 rounded-xl border border-border-light p-3 dark:border-border-dark">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium">TLS-Zertifikat ignorieren</div>
+              <div className="text-xs text-neutral-500">
+                Nur für Homelabs: erlaubt selbst-signierte Zertifikate bzw.
+                <code className="mx-1 rounded bg-black/5 px-1 dark:bg-white/10">.local</code>
+                /<code className="mx-1 rounded bg-black/5 px-1 dark:bg-white/10">.lan</code>
+                -Domains. Gilt ausschließlich für BookStack-Anfragen.
+              </div>
+            </div>
+            <Switch
+              on={bs.allowInsecure}
+              onClick={() => patch({ allowInsecure: !bs.allowInsecure })}
+            />
+          </div>
+
           {/* Credentials */}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
@@ -208,18 +267,57 @@ function BookstackSection() {
             </div>
           </div>
 
-          <button
-            onClick={save}
-            disabled={saving}
-            className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
-          >
-            {saving ? (
-              <Loader2 size={15} className="animate-spin" />
-            ) : saved ? (
-              <Check size={15} />
-            ) : null}
-            {saved ? "Gespeichert" : "BookStack speichern"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={save}
+              disabled={saving}
+              className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
+            >
+              {saving ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : saved ? (
+                <Check size={15} />
+              ) : null}
+              {saved ? "Gespeichert" : "BookStack speichern"}
+            </button>
+            <button
+              onClick={testConn}
+              disabled={testing || !bs.baseUrl.trim() || !bs.tokenId.trim()}
+              title="Sendet GET /api/books an die BookStack-Instanz"
+              className="flex items-center gap-2 rounded-lg border border-border-light px-4 py-2 text-sm font-medium transition hover:bg-black/5 disabled:opacity-50 dark:border-border-dark dark:hover:bg-white/5"
+            >
+              {testing ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <PlugZap size={15} />
+              )}
+              Verbindung testen
+            </button>
+          </div>
+
+          {test && (
+            <div
+              className={
+                "flex items-start gap-2 rounded-lg border px-3 py-2 text-sm " +
+                (test.ok
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400")
+              }
+            >
+              {test.ok ? (
+                <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
+              ) : (
+                <XCircle size={16} className="mt-0.5 shrink-0" />
+              )}
+              <span>
+                {test.ok
+                  ? `Verbindung erfolgreich! ${test.count ?? 0} ${
+                      test.count === 1 ? "Buch" : "Bücher"
+                    } gefunden.`
+                  : test.error}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>
