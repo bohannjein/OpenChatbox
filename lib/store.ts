@@ -306,6 +306,8 @@ interface State {
     stage: PipelineStage | undefined
   ) => void;
   setMessageImages: (chatId: string, msgId: string, images: string[]) => void;
+  /** Record which model produced an assistant message (for the in-chat label). */
+  setMessageModel: (chatId: string, msgId: string, model: string) => void;
   /** BookStack tool status (upsert: a "done" resolves the matching "running"). */
   upsertToolEvent: (chatId: string, msgId: string, evt: ToolEvent) => void;
   setMessageSources: (chatId: string, msgId: string, sources: SourceLink[]) => void;
@@ -369,6 +371,8 @@ interface State {
   /** add/update a workspace from the server (invites, cross-device sync) */
   upsertWorkspace: (ws: { id: string; name: string }) => void;
   setChatSidekick: (chatId: string, sidekickId: string | null) => void;
+  /** Switch the model for one chat — updates only modelKey, never the messages. */
+  setChatModel: (chatId: string, modelKey: string) => void;
   /** Invite multiple sidekicks (virtual conference room). */
   setChatSidekicks: (chatId: string, sidekickIds: string[]) => void;
   /** Toggle moderator-driven speaker selection for a group chat. */
@@ -825,6 +829,11 @@ export const useStore = create<State>()(
           chats: patchMessage(s.chats, chatId, msgId, (m) => ({ ...m, sources })),
         })),
 
+      setMessageModel: (chatId, msgId, model) =>
+        set((s) => ({
+          chats: patchMessage(s.chats, chatId, msgId, (m) => ({ ...m, model })),
+        })),
+
       truncateAfter: (chatId, msgId) =>
         set((s) => ({
           chats: s.chats.map((c) => {
@@ -1050,6 +1059,15 @@ export const useStore = create<State>()(
             c.id === chatId
               ? { ...c, sidekickId: sidekickId ?? undefined, updatedAt: now() }
               : c
+          ),
+        })),
+      // Switch the model of one chat. Touches ONLY modelKey (+ updatedAt so the
+      // change is persisted via the normal /api/chats write-through) — the
+      // messages array is never cleared, so history survives a model switch.
+      setChatModel: (chatId, modelKey) =>
+        set((s) => ({
+          chats: s.chats.map((c) =>
+            c.id === chatId ? { ...c, modelKey, updatedAt: now() } : c
           ),
         })),
       setChatSidekicks: (chatId, sidekickIds) =>

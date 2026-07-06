@@ -37,6 +37,9 @@ export interface Message {
   pipeline?: PipelineStage;
   /** assistant only: which sidekick authored this message (group chats). */
   sidekickId?: string;
+  /** assistant only: display label of the model that generated this message
+   *  (e.g. "gemma4:e4b"), so a mid-chat model switch stays visible in history. */
+  model?: string;
   /** assistant only, transient: BookStack tool-call live status (stripped on persist). */
   toolEvents?: ToolEvent[];
   /** assistant only: clickable BookStack sources cited in the answer. */

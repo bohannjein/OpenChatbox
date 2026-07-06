@@ -29,6 +29,8 @@ export interface ToolChatOpts {
   temperature?: number;
   topP?: number;
   maxTokens?: number;
+  /** Ollama context window (tokens); default 2048 is too small → forgetting. */
+  numCtx?: number;
   keepAlive?: number | string;
   signal: AbortSignal;
 }
@@ -204,6 +206,7 @@ async function roundOllama(
       options: {
         ...(o.temperature != null ? { temperature: o.temperature } : {}),
         ...(o.topP != null ? { top_p: o.topP } : {}),
+        ...(o.numCtx != null ? { num_ctx: o.numCtx } : {}),
         num_predict: o.maxTokens ?? 2048,
       },
     }),

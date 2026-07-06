@@ -7,6 +7,7 @@ import os from "os";
 import path from "path";
 import { planPipeline, needsCurrentInfo, isImageGenRequest } from "../lib/autoPipeline";
 import { detectCategory } from "../lib/modelRouter";
+import { applyContextWindow } from "../lib/server/context";
 import { parseOffice } from "../lib/server/officeParse";
 import * as XLSX from "xlsx";
 import type { ModelOption } from "../lib/types";
@@ -57,6 +58,30 @@ ok("isImageGenRequest: with attachment false", !isImageGenRequest("beschreibe da
 eq("detectCategory coding", detectCategory("debug diese funktion"), "coding");
 eq("detectCategory reasoning", detectCategory("berechne die wahrscheinlichkeit"), "reasoning");
 eq("detectCategory standard", detectCategory("wie geht es dir"), "standard");
+
+// ── context: sliding window pins system, caps count, trims to token budget ─
+{
+  const sys = { role: "system", content: "SYS" };
+  const seq = Array.from({ length: 30 }, (_, i) => ({
+    role: i % 2 ? "assistant" : "user",
+    content: `m${i}`,
+  }));
+  const w = applyContextWindow([sys, ...seq], { maxMessages: 20, maxTokens: 1_000_000 });
+  eq(
+    "ctx: system pinned + last-20 cap",
+    [w.length, w[0].content, w[w.length - 1].content],
+    [21, "SYS", "m29"]
+  );
+
+  const big = Array.from({ length: 6 }, (_, i) => ({
+    role: "user",
+    content: `big${i}-` + "x".repeat(4000), // ~1000 tokens each
+  }));
+  const w2 = applyContextWindow([sys, ...big], { maxMessages: 20, maxTokens: 500 });
+  ok("ctx: system never dropped", w2[0].content === "SYS");
+  ok("ctx: newest turn always kept", w2[w2.length - 1].content.startsWith("big5"));
+  ok("ctx: old turns trimmed to budget", w2.length < big.length + 1);
+}
 
 // ── officeParse: matrix table → per-cell facts ───────────────────────────
 async function tableTests() {

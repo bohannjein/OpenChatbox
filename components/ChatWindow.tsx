@@ -131,6 +131,7 @@ export default function ChatWindow() {
   const setMessageImages = useStore((s) => s.setMessageImages);
   const upsertToolEvent = useStore((s) => s.upsertToolEvent);
   const setMessageSources = useStore((s) => s.setMessageSources);
+  const setMessageModel = useStore((s) => s.setMessageModel);
   const kbEnabled = useStore((s) => s.kbEnabled);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
@@ -653,9 +654,19 @@ export default function ChatWindow() {
         onTool?: (json: string) => void;
         /** raw JSON of a BookStack SourceLink[] */
         onSource?: (json: string) => void;
+        /** stamp this model's label onto the assistant message (answer calls). */
+        recordModel?: boolean;
       }
     ) => {
       const { provider, model } = resolveModel(modelKey);
+      // Record which model authored this answer, so a mid-chat switch stays
+      // visible in the transcript.
+      if (opts.recordModel && modelKey)
+        setMessageModel(
+          chatId,
+          assistantId,
+          displayName(aliases, modelKey, parseModelKey(modelKey).model)
+        );
       const cur = useStore.getState().chats.find((c) => c.id === chatId);
       const idx = cur?.messages.findIndex((m) => m.id === assistantId) ?? -1;
       const prior = idx >= 0 ? cur!.messages.slice(0, idx) : [];
@@ -719,6 +730,7 @@ export default function ChatWindow() {
             stripImages: true, // text answer model — don't forward raw images
             onContent: (x) => appendToMessage(chatId, assistantId, x),
             onReasoning: (x) => appendReasoning(chatId, assistantId, x),
+            recordModel: true,
           });
         } else {
           // OCR produced nothing → single vision call reads the image AND answers.
@@ -729,6 +741,7 @@ export default function ChatWindow() {
             stripImages: false,
             onContent: (x) => appendToMessage(chatId, assistantId, x),
             onReasoning: (x) => appendReasoning(chatId, assistantId, x),
+            recordModel: true,
           });
         }
       } else {
@@ -741,6 +754,7 @@ export default function ChatWindow() {
         sys = withSearch(sys);
         await runModel(step.key, sys, {
           stripImages: false,
+          recordModel: true,
           onContent: (x) => appendToMessage(chatId, assistantId, x),
           onReasoning: (x) => appendReasoning(chatId, assistantId, x),
           // BookStack tools for normal text/coding/reasoning turns (not vision —

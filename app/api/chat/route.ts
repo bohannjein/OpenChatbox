@@ -3,9 +3,17 @@ import type { ChatRequest } from "@/lib/types";
 import { getProviderById, getBookstackConfig } from "@/lib/server/config";
 import { runToolChat } from "@/lib/server/toolChat";
 import { stripPrefix, mimeOf, NDJSON_HEADERS } from "@/lib/server/http";
+import { applyContextWindow } from "@/lib/server/context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// Ollama context window (tokens). Its built-in default is only 2048, which
+// silently truncates older turns → the model "forgets". Raise it (env-tunable
+// per host VRAM) and size the history window to fit.
+const NUM_CTX = Number(process.env.OLLAMA_NUM_CTX) || 8192;
+// Hard cap on non-system turns kept regardless of token budget.
+const MAX_HISTORY_MESSAGES = 20;
 
 export async function POST(req: NextRequest) {
   let body: ChatRequest;
@@ -47,6 +55,18 @@ export async function POST(req: NextRequest) {
       ? Number(rawKeep)
       : rawKeep;
 
+  // Sliding-window context filter: always keep the leading system prompt, then
+  // the most recent turns that fit the model's window. For Ollama the budget is
+  // derived from num_ctx minus the reply reservation; cloud models get a generous
+  // budget. This continues the conversation instead of silently forgetting it.
+  const replyReserve = (maxTokens ?? 2048) + 512;
+  const tokenBudget =
+    type === "ollama" ? Math.max(1024, NUM_CTX - replyReserve) : 24_000;
+  const windowed = applyContextWindow(messages, {
+    maxMessages: MAX_HISTORY_MESSAGES,
+    maxTokens: tokenBudget,
+  });
+
   // BookStack tool-calling: when the client opts in (tools:true), the admin has
   // enabled the integration, and the provider supports function calling, run the
   // agentic tool loop instead of the plain streaming proxy. Emits the same NDJSON
@@ -61,17 +81,18 @@ export async function POST(req: NextRequest) {
       baseUrl,
       apiKey,
       model,
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      messages: windowed.map((m) => ({ role: m.role, content: m.content })),
       temperature,
       topP,
       maxTokens,
+      numCtx: NUM_CTX,
       keepAlive,
       signal: req.signal,
     });
     return new Response(stream, { headers: NDJSON_HEADERS });
   }
 
-  const hasImg = (m: (typeof messages)[number]) =>
+  const hasImg = (m: (typeof windowed)[number]) =>
     Array.isArray(m.images) && m.images.length > 0;
 
   // Build upstream request per provider.
@@ -79,7 +100,7 @@ export async function POST(req: NextRequest) {
   try {
     if (type === "ollama") {
       // Ollama vision: `images` = raw base64 (no data-URL prefix).
-      const msgs = messages.map((m) =>
+      const msgs = windowed.map((m) =>
         hasImg(m)
           ? {
               role: m.role,
@@ -101,6 +122,8 @@ export async function POST(req: NextRequest) {
           options: {
             ...(temperature != null ? { temperature } : {}),
             ...(topP != null ? { top_p: topP } : {}),
+            // Kontextfenster (Default 2048 ist zu klein → Kontextverlust).
+            num_ctx: NUM_CTX,
             // harte Obergrenze, damit ein Request nicht endlos VRAM/Compute hält
             num_predict: maxTokens ?? 2048,
           },
@@ -109,11 +132,11 @@ export async function POST(req: NextRequest) {
       });
     } else if (type === "anthropic") {
       // Anthropic: system als Top-Level-Param, messages nur user/assistant.
-      const system = messages
+      const system = windowed
         .filter((m) => m.role === "system")
         .map((m) => m.content)
         .join("\n\n");
-      const msgs = messages
+      const msgs = windowed
         .filter((m) => m.role !== "system")
         .map((m) =>
           hasImg(m)
@@ -153,7 +176,7 @@ export async function POST(req: NextRequest) {
       });
     } else {
       // OpenAI vision: content becomes an array of text + image_url parts.
-      const msgs = messages.map((m) =>
+      const msgs = windowed.map((m) =>
         hasImg(m)
           ? {
               role: m.role,

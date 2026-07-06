@@ -35,6 +35,7 @@ export default function ModelSwitcher() {
   const chats = useStore((s) => s.chats);
   const activeChatId = useStore((s) => s.activeChatId);
   const setChatSidekick = useStore((s) => s.setChatSidekick);
+  const setChatModel = useStore((s) => s.setChatModel);
   const autoRouter = useStore((s) => s.autoRouter);
   const setAutoRouter = useStore((s) => s.setAutoRouter);
 
@@ -82,7 +83,12 @@ export default function ModelSwitcher() {
     const prev = selectedModelKey;
     selectModel(key);
     setAutoRouter(false); // picking a concrete model leaves Auto mode
-    if (activeChatId) setChatSidekick(activeChatId, null); // back to plain model
+    if (activeChatId) {
+      setChatSidekick(activeChatId, null); // back to plain model
+      // Remember the pick on the chat (persisted) — never touches its messages,
+      // so the switched-to model continues the existing conversation.
+      setChatModel(activeChatId, key);
+    }
     setOpen(false);
     if (prev && prev !== key) {
       const { providerId, model } = parseModelKey(prev);

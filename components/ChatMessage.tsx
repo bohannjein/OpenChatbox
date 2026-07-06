@@ -128,14 +128,24 @@ export default function ChatMessage({
   const words = message.content.trim() ? message.content.trim().split(/\s+/).length : 0;
   const approxTokens = Math.round(message.content.length / 4); // rough estimate
 
+  const showModel = !isUser && !!message.model;
   const meta =
-    showTimestamps || showStats ? (
+    showTimestamps || showStats || showModel ? (
       <div
         className={clsx(
-          "mt-1 flex gap-2 text-[11px] text-neutral-400",
+          "mt-1 flex items-center gap-2 text-[11px] text-neutral-400",
           isUser && "justify-end"
         )}
       >
+        {showModel && (
+          <span
+            className="inline-flex items-center gap-1"
+            title={`Antwort erzeugt von ${message.model}`}
+          >
+            <Bot size={11} className="opacity-70" />
+            {message.model}
+          </span>
+        )}
         {showTimestamps && <span>{time}</span>}
         {showStats && message.content && (
           <span>
