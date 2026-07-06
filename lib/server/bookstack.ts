@@ -418,6 +418,82 @@ async function pageUrl(
     : `${cfg.baseUrl}`;
 }
 
+/**
+ * Deterministic BookStack retrieval for the knowledge-base toggle. Searches the
+ * wiki, reads the top matching pages' Markdown, and returns a compact context
+ * block plus clickable sources. Unlike the agentic tool loop this ALWAYS runs
+ * when invoked, so a KB turn reliably consults BookStack even with models that
+ * are unreliable at function-calling. Returns empty text when not configured or
+ * nothing relevant is found (the chat then answers without wiki context).
+ */
+export async function retrieveContext(
+  query: string,
+  maxPages = 3
+): Promise<{ text: string; sources: SourceLink[] }> {
+  const cfg = getBookstackConfig();
+  if (!cfg) return { text: "", sources: [] };
+  const q = query.trim();
+  if (!q) return { text: "", sources: [] };
+
+  let hits: Array<Record<string, unknown>> = [];
+  try {
+    const r = await api<{ data?: Array<Record<string, unknown>> }>(
+      cfg,
+      "GET",
+      `/search?query=${encodeURIComponent(q)}&count=8`
+    );
+    hits = r.data ?? [];
+  } catch (e) {
+    console.error(
+      `[bookstack] KB-Suche „${q}" fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`
+    );
+    return { text: "", sources: [] };
+  }
+
+  // Prefer pages (books/chapters carry no readable body of their own).
+  const pages = hits.filter((h) => String(h.type ?? "") === "page");
+  const targets = (pages.length ? pages : hits).slice(0, maxPages);
+  if (!targets.length) {
+    console.log(`[bookstack] KB-Suche „${q}": keine Treffer.`);
+    return { text: "", sources: [] };
+  }
+
+  const blocks: string[] = [];
+  const sources: SourceLink[] = [];
+  for (const it of targets) {
+    const id = num(it.id);
+    const nm = String(it.name ?? "(ohne Titel)");
+    const url = typeof it.url === "string" ? it.url : cfg.baseUrl;
+    let body = "";
+    if (id != null && String(it.type ?? "page") === "page") {
+      try {
+        body = (await apiText(cfg, `/pages/${id}/export/markdown`)).trim();
+      } catch {
+        /* fall back to the search preview */
+      }
+    }
+    if (!body)
+      body = (
+        (it.preview_html as { content?: string })?.content?.replace(/<[^>]+>/g, "") ?? ""
+      ).trim();
+    if (!body) continue;
+    blocks.push(`(Quelle: ${nm} — BookStack-ID ${id ?? "?"})\n${body.slice(0, 2500)}`);
+    if (url) sources.push({ title: nm, url });
+  }
+  if (!blocks.length) {
+    console.log(`[bookstack] KB-Suche „${q}": Treffer ohne lesbaren Inhalt.`);
+    return { text: "", sources: [] };
+  }
+
+  console.log(`[bookstack] KB-Suche „${q}": ${blocks.length} Seite(n) eingebettet.`);
+  const text =
+    "Auszüge aus dem BookStack-Wiki. Beantworte die Frage bevorzugt auf Basis dieser " +
+    "Auszüge und belege Aussagen mit der Quelle als (Quelle: <Seitenname>, BookStack-ID <id>). " +
+    "Wenn die Auszüge nicht ausreichen, sage das ausdrücklich.\n\n" +
+    blocks.join("\n\n---\n\n");
+  return { text, sources };
+}
+
 // ── Tool execution ───────────────────────────────────────────────────────────
 
 /**

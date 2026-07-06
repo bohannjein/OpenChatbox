@@ -568,25 +568,27 @@ export default function ChatWindow() {
       }
     }
 
+    // Retrieval query shared by the local KB and the BookStack wiki: enrich with
+    // the last few user turns so a terse follow-up ("und die IP?") still carries
+    // the topic. Every turn re-searches fresh (retrieval is stateless).
+    const retrievalQuery = () => {
+      const recentUser = (chatObj?.messages ?? [])
+        .filter((m) => m.role === "user" && m.content.trim())
+        .slice(-3)
+        .map((m) => m.content.trim());
+      return (recentUser.join("\n") || lastUser?.content || "").slice(0, 800);
+    };
+
     // Optional knowledge base (RAG): retrieve the most relevant chunks and
     // require the answer model to cite the source document.
     let kbContext = "";
     if (kbEnabled && !sk && lastUser?.content?.trim()) {
       try {
         setMessagePipeline(chatId, assistantId, "knowledge");
-        // Enrich the retrieval query with the last few user turns so a terse
-        // follow-up ("und die IP?") still carries the topic — and can match a
-        // DIFFERENT document than the previous answer. Every turn re-searches
-        // the whole knowledge base fresh (retrieval is stateless).
-        const recentUser = (chatObj?.messages ?? [])
-          .filter((m) => m.role === "user" && m.content.trim())
-          .slice(-3)
-          .map((m) => m.content.trim());
-        const kbQuery = (recentUser.join("\n") || lastUser.content).slice(0, 800);
         const r = await fetch("/api/kb/query", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: kbQuery }),
+          body: JSON.stringify({ query: retrievalQuery() }),
           signal: ac.signal,
         });
         const d = await r.json().catch(() => ({ results: [] }));
@@ -605,8 +607,34 @@ export default function ChatWindow() {
       }
     }
 
-    // Combined external context (knowledge base first, then web results).
-    const extraContext = [kbContext, searchContext].filter(Boolean).join("\n\n");
+    // BookStack wiki retrieval — tied to the SAME knowledge-base toggle, so
+    // enabling "Wissensdatenbank" also searches the wiki deterministically
+    // (independent of whether the model chooses to call the BookStack tool).
+    let bookstackContext = "";
+    if (kbEnabled && bookstackAvailable && !sk && lastUser?.content?.trim()) {
+      try {
+        setMessagePipeline(chatId, assistantId, "knowledge");
+        const r = await fetch("/api/kb/bookstack", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: retrievalQuery() }),
+          signal: ac.signal,
+        });
+        const d = await r.json().catch(() => ({ context: "", sources: [] }));
+        if (typeof d.context === "string" && d.context) {
+          bookstackContext = d.context;
+          if (Array.isArray(d.sources) && d.sources.length)
+            setMessageSources(chatId, assistantId, d.sources);
+        }
+      } catch {
+        /* BookStack retrieval failed → answer without wiki context */
+      }
+    }
+
+    // Combined external context (knowledge base, then BookStack wiki, then web).
+    const extraContext = [kbContext, bookstackContext, searchContext]
+      .filter(Boolean)
+      .join("\n\n");
     const withSearch = (sys: string) =>
       extraContext ? extraContext + "\n\n" + sys : sys;
 
