@@ -53,7 +53,7 @@ export interface SessionPayload {
   exp: number;
 }
 
-export function sign(payload: SessionPayload): string {
+function sign(payload: SessionPayload): string {
   const body = b64u(JSON.stringify(payload));
   const sig = b64u(crypto.createHmac("sha256", getSecret()).update(body).digest());
   return `${body}.${sig}`;

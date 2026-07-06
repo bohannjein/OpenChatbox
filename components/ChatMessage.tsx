@@ -83,8 +83,7 @@ export default function ChatMessage({
     attachments.length > 0 ? (
       <div className="mb-1 flex flex-wrap justify-end gap-2">
         {attachments.map((f) => {
-          const Icon =
-            f.kind === "pdf" ? FileType : f.kind === "code" ? FileText : FileText;
+          const Icon = f.kind === "pdf" ? FileType : FileText;
           const clickable = !!f.content;
           return (
             <button

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import os from "os";
 import { getAdmin } from "@/lib/server/adminAuth";
+import { NDJSON_HEADERS } from "@/lib/server/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -233,11 +234,5 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "application/x-ndjson; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-      "X-Accel-Buffering": "no",
-    },
-  });
+  return new Response(stream, { headers: NDJSON_HEADERS });
 }

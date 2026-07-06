@@ -1,21 +1,5 @@
 import type { ModelOption } from "./types";
 
-export type RouteRole = "text" | "coding" | "reasoning" | "vision";
-export type RouterCategory = "coding" | "reasoning" | "vision";
-
-export interface RouterSignals {
-  hasImage: boolean;
-  hasDoc: boolean;
-  text: string;
-}
-export interface RouterConfig {
-  /** Standard/Text model (normally the selected model) — the fallback. */
-  standardKey: string | null;
-  coding?: string | null;
-  reasoning?: string | null;
-  vision?: string | null;
-}
-
 // Keyword scan for the text categories (German + English).
 const CODING_RE =
   /\b(code|coding|skript|script|python|javascript|typescript|golang|rust|java|c\+\+|c#|bug|debug|fehler|funktion|function|programm|programmier|compile|kompilier|regex|sql|html|css|api|refactor|klasse|klassen|method|stacktrace|terminal|shell|docker)\b|schreib\w*\s+(ein|mir|eine)?\s*(skript|programm|code|funktion|klasse)/i;
@@ -35,30 +19,6 @@ export function detectCategory(text: string): "coding" | "reasoning" | "standard
   if (CODING_RE.test(t)) return "coding";
   if (REASONING_RE.test(t)) return "reasoning";
   return "standard";
-}
-
-/**
- * Route a turn to a model:
- *   image/document → Vision model,
- *   coding keywords → Coding model,
- *   reasoning/math keywords → Reasoning model,
- *   else → Standard/Text model.
- * Falls back to standardKey whenever a category has no model assigned, so
- * Auto mode never dead-ends.
- */
-export function routeModelKey(
-  cfg: RouterConfig,
-  signals: RouterSignals,
-  options: ModelOption[]
-): { key: string | null; role: RouteRole } {
-  if (signals.hasImage || signals.hasDoc) {
-    const k = cfg.vision || detectVisionKey(options);
-    if (k) return { key: k, role: "vision" };
-  }
-  const cat = detectCategory(signals.text);
-  if (cat === "coding" && cfg.coding) return { key: cfg.coding, role: "coding" };
-  if (cat === "reasoning" && cfg.reasoning) return { key: cfg.reasoning, role: "reasoning" };
-  return { key: cfg.standardKey, role: "text" };
 }
 
 /** System instruction added when an attachment is routed to a Vision model —

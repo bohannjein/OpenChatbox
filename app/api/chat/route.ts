@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import type { ChatRequest } from "@/lib/types";
 import { getProviderById, getBookstackConfig } from "@/lib/server/config";
 import { runToolChat } from "@/lib/server/toolChat";
+import { stripPrefix, mimeOf, NDJSON_HEADERS } from "@/lib/server/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -67,23 +68,9 @@ export async function POST(req: NextRequest) {
       keepAlive,
       signal: req.signal,
     });
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "application/x-ndjson; charset=utf-8",
-        "Cache-Control": "no-cache, no-transform",
-        "X-Accel-Buffering": "no",
-      },
-    });
+    return new Response(stream, { headers: NDJSON_HEADERS });
   }
 
-  const stripPrefix = (u: string) => {
-    const i = u.indexOf("base64,");
-    return i >= 0 ? u.slice(i + 7) : u;
-  };
-  const mimeOf = (u: string) => {
-    const m = /^data:([^;]+);/.exec(u);
-    return m ? m[1] : "image/png";
-  };
   const hasImg = (m: (typeof messages)[number]) =>
     Array.isArray(m.images) && m.images.length > 0;
 
@@ -138,7 +125,7 @@ export async function POST(req: NextRequest) {
                     type: "image",
                     source: {
                       type: "base64",
-                      media_type: mimeOf(u),
+                      media_type: mimeOf(u, "image/png"),
                       data: stripPrefix(u),
                     },
                   })),
@@ -230,13 +217,7 @@ export async function POST(req: NextRequest) {
       : openaiTransform();
   const stream = upstream.body.pipeThrough(transform);
 
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "application/x-ndjson; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-      "X-Accel-Buffering": "no",
-    },
-  });
+  return new Response(stream, { headers: NDJSON_HEADERS });
 }
 
 /**

@@ -61,11 +61,6 @@ export function verifyPassword(password: string, u: User): boolean {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-/** Total number of registered users. */
-export function countUsers(): number {
-  return load().length;
-}
-
 /**
  * Ensure the permanent built-in admin exists (administrator / openchatbox by
  * default, or ADMIN_DEFAULT_PASSWORD). Idempotent — only seeds when the account

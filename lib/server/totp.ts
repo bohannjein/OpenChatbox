@@ -3,7 +3,7 @@ import crypto from "crypto";
 // RFC 4648 base32 (no padding)
 const B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
-export function base32Encode(buf: Buffer): string {
+function base32Encode(buf: Buffer): string {
   let bits = 0,
     value = 0,
     out = "";

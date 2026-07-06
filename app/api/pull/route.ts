@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { NDJSON_HEADERS } from "@/lib/server/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,11 +40,5 @@ export async function POST(req: NextRequest) {
   }
 
   // Ollama already emits NDJSON — pass through unchanged.
-  return new Response(upstream.body, {
-    headers: {
-      "Content-Type": "application/x-ndjson; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-      "X-Accel-Buffering": "no",
-    },
-  });
+  return new Response(upstream.body, { headers: NDJSON_HEADERS });
 }

@@ -46,7 +46,7 @@ export interface SearchConfig {
   qureit?: SearchProviderCfg;
 }
 /** Order in which a usable (enabled + keyed) provider is selected. */
-export const SEARCH_PROVIDER_ORDER: SearchProviderName[] = [
+const SEARCH_PROVIDER_ORDER: SearchProviderName[] = [
   "tavily",
   "bing",
   "bocha",
@@ -172,18 +172,13 @@ export function setConfig(patch: Partial<ServerConfig>): ServerConfig {
   return next;
 }
 
-/** Global auto-router model map with defaults filled in. */
-export function getRouterModels(): RouterModels {
-  return { ...DEFAULT_ROUTER_MODELS, ...(getConfig().routerModels ?? {}) };
-}
-
 /** Full provider registry (WITH apiKeys) — server-side only. */
 export function getProviders(): Provider[] {
   return getConfig().providers ?? [];
 }
 
 /** Web-search config (WITH apiKeys) — server-side only. */
-export function getSearchConfig(): SearchConfig {
+function getSearchConfig(): SearchConfig {
   return getConfig().search ?? {};
 }
 

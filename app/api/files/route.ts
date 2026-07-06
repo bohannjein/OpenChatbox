@@ -7,17 +7,10 @@ import {
   type FileKind,
   type FileSource,
 } from "@/lib/server/files";
+import { MAX_BYTES, stripPrefix, mimeOf } from "@/lib/server/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const MAX_BYTES = 25 * 1024 * 1024; // 25 MB
-
-const stripPrefix = (u: string) => {
-  const i = u.indexOf("base64,");
-  return i >= 0 ? u.slice(i + 7) : u;
-};
-const mimeOf = (u: string) => /^data:([^;]+);/.exec(u)?.[1];
 
 /** List the current user's persisted files (optionally scoped to one chat). */
 export async function GET(req: NextRequest) {

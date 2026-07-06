@@ -1,41 +1,10 @@
 export type DocKind = "pdf" | "xlsx";
 
-// "Excel/Tabelle" checked first so a spreadsheet request never matches PDF.
-const XLSX_RE =
-  /\b(excel|xlsx|spreadsheet|tabellenkalkulation)\b|excel[-\s]?(tabelle|datei|sheet)|als\s+excel|(erstelle|generiere|mach|baue|create|generate|export|exportiere)\b[^.]*\b(excel|tabelle|spreadsheet)\b/i;
-const PDF_RE =
-  /\bpdf\b|als\s+pdf|(erstelle|generiere|mach|baue|create|generate|export|exportiere)\b[^.]*\bpdf\b/i;
-
-/** Detect a document-generation intent in the user's prompt (or null). */
-export function detectDocIntent(text: string): DocKind | null {
-  const t = text || "";
-  if (XLSX_RE.test(t)) return "xlsx";
-  if (PDF_RE.test(t)) return "pdf";
-  return null;
-}
-
-// The special fenced block the model emits: ```generate-file:pdf\n…\n```
-const FENCE = /```generate-file:(pdf|xlsx|excel|csv|docx)[^\n]*\n([\s\S]*?)```/gi;
-
-/** Extract generate-file blocks from an assistant answer → {kind, content}. */
-export function parseGenerateFileBlocks(text: string): { kind: DocKind; content: string }[] {
-  const out: { kind: DocKind; content: string }[] = [];
-  for (const m of (text || "").matchAll(FENCE)) {
-    const tag = m[1].toLowerCase();
-    const kind: DocKind = tag === "pdf" || tag === "docx" ? "pdf" : "xlsx";
-    const content = m[2].trim();
-    if (content) out.push({ kind, content });
-  }
-  return out;
-}
-
-/** Remove the generate-file blocks from the answer shown to the user. */
-export function stripGenerateFileBlocks(text: string): string {
-  return (text || "").replace(FENCE, "").replace(/\n{3,}/g, "\n\n").trim();
-}
+/** Matches the start of a full HTML document (not a small snippet). */
+const FULL_HTML_RE = /<!doctype html|<html[\s>]/i;
 
 /** A full HTML document (not a small snippet) → treat as a document to print. */
-export const isFullHtml = (s: string) => /<!doctype html|<html[\s>]/i.test(s || "");
+export const isFullHtml = (s: string) => FULL_HTML_RE.test(s || "");
 
 // Any fenced block: ```lang\n…\n```
 const ANY_FENCE = /```([^\n]*)\n([\s\S]*?)```/g;
@@ -107,14 +76,13 @@ export const HTML_DOC_INSTRUCTION =
 export const looksLikeHtml = (s: string) =>
   /<\s*(html|body|table|thead|tbody|tr|h[1-6]|div|section|p|ul|ol)\b/i.test(s || "");
 
-const HTML_START = /<!doctype html|<html[\s>]/i;
 const HTMLISH = /class=|<table|<thead|<tbody|<tr\b|<h[1-6][\s>]|<body|<section|<ul\b|<ol\b/i;
 
 /** Extract an HTML document from an answer: full <html>/<!doctype> region
  *  (closed or unclosed), else a fenced html block, else an HTML-ish fragment. */
 export function extractHtmlDoc(text: string): string | null {
   const t = text || "";
-  const start = t.search(HTML_START);
+  const start = t.search(FULL_HTML_RE);
   if (start >= 0) {
     const end = t.toLowerCase().lastIndexOf("</html>");
     return end > start ? t.slice(start, end + 7) : t.slice(start);
@@ -128,7 +96,7 @@ export function extractHtmlDoc(text: string): string | null {
 /** Remove a raw HTML document from the shown answer. */
 export function stripHtmlDoc(text: string): string {
   let t = text || "";
-  const start = t.search(HTML_START);
+  const start = t.search(FULL_HTML_RE);
   if (start >= 0) {
     const end = t.toLowerCase().lastIndexOf("</html>");
     t = end > start ? t.slice(0, start) + t.slice(end + 7) : t.slice(0, start);

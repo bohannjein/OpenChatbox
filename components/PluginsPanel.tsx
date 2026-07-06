@@ -38,10 +38,12 @@ function Switch({
   on,
   onClick,
   disabled,
+  title,
 }: {
   on: boolean;
   onClick: () => void;
   disabled?: boolean;
+  title?: string;
 }) {
   return (
     <button
@@ -49,6 +51,7 @@ function Switch({
       aria-checked={on}
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={
         "relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition " +
         (on ? "bg-accent" : "bg-neutral-300 dark:bg-white/20")
@@ -281,24 +284,12 @@ export default function PluginsPanel() {
                 <div className="text-sm font-medium">{label}</div>
                 <div className="text-xs text-neutral-500">{desc}</div>
               </div>
-              <button
-                role="switch"
-                aria-checked={flags[key]}
+              <Switch
+                on={flags[key]}
                 onClick={() => toggle(key)}
                 disabled={saving === key}
-                className={
-                  "relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition " +
-                  (flags[key] ? "bg-accent" : "bg-neutral-300 dark:bg-white/20")
-                }
                 title={flags[key] ? "Aktiv" : "Deaktiviert"}
-              >
-                <span
-                  className={
-                    "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all " +
-                    (flags[key] ? "left-[18px]" : "left-0.5")
-                  }
-                />
-              </button>
+              />
             </div>
           ))}
         </div>

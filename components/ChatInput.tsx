@@ -124,12 +124,12 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
         run: () => fileRef.current?.click(),
       },
       {
-        // inline: completing "/model " opens the model list INSIDE this menu.
+        // inline: completing "/model " opens the model list INSIDE this menu,
+        // so there is no direct `run` action (the inline path never calls it).
         cmd: "/model",
         label: "Modell wählen",
         Icon: Cpu,
         inline: true,
-        run: () => window.dispatchEvent(new Event("openModelSwitcher")),
       },
       {
         cmd: "/sidekick",
@@ -256,7 +256,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
   const runCommand = (c: (typeof COMMANDS)[number]) => {
     changeValue("");
     setMenuClosed(true);
-    c.run();
+    c.run?.(); // inline commands (e.g. /model) have no run — expanded in-menu
     requestAnimationFrame(() => taRef.current?.focus());
   };
 

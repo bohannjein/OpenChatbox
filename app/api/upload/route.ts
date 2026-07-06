@@ -2,14 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { kindOf, type Attachment, type AttachmentKind } from "@/lib/files";
 import { isOfficeFile, parseOffice } from "@/lib/server/officeParse";
 import { getPlugins } from "@/lib/server/config";
+import { MAX_BYTES } from "@/lib/server/http";
 import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-// Per-file cap. Base64-inlined images bloat the later chat request, so keep
-// uploads sane. Reject bigger ones with a clean JSON error, not a stack trace.
-const MAX_BYTES = 25 * 1024 * 1024; // 25 MB
 
 const TEXT_KINDS = new Set<AttachmentKind>(["text"]);
 

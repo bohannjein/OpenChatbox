@@ -50,7 +50,8 @@ export async function processFile(file: File): Promise<Attachment> {
     return { ...base, text };
   }
   if (kind === "pdf") {
-    // Client-seitige PDF-Textextraktion braucht pdf.js (separates Feature).
+    // PDFs sind hier nur ein Platzhalter: Textextraktion (pdf.js) und OCR laufen
+    // separat in lib/pdfToImages.ts bzw. serverseitig, nicht in diesem Reader.
     return {
       ...base,
       note: "PDF angehängt — Textinhalt wird derzeit nicht ausgelesen.",
@@ -63,20 +64,6 @@ export async function processFile(file: File): Promise<Attachment> {
   } catch {
     return { ...base, note: "Dateityp nicht unterstützt." };
   }
-}
-
-/** Merge attachment texts into the outgoing prompt as context blocks. */
-export function buildPromptWithAttachments(
-  text: string,
-  attachments: Attachment[]
-): string {
-  const blocks = attachments
-    .filter((a) => a.text && a.text.trim())
-    .map(
-      (a) => `\n\n--- Datei: ${a.name} ---\n${a.text!.trim()}\n--- Ende ${a.name} ---`
-    )
-    .join("");
-  return (text + blocks).trim();
 }
 
 export const imageDataUrls = (attachments: Attachment[]) =>

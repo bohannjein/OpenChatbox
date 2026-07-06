@@ -71,9 +71,3 @@ export function deleteRole(id: string): boolean {
   save(roles.filter((r) => r.id !== id));
   return true;
 }
-
-/** Enforcement helper: does the given role id grant a permission? */
-export function roleHasPermission(roleId: string, key: string): boolean {
-  if (roleId === "admin") return true;
-  return listRoles().find((r) => r.id === roleId)?.permissions.includes(key) ?? false;
-}

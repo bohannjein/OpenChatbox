@@ -20,5 +20,4 @@ export const PERMISSIONS = [
   { key: "terminal.access", label: "Darf Server-Terminal nutzen", desc: "Admin-Terminal / Ollama-Befehle ausführen." },
 ] as const;
 
-export type PermissionKey = (typeof PERMISSIONS)[number]["key"];
 export const ALL_PERMISSIONS: string[] = PERMISSIONS.map((p) => p.key);

@@ -20,9 +20,10 @@ interface Doc {
 }
 
 /**
- * Knowledge-base management: create categories and upload files (PDF/TXT/DOCX).
- * Text is extracted client-side, then indexed server-side (chunk + embed via
- * Ollama) into the per-user local vector store.
+ * Knowledge-base management: create categories and upload files
+ * (PDF, TXT, DOCX, MD, CSV, PPTX, XLSX). Text is extracted client-side, then
+ * indexed server-side (chunk + embed via Ollama) into the per-user local
+ * vector store.
  */
 export default function KnowledgeBasePanel() {
   const kbEnabled = useStore((s) => s.kbEnabled);
@@ -120,7 +121,7 @@ export default function KnowledgeBasePanel() {
       <div className="mb-3">
         <h3 className="font-medium">Wissensdatenbank</h3>
         <p className="text-sm text-neutral-500">
-          Eigene Kategorien + Dokumente (PDF, TXT, DOCX). Bei aktivierter Nutzung
+          Eigene Kategorien + Dokumente (PDF, TXT, DOCX, MD, CSV, PPTX, XLSX). Bei aktivierter Nutzung
           durchsucht der Chat vorab die Datenbank und belegt Antworten mit Quellen.
         </p>
       </div>

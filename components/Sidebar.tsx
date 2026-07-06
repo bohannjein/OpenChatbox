@@ -27,13 +27,12 @@ import {
 } from "lucide-react";
 import { useStore, inWorkspace } from "@/lib/store";
 import { useClickOutside } from "@/lib/useClickOutside";
-import type { Folder } from "@/lib/types";
+import type { Chat, Folder } from "@/lib/types";
 import { SidekickAvatar } from "./SidekickIcon";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import AsciiSpinner from "./AsciiSpinner";
 import Modal from "./Modal";
 import { useT } from "@/lib/i18n";
-import type { Chat } from "@/lib/types";
 
 // Soft top/bottom fade so chat titles melt into the edges instead of hard-cutting.
 const LIST_FADE =
@@ -122,8 +121,7 @@ export default function Sidebar() {
     setSettingsTab("account");
     setSettingsOpen(true);
   };
-  const logout = async () => {
-    setMenuOpen(false);
+  const endSession = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } catch {
@@ -134,7 +132,18 @@ export default function Sidebar() {
     } catch {
       /* ignore */
     }
+  };
+  const logout = async () => {
+    setMenuOpen(false);
+    await endSession();
     router.push("/login");
+  };
+  // Account wechseln: aktuelle Session beenden und einen frischen Login-Flow
+  // starten (statt den Nutzer nur auszuloggen und im leeren Zustand zu lassen).
+  const switchAccount = async () => {
+    setMenuOpen(false);
+    await endSession();
+    router.push("/login?switch=1");
   };
 
   const startEdit = (id: string, title: string) => {
@@ -579,7 +588,7 @@ export default function Sidebar() {
             {authUser?.username ?? "Angemeldet"}
           </div>
           <button
-            onClick={logout}
+            onClick={switchAccount}
             className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-white/[0.04]"
           >
             <Users size={16} strokeWidth={1.5} className="shrink-0 text-zinc-400" />

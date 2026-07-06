@@ -1113,11 +1113,10 @@ export const useStore = create<State>()(
       version: 8,
       // localStorage-backed, but tolerant of quota errors (see safeStorage).
       storage: createJSONStorage(() => safeStorage),
-      // Server is now the source of truth for per-user prefs + admin-global
-      // config (hydrated on load via lib/serverSync). localStorage only keeps
-      // (a) chats — still local for now (Phase 2), and (b) a small no-flash
-      // cache of theme/branding read by the pre-hydration script in layout.tsx.
-      // Images (base64 data URLs) are stripped: they'd blow the ~5MB quota.
+      // Server is the source of truth for chats, per-user prefs + admin-global
+      // config (hydrated on load via lib/serverSync). partialize below persists
+      // NO chats — only a small no-flash cache of theme/branding + workspace UI,
+      // read by the pre-hydration script in layout.tsx.
       partialize: (s) => ({
         // Server is the source of truth. localStorage keeps ONLY appearance (for
         // a no-flash first paint) + a small workspace-UI cache. Chats, providers

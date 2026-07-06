@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 
-export const SIDEKICK_ICONS: { id: string; Icon: LucideIcon }[] = [
+const SIDEKICK_ICONS: { id: string; Icon: LucideIcon }[] = [
   { id: "star", Icon: Star },
   { id: "smile", Icon: Smile },
   { id: "briefcase", Icon: Briefcase },
@@ -29,7 +29,7 @@ export const SIDEKICK_ICONS: { id: string; Icon: LucideIcon }[] = [
 ];
 
 // vibrant solid colors — white icon sits on top
-export const SIDEKICK_COLORS: { id: string; color: string }[] = [
+const SIDEKICK_COLORS: { id: string; color: string }[] = [
   { id: "rose", color: "#f43f5e" },
   { id: "amber", color: "#f59e0b" },
   { id: "emerald", color: "#10b981" },
@@ -37,9 +37,9 @@ export const SIDEKICK_COLORS: { id: string; color: string }[] = [
   { id: "violet", color: "#8b5cf6" },
 ];
 
-export const iconById = (id: string) =>
+const iconById = (id: string) =>
   SIDEKICK_ICONS.find((i) => i.id === id) ?? SIDEKICK_ICONS[0];
-export const colorById = (id: string) =>
+const colorById = (id: string) =>
   SIDEKICK_COLORS.find((c) => c.id === id) ?? SIDEKICK_COLORS[3];
 
 export const DEFAULT_ICON = "star";

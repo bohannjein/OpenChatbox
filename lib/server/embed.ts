@@ -5,7 +5,7 @@ import { getConfig, getProviders } from "./config";
  * (falling back to primaryProvider / env / localhost) and the configured
  * embedding model (default nomic-embed-text). Server-side only.
  */
-export function embeddingModel(): string {
+function embeddingModel(): string {
   return (
     getConfig().embeddingModel?.trim() ||
     process.env.OLLAMA_EMBED_MODEL ||
