@@ -152,8 +152,10 @@ export function toolDefs(writeEnabled: boolean): ToolDef[] {
 /**
  * Anti-drift search protocol injected as a system message whenever the BookStack
  * tools are active. Bounds retries (no infinite tool loops), forbids answering
- * "not in the wiki" before actually reading candidate pages, and prescribes the
- * search → read → answer-with-source flow.
+ * "not in the wiki" before actually reading candidate pages, prescribes the
+ * search → read → answer-with-source flow, and — on error/"doesn't work" intent —
+ * deep-scans the page for troubleshooting/fallback sections and autonomously
+ * follows links to alternative pages.
  */
 export const BOOKSTACK_SYSTEM_PROMPT = `PRODUKTIV-REGELN FÜR DIE BOOKSTACK-SUCHE:
 1. Such-Limit (Max 2 Versuche): Wenn du einen Begriff suchst und nach maximal zwei unterschiedlichen Suchanfragen (z.B. einmal breit, einmal exakt mit Anführungszeichen) kein passendes Ergebnis findest, stoppe sofort. Halluziniere keine Inhalte und starte keine Endlosschleife. Frage stattdessen den Nutzer nach dem genauen Pfad oder dem Namen der Seite.
@@ -164,7 +166,16 @@ export const BOOKSTACK_SYSTEM_PROMPT = `PRODUKTIV-REGELN FÜR DIE BOOKSTACK-SUCH
    - Schritt C: Rufe die relevanteste Seite mit 'bookstack_get_page' ab und lies den Inhalt.
    - Schritt D: Beantworte die Nutzerfrage präzise unter Angabe der BookStack-Seiten-ID als Quelle.
 4. Ausgabe: Diese Schritte (A–D) und deine Analyse der Quellen sind deine INTERNE Vorgehensweise. Gib sie NIEMALS im Antworttext aus (kein "Thinking Process", keine "Scan Sources"-Aufzählung). Antworte dem Nutzer ausschließlich mit dem fertigen Ergebnis.
-5. Nichts gefunden = sag es: Wenn du nach den erlaubten Suchversuchen nichts Passendes findest, teile dem Nutzer klar mit, dass die gesuchte Information nicht im Wiki steht. Erfinde niemals Inhalte.`;
+5. Nichts gefunden = sag es: Wenn du nach den erlaubten Suchversuchen nichts Passendes findest, teile dem Nutzer klar mit, dass die gesuchte Information nicht im Wiki steht. Erfinde niemals Inhalte.
+
+TROUBLESHOOTING, FEHLERBEHEBUNG & ALTERNATIVEN:
+1. Fehler-Intent erkennen: Sobald der Nutzer signalisiert, dass eine Anleitung nicht funktioniert (z. B. "geht nicht", "Fehler", "klappt nicht", "Alternative?", "andere Lösung"), schalte sofort in den "Troubleshooting-Scan-Modus".
+2. Tiefenscan der aktuellen Seite: Lies die geöffnete Wiki-Seite nicht nur oberflächlich. Suche gezielt nach Abschnitten wie "Fehlerbehebung", "Troubleshooting", "Fallback", "Alternative", "Einschränkungen" oder "Wichtig".
+3. Proaktive Link-Verfolgung (Crucial Rule):
+   - Wenn im Troubleshooting-Abschnitt der aktuellen Seite auf eine andere Wiki-Seite oder ein anderes Buch verwiesen wird (z. B. "Nutzen Sie stattdessen die Anleitung für den blauen Keyreader [Link/ID 456]"), darfst du nicht stoppen.
+   - Rufe SOFORT und autonom im selben Schritt diese verlinkte Seite mit 'bookstack_get_page' ab, um die Alternative direkt parat zu haben.
+4. Lösungsorientierte Antwortstruktur: Formuliere deine Antwort bei Problemen immer proaktiv und biete Auswege an:
+   - "Ich sehe, dass die Einrichtung des schwarzen Keyreaders bei dir fehlschlägt. Laut Wiki gibt es dafür folgenden Fallback: [Schritt-für-Schritt-Alternative aus dem Wiki]. Alternativ verweist der Eintrag auf die Anleitung für den blauen Keyreader. Soll ich diese für dich öffnen?"`;
 
 // ── REST helpers ────────────────────────────────────────────────────────────
 
