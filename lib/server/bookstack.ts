@@ -62,7 +62,11 @@ const ALL_TOOLS: ToolDef[] = [
     parameters: {
       type: "object",
       properties: {
-        query: { type: "string", description: "Suchbegriff / Frage" },
+        query: {
+          type: "string",
+          description:
+            'Der Suchbegriff. Nutze BookStack-Filter für maximale Präzision: Nutze Anführungszeichen "suchbegriff" für exakte Treffer. Nutze \'{in_name:begriff}\', um gezielt nur in Seitentiteln zu suchen. Nutze \'{type:page}\' oder \'{type:book}\', um nach bestimmten Typen zu filtern. Beispiel: \'"Docker Setup" {in_name:Docker} {type:page}\'',
+        },
         count: { type: "integer", description: "Max. Treffer (Standard 6)" },
       },
       required: ["query"],
@@ -88,11 +92,13 @@ const ALL_TOOLS: ToolDef[] = [
   {
     name: "bookstack_get_page",
     description:
-      "Liest den vollständigen Inhalt (Markdown) einer Wiki-Seite anhand ihrer page_id.",
+      "Hole den vollständigen Markdown-Inhalt einer spezifischen Wiki-Seite anhand ihrer ID. Suchergebnisse liefern nur Titel — nutze dieses Tool, um eine Seite tatsächlich zu LESEN, bevor du ihren Inhalt beurteilst.",
     write: false,
     parameters: {
       type: "object",
-      properties: { page_id: { type: "integer", description: "ID der Seite" } },
+      properties: {
+        page_id: { type: "integer", description: "Die ID der zu lesenden Seite" },
+      },
       required: ["page_id"],
     },
   },
@@ -142,6 +148,21 @@ const ALL_TOOLS: ToolDef[] = [
 export function toolDefs(writeEnabled: boolean): ToolDef[] {
   return writeEnabled ? ALL_TOOLS : ALL_TOOLS.filter((t) => !t.write);
 }
+
+/**
+ * Anti-drift search protocol injected as a system message whenever the BookStack
+ * tools are active. Bounds retries (no infinite tool loops), forbids answering
+ * "not in the wiki" before actually reading candidate pages, and prescribes the
+ * search → read → answer-with-source flow.
+ */
+export const BOOKSTACK_SYSTEM_PROMPT = `PRODUKTIV-REGELN FÜR DIE BOOKSTACK-SUCHE:
+1. Such-Limit (Max 2 Versuche): Wenn du einen Begriff suchst und nach maximal zwei unterschiedlichen Suchanfragen (z.B. einmal breit, einmal exakt mit Anführungszeichen) kein passendes Ergebnis findest, stoppe sofort. Halluziniere keine Inhalte und starte keine Endlosschleife. Frage stattdessen den Nutzer nach dem genauen Pfad oder dem Namen der Seite.
+2. Erst Lesen, dann behaupten: Behaupte niemals, dass eine Information nicht im Wiki steht, bevor du nicht die verdächtigen Seiten mit 'bookstack_get_page' tatsächlich geöffnet und gelesen hast. Suchergebnisse liefern dir nur die Titel!
+3. Strukturierter Ablauf bei Wissensfragen:
+   - Schritt A: Nutze 'bookstack_search' mit '{in_name:Suchbegriff}' für eine präzise Suche.
+   - Schritt B: Analysiere die IDs der Suchergebnisse.
+   - Schritt C: Rufe die relevanteste Seite mit 'bookstack_get_page' ab und lies den Inhalt.
+   - Schritt D: Beantworte die Nutzerfrage präzise unter Angabe der BookStack-Seiten-ID als Quelle.`;
 
 // ── REST helpers ────────────────────────────────────────────────────────────
 
@@ -247,12 +268,14 @@ function describeFetchError(e: unknown): string {
   return err?.message ? `${err.message}${code ? ` (${code})` : ""}` : String(e);
 }
 
-async function api<T = unknown>(
+/** One authenticated BookStack request. Throws a friendly Error on a network/
+ *  TLS failure or a non-2xx status; returns the raw response otherwise. */
+async function send(
   cfg: BookstackResolved,
   method: string,
   pathAndQuery: string,
   body?: unknown
-): Promise<T> {
+): Promise<RawResponse> {
   const url = `${cfg.baseUrl}/api${pathAndQuery}`;
   const payload = body ? JSON.stringify(body) : undefined;
 
@@ -288,7 +311,23 @@ async function api<T = unknown>(
     throw new Error(`BookStack HTTP ${res.status}: ${String(msg).slice(0, 300)}`);
   }
   console.log(`[bookstack] ${method} ${url} → HTTP ${res.status} OK (${res.text.length} B)`);
+  return res;
+}
+
+/** JSON request helper (parses the response body). */
+async function api<T = unknown>(
+  cfg: BookstackResolved,
+  method: string,
+  pathAndQuery: string,
+  body?: unknown
+): Promise<T> {
+  const res = await send(cfg, method, pathAndQuery, body);
   return (res.text ? JSON.parse(res.text) : {}) as T;
+}
+
+/** Raw-text GET helper — for endpoints that return a file/markdown, not JSON. */
+async function apiText(cfg: BookstackResolved, pathAndQuery: string): Promise<string> {
+  return (await send(cfg, "GET", pathAndQuery)).text;
 }
 
 export interface TestResult {
@@ -476,6 +515,7 @@ export async function runTool(
       case "bookstack_get_page": {
         const pageId = num(args.page_id);
         if (pageId == null) return { text: "page_id fehlt oder ungültig." };
+        // Metadata (title/slug/book) for the title + source link.
         const p = await api<{
           name?: string;
           slug?: string;
@@ -483,10 +523,28 @@ export async function runTool(
           markdown?: string;
           html?: string;
         }>(cfg, "GET", `/pages/${pageId}`);
-        const bodyMd = (p.markdown || p.html || "").toString();
+        // Prefer BookStack's clean Markdown export; fall back to the page's own
+        // markdown, then a tag-stripped html — so HTML-authored pages still read
+        // as sensible text instead of raw markup.
+        let bodyMd = "";
+        try {
+          bodyMd = (await apiText(cfg, `/pages/${pageId}/export/markdown`)).trim();
+        } catch (e) {
+          console.error(
+            `[bookstack] Markdown-Export für Seite #${pageId} fehlgeschlagen, nutze Fallback: ${
+              e instanceof Error ? e.message : String(e)
+            }`
+          );
+        }
+        if (!bodyMd)
+          bodyMd = (p.markdown || (p.html ? p.html.replace(/<[^>]+>/g, " ") : "") || "")
+            .toString()
+            .trim();
         const url = await pageUrl(cfg, p);
         return {
-          text: `Seite „${p.name ?? pageId}" (#${pageId}):\n\n${bodyMd.slice(0, 6000)}`,
+          text: `Seite „${p.name ?? pageId}" (#${pageId}):\n\n${
+            bodyMd.slice(0, 6000) || "(kein Inhalt)"
+          }`,
           sources: p.name ? [{ title: p.name, url }] : undefined,
         };
       }

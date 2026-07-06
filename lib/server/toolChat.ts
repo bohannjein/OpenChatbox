@@ -1,5 +1,11 @@
 import { getBookstackConfig } from "./config";
-import { toolDefs, runTool, toolLabel, type SourceLink } from "./bookstack";
+import {
+  toolDefs,
+  runTool,
+  toolLabel,
+  BOOKSTACK_SYSTEM_PROMPT,
+  type SourceLink,
+} from "./bookstack";
 
 /**
  * Agentic tool-calling loop for the BookStack integration. Runs the model with
@@ -77,6 +83,9 @@ export function runToolChat(o: ToolChatOpts): ReadableStream<Uint8Array> {
         role: m.role,
         content: m.content,
       }));
+      // Prepend the anti-drift search protocol so it frames the whole session
+      // (bounded retries, read-before-claim, search→read→answer-with-source).
+      msgs.unshift({ role: "system", content: BOOKSTACK_SYSTEM_PROMPT });
       const sources: SourceLink[] = [];
       const seen = new Set<string>();
 
