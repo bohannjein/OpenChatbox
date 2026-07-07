@@ -11,6 +11,7 @@ import {
   Star,
   Sparkles,
   Zap,
+  Lock,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import {
@@ -38,6 +39,7 @@ export default function ModelSwitcher() {
   const setChatModel = useStore((s) => s.setChatModel);
   const autoRouter = useStore((s) => s.autoRouter);
   const setAutoRouter = useStore((s) => s.setAutoRouter);
+  const guestMode = useStore((s) => s.guestMode);
 
   const activeChat = chats.find((c) => c.id === activeChatId);
   const activeSidekickId = activeChat?.sidekickId ?? null;
@@ -180,6 +182,24 @@ export default function ModelSwitcher() {
       </button>
     </div>
   );
+
+  // Guests are pinned to the admin's guest model — show a locked, static label.
+  if (guestMode) {
+    const gLabel = current
+      ? name(current)
+      : selectedModelKey
+      ? displayName(aliases, selectedModelKey, parseModelKey(selectedModelKey).model)
+      : "Gast-Modell";
+    return (
+      <div
+        title="Im Gast-Modus ist das Modell festgelegt."
+        className="flex cursor-default items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-neutral-500"
+      >
+        <Lock size={14} strokeWidth={1.5} />
+        <span className="max-w-[50vw] truncate">{gLabel}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="relative" ref={ref}>

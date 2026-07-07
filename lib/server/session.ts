@@ -49,9 +49,12 @@ export interface SessionPayload {
   uid: string;
   username: string;
   role: string;
-  purpose?: "session" | "2fa";
+  purpose?: "session" | "2fa" | "guest";
   exp: number;
 }
+
+/** Synthetic uid carried by a guest session (no stored user record). */
+export const GUEST_UID = "guest";
 
 function sign(payload: SessionPayload): string {
   const body = b64u(JSON.stringify(payload));
@@ -91,6 +94,16 @@ export const makeSession = (u: {
     role: u.role,
     purpose: "session",
     exp: Date.now() + SESSION_TTL,
+  });
+
+/** A guest session cookie — no stored user, role "guest", 1-day lifetime. */
+export const makeGuestSession = () =>
+  sign({
+    uid: GUEST_UID,
+    username: "Gast",
+    role: "guest",
+    purpose: "guest",
+    exp: Date.now() + 1000 * 60 * 60 * 24,
   });
 
 export const makePendingTicket = (u: { id: string; username: string; role: string }) =>

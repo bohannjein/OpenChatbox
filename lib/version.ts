@@ -8,7 +8,7 @@
  * for every user until they open the Info tab again.
  */
 
-export const APP_VERSION = "0.9.0";
+export const APP_VERSION = "0.10.0";
 
 /** owner/name form, shown as a label. */
 export const REPO_NAME = "bohannjein/OpenChatbox";
@@ -27,6 +27,15 @@ export interface ChangelogEntry {
 /** Newest first. The top entry's version drives the notification dot. Kept in
  *  sync with the GitHub releases (same version + scope). */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "0.10.0",
+    date: "2026-07-07",
+    items: [
+      "Microsoft Entra ID (Azure AD) Single Sign-On: Anmeldung mit dem Firmen-Account; Name, E-Mail und Rolle werden übernommen, mit optionaler Beschränkung auf den eigenen Mandanten.",
+      "Einstellbare Selbstregistrierung: „Registrieren“ lässt sich an-/abschalten, optional beschränkt auf erlaubte E-Mail-Domains. Ohne Freigabe legen nur Admins Konten an.",
+      "Gast-Zugang: optionale Nutzung ohne Anmeldung mit einem festgelegten, ressourcenschonenden Gast-Modell. Verläufe sind flüchtig; Verlauf, Workspaces, Wissensdatenbank, Sidekicks und Einstellungen sind für Gäste gesperrt.",
+    ],
+  },
   {
     version: "0.9.0",
     date: "2026-07-07",

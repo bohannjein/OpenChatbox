@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { oidcConfig, decodeJwtPayload } from "@/lib/server/oidc";
+import { oidcConfig, decodeJwtPayload, profileFromClaims } from "@/lib/server/oidc";
 import { upsertSsoUser } from "@/lib/server/users";
 import {
   makeSession,
@@ -45,15 +45,19 @@ export async function GET(req: NextRequest) {
   if (!idToken) return NextResponse.redirect(`${origin}/login?error=sso_token`);
 
   const claims = decodeJwtPayload(idToken);
-  const username =
-    (claims.preferred_username as string) ||
-    (claims.email as string) ||
-    (claims.upn as string) ||
-    (claims.sub as string);
-  if (!username)
+
+  // Optional tenant restriction: only accept users from the configured Entra
+  // organization (the ID token's `tid` claim must match).
+  if (cfg.tenantId && String(claims.tid ?? "") !== cfg.tenantId)
+    return NextResponse.redirect(`${origin}/login?error=sso_tenant`);
+
+  const profile = profileFromClaims(claims);
+  if (!profile.username)
     return NextResponse.redirect(`${origin}/login?error=sso_claims`);
 
-  const user = upsertSsoUser(username, "entra");
+  // Sync name/email/role into the local user store and issue a session with the
+  // (possibly IdP-mapped) role.
+  const user = upsertSsoUser(profile, "entra");
   const res = NextResponse.redirect(origin + "/");
   res.cookies.set(SESSION_COOKIE, makeSession(user), sessionCookieOptions(req));
   res.cookies.set("oidc_state", "", { path: "/", maxAge: 0 });

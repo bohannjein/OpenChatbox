@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import type { ChatRequest } from "@/lib/types";
-import { getProviderById, getBookstackConfig } from "@/lib/server/config";
+import { getProviderById, getBookstackConfig, getGuestConfig } from "@/lib/server/config";
+import { verify, SESSION_COOKIE } from "@/lib/server/session";
+import { parseModelKey } from "@/lib/providers";
 import { runToolChat } from "@/lib/server/toolChat";
 import { stripPrefix, mimeOf, NDJSON_HEADERS } from "@/lib/server/http";
 import { applyContextWindow } from "@/lib/server/context";
@@ -26,14 +28,35 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Guest-session guard: a guest cookie passes the middleware but has no stored
+  // user. Guests may ONLY use the admin-pinned guest model — hard-override the
+  // provider + model (ignoring anything the client asked for) and disable tools,
+  // so an unauthenticated visitor can't spend budget on other/bigger models.
+  const sess = verify(req.cookies.get(SESSION_COOKIE)?.value);
+  const isGuest = sess?.purpose === "guest";
+  let guestModel: string | undefined;
+  if (isGuest) {
+    const g = getGuestConfig();
+    if (!g.enabled || !g.model)
+      return Response.json({ error: "Gast-Zugang ist nicht aktiviert." }, { status: 403 });
+    const gm = parseModelKey(g.model);
+    guestModel = gm.model;
+    body.providerId = gm.providerId;
+    body.tools = false;
+  }
+
   // Resolve the provider: when a providerId is given, use the server-stored
   // provider (incl. its secret apiKey) so the key never lives in the client;
-  // otherwise fall back to the client-sent baseUrl/type/apiKey.
+  // otherwise fall back to the client-sent baseUrl/type/apiKey. Guests must
+  // always resolve to a server-registered provider (no client-supplied endpoint).
   const resolved = body.providerId ? getProviderById(body.providerId) : undefined;
+  if (isGuest && !resolved)
+    return Response.json({ error: "Gast-Modell ist nicht verfügbar." }, { status: 503 });
   const type = resolved?.type ?? body.type;
   const baseUrl = (resolved?.baseUrl ?? body.baseUrl ?? "").replace(/\/+$/, "");
   const apiKey = resolved?.apiKey ?? body.apiKey;
-  const { model, messages, params } = body;
+  const { messages, params } = body;
+  const model = isGuest ? guestModel! : body.model;
   if (!baseUrl || !model || !messages)
     return Response.json(
       { error: "baseUrl, model und messages erforderlich." },

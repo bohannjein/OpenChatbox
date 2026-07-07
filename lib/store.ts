@@ -248,6 +248,12 @@ interface State {
   // auth (transient, not persisted)
   authUser: AuthUser | null;
   setAuthUser: (u: AuthUser | null) => void;
+  /** guest mode: unauthenticated visitor allowed to chat with the guest model.
+   *  UI is locked down (no history/panels/settings) and chats are ephemeral. */
+  guestMode: boolean;
+  setGuestMode: (v: boolean) => void;
+  /** the single model key guests may use (admin-configured, from /api/config). */
+  guestModelKey: string | null;
   // admin plugin master-switches (transient, fetched from /api/config)
   plugins: { officeParser: boolean; ocrEngine: boolean; docGenerator: boolean } | null;
   setPluginFlags: (p: State["plugins"]) => void;
@@ -472,6 +478,9 @@ export const useStore = create<State>()(
       toggleKb: () => set((s) => ({ kbEnabled: !s.kbEnabled })),
       authUser: null,
       setAuthUser: (authUser) => set({ authUser }),
+      guestMode: false,
+      setGuestMode: (guestMode) => set({ guestMode }),
+      guestModelKey: null,
       plugins: null,
       setPluginFlags: (plugins) => set({ plugins }),
       searchAvailable: false,
@@ -504,6 +513,7 @@ export const useStore = create<State>()(
           searchAvailable: c.search?.enabled ?? s.searchAvailable,
           imageGenAvailable: c.imageGen?.enabled ?? s.imageGenAvailable,
           bookstackAvailable: c.bookstack?.enabled ?? s.bookstackAvailable,
+          guestModelKey: c.guest ? c.guest.model : s.guestModelKey,
         })),
 
       // Apply the per-user profile fetched from the server (source of truth).

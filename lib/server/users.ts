@@ -12,6 +12,9 @@ export interface User {
   role: "admin" | "poweruser" | "user";
   /** identity provider: "local" | "entra" | "ad" */
   provider: string;
+  /** email + display name (populated for SSO accounts from the ID token) */
+  email?: string;
+  displayName?: string;
   twoFactor: { enabled: boolean; secret?: string; pending?: string };
   /** admin-blocked accounts can't log in */
   blocked?: boolean;
@@ -143,11 +146,38 @@ export function updateUser(id: string, patch: Partial<User>) {
   save(users);
 }
 
-/** Find a linked SSO user or create one on first login. */
-export function upsertSsoUser(username: string, provider: string): User {
-  const existing = findByUsername(username);
-  if (existing) return existing;
-  return createUser(username, "", { provider });
+export interface SsoProfile {
+  username: string;
+  email?: string;
+  displayName?: string;
+  role?: User["role"];
+}
+
+/**
+ * Find a linked SSO user or create one on first login, and sync the profile
+ * (email, display name, role) from the identity provider each time — the IdP is
+ * the source of truth for SSO accounts. The built-in admin is never touched.
+ */
+export function upsertSsoUser(profile: SsoProfile, provider: string): User {
+  const existing = findByUsername(profile.username);
+  if (existing) {
+    const patch: Partial<User> = {};
+    if (profile.email && profile.email !== existing.email) patch.email = profile.email;
+    if (profile.displayName && profile.displayName !== existing.displayName)
+      patch.displayName = profile.displayName;
+    // Sync role from the IdP, but never demote the permanent built-in admin.
+    if (profile.role && profile.role !== existing.role && !isBuiltinAdmin(existing))
+      patch.role = profile.role;
+    if (Object.keys(patch).length) {
+      updateUser(existing.id, patch);
+      return { ...existing, ...patch };
+    }
+    return existing;
+  }
+  const user = createUser(profile.username, "", { provider, role: profile.role });
+  if (profile.email || profile.displayName)
+    updateUser(user.id, { email: profile.email, displayName: profile.displayName });
+  return { ...user, email: profile.email, displayName: profile.displayName };
 }
 
 /** Public view (no secrets). */
@@ -155,6 +185,8 @@ export function publicUser(u: User) {
   return {
     id: u.id,
     username: u.username,
+    email: u.email,
+    displayName: u.displayName,
     role: u.role,
     provider: u.provider,
     twoFactorEnabled: u.twoFactor.enabled,

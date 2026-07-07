@@ -37,6 +37,26 @@ export async function POST(req: NextRequest) {
       .map((n) => n.trim().slice(0, 100))
       .filter(Boolean)
       .slice(0, 500);
+  if (body.selfRegistration && typeof body.selfRegistration === "object") {
+    const sr = body.selfRegistration as { enabled?: unknown; domains?: unknown };
+    patch.selfRegistration = {
+      enabled: !!sr.enabled,
+      domains: Array.isArray(sr.domains)
+        ? (sr.domains as unknown[])
+            .filter((d): d is string => typeof d === "string")
+            .map((d) => d.trim().toLowerCase().replace(/^@/, "").slice(0, 100))
+            .filter(Boolean)
+            .slice(0, 50)
+        : [],
+    };
+  }
+  if (body.guest && typeof body.guest === "object") {
+    const g = body.guest as { enabled?: unknown; model?: unknown };
+    patch.guest = {
+      enabled: !!g.enabled,
+      model: typeof g.model === "string" ? g.model.trim().slice(0, 200) || null : null,
+    };
+  }
 
   const next = setConfig(patch);
   return NextResponse.json({ config: next });

@@ -36,6 +36,11 @@ export default function AppRoot() {
   const newChat = useStore((s) => s.newChat);
   const selectChat = useStore((s) => s.selectChat);
   const setAuthUser = useStore((s) => s.setAuthUser);
+  const setGuestMode = useStore((s) => s.setGuestMode);
+  const guestMode = useStore((s) => s.guestMode);
+  const guestModelKey = useStore((s) => s.guestModelKey);
+  const selectModel = useStore((s) => s.selectModel);
+  const setAutoRouter = useStore((s) => s.setAutoRouter);
   const setSearchOpen = useStore((s) => s.setSearchOpen);
   const syncError = useStore((s) => s.syncError);
   const lang = useStore((s) => s.lang);
@@ -120,9 +125,16 @@ export default function AppRoot() {
     if (isAuthRoute || isSetupRoute || isJoinRoute) return;
     fetch("/api/auth/session")
       .then((r) => r.json())
-      .then(({ user }) => {
+      .then(({ user, guest }) => {
         setAuthUser(user ?? null);
-        const id = user?.id || "anon";
+        setGuestMode(!!guest);
+        // A cookie got us past the middleware but it's neither a valid user nor
+        // an (still-enabled) guest → stale/expired/guest-disabled. Back to login.
+        if (!user && !guest) {
+          router.replace("/login");
+          return;
+        }
+        const id = user?.id || (guest ? "guest" : "anon");
         try {
           if (localStorage.getItem("nexus-uid") !== id) {
             localStorage.setItem("nexus-uid", id);
@@ -167,6 +179,15 @@ export default function AppRoot() {
       root.style.setProperty("--accent-hover", darkenChannels(accentColor));
     }
   }, [accentColor, theme]);
+
+  // Guests are pinned to the single admin-configured guest model (and never in
+  // Auto mode) — the model switcher is locked in the UI; this enforces it in state.
+  useEffect(() => {
+    if (guestMode && guestModelKey) {
+      selectModel(guestModelKey);
+      setAutoRouter(false);
+    }
+  }, [guestMode, guestModelKey, selectModel, setAutoRouter]);
 
   // Dynamic favicon: custom logo when set, else a default chat-bubble icon.
   useEffect(() => {

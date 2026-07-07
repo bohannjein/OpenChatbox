@@ -20,6 +20,7 @@ import {
   User,
   Users,
   LogOut,
+  LogIn,
   Folder as FolderIcon,
   FolderPlus,
   ChevronRight,
@@ -53,6 +54,7 @@ export default function Sidebar() {
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const titlePendingId = useStore((s) => s.titlePendingId);
   const authUser = useStore((s) => s.authUser);
+  const guestMode = useStore((s) => s.guestMode);
   const t = useT();
   const newChat = useStore((s) => s.newChat);
   const deleteChat = useStore((s) => s.deleteChat);
@@ -322,6 +324,74 @@ export default function Sidebar() {
       </div>
     );
   };
+
+  // Guest mode: a stripped sidebar — no history, folders, workspaces, sidekicks,
+  // search or settings. Just a notice + a login button (and the theme toggle).
+  if (guestMode) {
+    return (
+      <aside
+        className={clsx(
+          "z-30 h-dvh shrink-0 overflow-hidden border-r border-border-light bg-sidebar-light dark:border-border-dark dark:bg-sidebar-dark print:hidden",
+          "fixed inset-y-0 left-0 md:static",
+          "transition-[width,transform] duration-300 ease-in-out motion-reduce:transition-none",
+          sidebarOpen ? "w-72 translate-x-0" : "w-72 -translate-x-full md:w-0 md:translate-x-0"
+        )}
+      >
+        <div className="flex h-full w-72 flex-col">
+          <div className="flex shrink-0 items-center gap-0.5 px-3 py-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoUrl} alt={appName || "Logo"} className="max-h-7 max-w-[70%] object-contain" />
+              ) : (
+                <span className="flex min-w-0 items-center gap-2 text-base font-bold tracking-tight">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent text-white">
+                    {(appName || "C").trim().charAt(0).toUpperCase()}
+                  </span>
+                  <span className="truncate">{appName || "OpenChatbox"}</span>
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              title="Sidebar einklappen"
+              className="cursor-pointer rounded-lg p-2 text-zinc-400 transition-all duration-150 hover:text-neutral-900 active:scale-95 dark:hover:bg-white/5 dark:hover:text-white"
+            >
+              <PanelLeftClose size={18} strokeWidth={1.5} />
+            </button>
+          </div>
+
+          <div className="flex flex-1 flex-col px-3 py-4">
+            <div className="rounded-xl border border-border-light bg-white/60 p-4 dark:border-border-dark dark:bg-white/5">
+              <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold">
+                <User size={16} className="text-accent" /> Gast-Modus
+              </div>
+              <p className="text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
+                Du nutzt den Gast-Modus. Melde dich an, um Verläufe zu speichern und
+                Workspaces zu nutzen.
+              </p>
+              <button
+                onClick={() => router.push("/login")}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
+              >
+                <LogIn size={16} /> Anmelden
+              </button>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center justify-end border-t border-border-light px-3 py-2 dark:border-border-dark">
+            <button
+              onClick={handleThemeClick}
+              title={theme === "light" ? "Dark Mode" : "Light Mode"}
+              className="rounded-lg p-1.5 text-zinc-500 transition-colors hover:text-neutral-900 dark:hover:text-white"
+            >
+              {theme === "light" ? <Moon size={17} strokeWidth={1.5} /> : <Sun size={17} strokeWidth={1.5} />}
+            </button>
+          </div>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <>

@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./paths";
 import { decryptSecret } from "./crypto";
+import { oidcConfig } from "./oidc";
 import type { Provider } from "@/lib/types";
 
 /**
@@ -88,6 +89,20 @@ export interface BookstackResolved {
   allowInsecure: boolean;
 }
 
+/** Self-registration policy. When disabled, only admins create accounts. */
+export interface SelfRegistrationConfig {
+  enabled: boolean;
+  /** optional allow-list of email domains ("firma.de"); empty = any domain. */
+  domains?: string[];
+}
+
+/** Guest access: unauthenticated visitors chat with a single, admin-pinned model. */
+export interface GuestConfig {
+  enabled: boolean;
+  /** the only model key (providerId::model) guests may use. */
+  model?: string | null;
+}
+
 export interface ServerConfig {
   /** display name of this instance (shown in the UI) */
   appName: string;
@@ -115,6 +130,10 @@ export interface ServerConfig {
   plugins?: PluginFlags;
   /** BookStack wiki integration (token secret encrypted, server-only) */
   bookstack?: BookstackConfig;
+  /** self-registration policy (Login-Seite „Registrieren“) */
+  selfRegistration?: SelfRegistrationConfig;
+  /** guest access policy (chat without an account) */
+  guest?: GuestConfig;
   /** Company/person proper-noun dictionary for fuzzy search correction. Each
    *  entry is a canonical name (single- or multi-word) that mistyped queries are
    *  corrected TO (Levenshtein) before the search runs. */
@@ -182,6 +201,23 @@ export function setConfig(patch: Partial<ServerConfig>): ServerConfig {
 /** Full provider registry (WITH apiKeys) — server-side only. */
 export function getProviders(): Provider[] {
   return getConfig().providers ?? [];
+}
+
+/** Self-registration policy with defaults + normalized domains (no leading @). */
+export function getSelfRegistration(): { enabled: boolean; domains: string[] } {
+  const c = getConfig().selfRegistration;
+  return {
+    enabled: !!c?.enabled,
+    domains: (c?.domains ?? [])
+      .map((d) => d.trim().toLowerCase().replace(/^@/, ""))
+      .filter(Boolean),
+  };
+}
+
+/** Guest access policy. */
+export function getGuestConfig(): { enabled: boolean; model: string | null } {
+  const c = getConfig().guest;
+  return { enabled: !!c?.enabled, model: c?.model?.trim() || null };
 }
 
 /** Admin-configured proper-noun dictionary (trimmed, non-empty entries). */
@@ -281,5 +317,18 @@ export function publicConfig(c: ServerConfig = getConfig()) {
       writeEnabled: !!c.bookstack?.writeEnabled,
       baseUrl: c.bookstack?.baseUrl ?? "",
     },
+    // Auth/access policy the login page + app shell need to render correctly.
+    selfRegistration: {
+      enabled: !!c.selfRegistration?.enabled,
+      domains: (c.selfRegistration?.domains ?? [])
+        .map((d) => d.trim().toLowerCase().replace(/^@/, ""))
+        .filter(Boolean),
+    },
+    guest: {
+      enabled: !!c.guest?.enabled,
+      model: c.guest?.model?.trim() || null,
+    },
+    // Whether Entra/OIDC SSO is configured (drives the "company login" button).
+    sso: { enabled: !!oidcConfig() },
   };
 }

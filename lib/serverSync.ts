@@ -203,6 +203,9 @@ export function startProfileSync(): () => void {
     // Never push before the first server hydration completes (would clobber the
     // server with stale local-cache values).
     if (hydrating || !ready) return;
+    // Guests are ephemeral: nothing they do is persisted server-side (and the
+    // persistence routes would 403 anyway — no stored user).
+    if (s.guestMode) return;
     const snap = JSON.stringify(profileOf(s));
     if (snap !== lastSnapshot) {
       lastSnapshot = snap;
@@ -241,6 +244,7 @@ export function startLiveSync(intervalMs = 20000): () => void {
   if (liveTimer) return () => {};
   liveTimer = setInterval(() => {
     if (!ready || hydrating) return;
+    if (useStore.getState().guestMode) return; // guests never sync
     if (pushTimer || chatTimer || globalTimer) return; // local changes not settled
     let now = 0;
     try {

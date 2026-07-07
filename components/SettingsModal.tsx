@@ -38,6 +38,7 @@ import KnowledgeBasePanel from "./KnowledgeBasePanel";
 import ImageGenPanel from "./ImageGenPanel";
 import ProvidersPanel from "./ProvidersPanel";
 import AboutPanel from "./AboutPanel";
+import AuthAccessPanel from "./AuthAccessPanel";
 
 type TabId =
   | "account"
@@ -540,6 +541,11 @@ export default function SettingsModal() {
                 {/* User management */}
                 <Section>
                   <UserManagement />
+                </Section>
+
+                {/* Registration & guest access */}
+                <Section>
+                  <AuthAccessPanel />
                 </Section>
 
                 {/* Branding */}

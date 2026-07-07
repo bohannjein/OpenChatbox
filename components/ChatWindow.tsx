@@ -151,6 +151,7 @@ export default function ChatWindow() {
   const setDraft = useStore((s) => s.setDraft);
   const addChatFiles = useStore((s) => s.addChatFiles);
   const authUser = useStore((s) => s.authUser);
+  const guestMode = useStore((s) => s.guestMode);
   const incognito = useStore((s) => s.incognito);
   const setIncognito = useStore((s) => s.setIncognito);
   const aliases = useStore((s) => s.aliases);
@@ -1073,6 +1074,10 @@ export default function ChatWindow() {
     const assistantId = addMessage(chatId, "assistant", "", undefined, speakerId);
     await generate(chatId, assistantId);
 
+    // Guests: pure ephemeral chat. Skip all persisted/extra pipelines (auto-title,
+    // document generation, memory) — those hit getUser-protected routes anyway.
+    if (guestMode) return;
+
     // After the first complete answer: name the chat via a hidden model call.
     autoTitle(chatId);
 
@@ -1286,6 +1291,8 @@ export default function ChatWindow() {
           </span>
         )}
 
+        {/* Guests get no advanced header controls (files, notes, share, incognito). */}
+        {!guestMode && (
         <div className="ml-auto flex items-center">
           {/* Gruppe 1 — Chat-Modus (Sicherheit) */}
           <div className="flex items-center gap-3">
@@ -1434,6 +1441,7 @@ export default function ChatWindow() {
             </div>
           </div>
         </div>
+        )}
       </header>
 
       {!hasMessages ? (

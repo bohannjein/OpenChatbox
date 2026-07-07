@@ -168,6 +168,8 @@ export interface MemoryFact {
 export interface AuthUser {
   id: string;
   username: string;
+  email?: string;
+  displayName?: string;
   role: string;
   provider: string;
   twoFactorEnabled: boolean;
@@ -244,6 +246,9 @@ export interface GlobalConfigPayload {
   imageGen?: { enabled: boolean; type: string | null };
   plugins?: { officeParser: boolean; ocrEngine: boolean; docGenerator: boolean };
   bookstack?: { enabled: boolean; writeEnabled: boolean; baseUrl?: string };
+  selfRegistration?: { enabled: boolean; domains: string[] };
+  guest?: { enabled: boolean; model: string | null };
+  sso?: { enabled: boolean };
 }
 
 /** Per-user preferences persisted server-side (mirror of lib/server/profiles). */

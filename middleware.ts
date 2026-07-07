@@ -6,6 +6,9 @@ const PUBLIC = [
   /^\/setup/,
   /^\/api\/auth\//,
   /^\/api\/setup/,
+  // Public, secret-free instance config — the login page reads it (before any
+  // session cookie exists) to decide self-registration / guest access.
+  /^\/api\/config/,
   /^\/share/,
   /^\/_next\//,
   /^\/favicon/,
