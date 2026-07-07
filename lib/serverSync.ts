@@ -87,8 +87,8 @@ function profileOf(s: State): ServerUserProfile {
     chatBackgroundUrl: s.chatBackgroundUrl,
     memory: s.memory,
     memoryEnabled: s.memoryEnabled,
-    webSearchEnabled: s.webSearchEnabled,
-    kbEnabled: s.kbEnabled,
+    // webSearchEnabled / kbEnabled are intentionally not persisted — they are
+    // per-turn opt-ins that must always start OFF (see hydrateProfile note).
     selectedModelKey: s.selectedModelKey,
     autoRouter: s.autoRouter,
     vramManaged: s.vramManaged,

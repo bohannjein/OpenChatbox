@@ -21,8 +21,10 @@ export default function SharePage() {
           localStorage.getItem("chatbot-ui-store") ||
           "{}"
       );
-      if (s?.state?.theme === "dark")
+      const t = s?.state?.theme;
+      if (t === "dark" || t === "dracula")
         document.documentElement.classList.add("dark");
+      if (t === "dracula") document.documentElement.classList.add("dracula");
     } catch {
       /* ignore */
     }

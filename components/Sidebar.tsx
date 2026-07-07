@@ -58,6 +58,7 @@ export default function Sidebar() {
   const renameChat = useStore((s) => s.renameChat);
   const togglePinChat = useStore((s) => s.togglePinChat);
   const toggleTheme = useStore((s) => s.toggleTheme);
+  const unlockDracula = useStore((s) => s.unlockDracula);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const setSettingsTab = useStore((s) => s.setSettingsTab);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
@@ -158,6 +159,22 @@ export default function Sidebar() {
   const onSelect = (id: string) => {
     router.push(`/c/${id}`);
     if (window.innerWidth < 768) setSidebarOpen(false);
+  };
+
+  // Easter egg: 7 rapid clicks (<600ms apart) on the theme toggle unlock and
+  // activate the hidden Dracula theme. A slow click is a normal light/dark flip.
+  const themeClicks = useRef({ count: 0, last: 0 });
+  const handleThemeClick = () => {
+    const t = Date.now();
+    const c = themeClicks.current;
+    c.count = t - c.last < 600 ? c.count + 1 : 1;
+    c.last = t;
+    if (c.count >= 7) {
+      c.count = 0;
+      unlockDracula();
+      return;
+    }
+    toggleTheme();
   };
 
   const startNewChat = () => {
@@ -340,14 +357,14 @@ export default function Sidebar() {
             <button
               onClick={() => setSearchOpen(true)}
               title="Chats durchsuchen (⌘K)"
-              className="cursor-pointer rounded-lg p-2 text-zinc-400 transition-all duration-150 hover:text-white active:scale-95 dark:hover:bg-white/5"
+              className="cursor-pointer rounded-lg p-2 text-zinc-400 transition-all duration-150 hover:text-neutral-900 active:scale-95 dark:hover:bg-white/5 dark:hover:text-white"
             >
               <Search size={18} strokeWidth={1.5} />
             </button>
             <button
               onClick={() => setSidebarOpen(false)}
               title="Sidebar einklappen"
-              className="cursor-pointer rounded-lg p-2 text-zinc-400 transition-all duration-150 hover:text-white active:scale-95 dark:hover:bg-white/5"
+              className="cursor-pointer rounded-lg p-2 text-zinc-400 transition-all duration-150 hover:text-neutral-900 active:scale-95 dark:hover:bg-white/5 dark:hover:text-white"
             >
               <PanelLeftClose size={18} strokeWidth={1.5} />
             </button>
@@ -649,14 +666,14 @@ export default function Sidebar() {
               <Settings size={17} strokeWidth={1.5} />
             </button>
             <button
-              onClick={toggleTheme}
-              title={theme === "dark" ? "Light Mode" : "Dark Mode"}
+              onClick={handleThemeClick}
+              title={theme === "light" ? "Dark Mode" : "Light Mode"}
               className="rounded-lg p-1.5 text-zinc-500 transition-colors hover:text-neutral-900 dark:hover:text-white"
             >
-              {theme === "dark" ? (
-                <Sun size={17} strokeWidth={1.5} />
-              ) : (
+              {theme === "light" ? (
                 <Moon size={17} strokeWidth={1.5} />
+              ) : (
+                <Sun size={17} strokeWidth={1.5} />
               )}
             </button>
           </div>

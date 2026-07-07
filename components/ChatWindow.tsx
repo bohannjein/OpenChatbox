@@ -40,6 +40,7 @@ import type { Attachment } from "@/lib/files";
 import { buildShareLink, chatToMarkdown, download } from "@/lib/share";
 import { useClickOutside } from "@/lib/useClickOutside";
 import { useAutoTitle } from "@/lib/useAutoTitle";
+import { useScrollAnchor } from "@/lib/useScrollAnchor";
 import { OCR_SYSTEM_HINT } from "@/lib/modelRouter";
 import {
   planPipeline,
@@ -210,7 +211,8 @@ export default function ChatWindow() {
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // Stable, intent-aware auto-scroll (ResizeObserver-based) — see useScrollAnchor.
+  const { scrollRef, contentRef, scrollToBottom } = useScrollAnchor();
   const inputRef = useRef<ChatInputHandle>(null);
   const shareRef = useRef<HTMLDivElement>(null);
 
@@ -220,11 +222,6 @@ export default function ChatWindow() {
   );
   const messages = chat?.messages ?? [];
   const isTemp = !!chat?.temporary;
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, streamingId, chat?.messages]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -1024,6 +1021,9 @@ export default function ChatWindow() {
     let chatId = activeChatId;
     if (!chatId) chatId = newChat();
     const userId = addMessage(chatId, "user", text, images);
+    // Sending is an explicit "take me to the bottom" intent — re-arm the pin
+    // even if the user had scrolled up to read earlier messages.
+    requestAnimationFrame(() => scrollToBottom("smooth"));
     // track uploads in the chat's file archive
     if (attachments && attachments.length) {
       const files: ChatFile[] = attachments.map((a) => ({
@@ -1310,7 +1310,7 @@ export default function ChatWindow() {
                   "rounded-lg p-2 transition-colors duration-150",
                   isTemp || incognito
                     ? "bg-accent/15 text-accent"
-                    : "text-zinc-400 hover:bg-neutral-200 hover:text-zinc-100 dark:hover:bg-white/5"
+                    : "text-zinc-400 hover:bg-neutral-200 hover:text-neutral-900 dark:hover:bg-white/5 dark:hover:text-zinc-100"
                 )}
               >
                 <Ghost size={18} strokeWidth={1.5} />
@@ -1356,7 +1356,7 @@ export default function ChatWindow() {
                 "relative rounded-lg p-2 transition-colors duration-150",
                 archiveOpen
                   ? "bg-accent/15 text-accent"
-                  : "text-zinc-400 hover:bg-neutral-200 hover:text-zinc-100 dark:hover:bg-white/5"
+                  : "text-zinc-400 hover:bg-neutral-200 hover:text-neutral-900 dark:hover:bg-white/5 dark:hover:text-zinc-100"
               )}
             >
               <FolderOpen size={18} strokeWidth={1.5} />
@@ -1376,7 +1376,7 @@ export default function ChatWindow() {
                 "rounded-lg p-2 transition-colors duration-150",
                 notesOpen
                   ? "bg-accent/15 text-accent"
-                  : "text-zinc-400 hover:bg-neutral-200 hover:text-zinc-100 dark:hover:bg-white/5"
+                  : "text-zinc-400 hover:bg-neutral-200 hover:text-neutral-900 dark:hover:bg-white/5 dark:hover:text-zinc-100"
               )}
             >
               <StickyNote size={18} strokeWidth={1.5} />
@@ -1393,7 +1393,7 @@ export default function ChatWindow() {
                 onClick={() => setShareOpen((v) => !v)}
                 disabled={!hasMessages}
                 title="Chat teilen / exportieren"
-                className="rounded-lg p-2 text-zinc-400 transition-colors duration-150 hover:bg-neutral-200 hover:text-zinc-100 disabled:opacity-30 dark:hover:bg-white/5"
+                className="rounded-lg p-2 text-zinc-400 transition-colors duration-150 hover:bg-neutral-200 hover:text-neutral-900 disabled:opacity-30 dark:hover:bg-white/5 dark:hover:text-zinc-100"
               >
                 <Share2 size={18} strokeWidth={1.5} />
               </button>
@@ -1503,7 +1503,7 @@ export default function ChatWindow() {
                 verschwindet beim Schließen.
               </div>
             )}
-            <div className="pb-6">
+            <div ref={contentRef} className="pb-6">
               {messages.map((m) => (
                 <ChatMessage
                   key={m.id}

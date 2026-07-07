@@ -138,18 +138,35 @@ export default function AppRoot() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthRoute, isSetupRoute]);
 
+  // Reflect the theme onto <html>. Dracula rides on top of `dark` (so every
+  // existing `dark:` utility keeps working) plus its own `dracula` class that
+  // overrides the surface + accent variables. A short-lived `theme-transition`
+  // class cross-fades the switch without slowing down normal hover states.
+  const firstThemePaint = useRef(true);
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "dark") root.classList.add("dark");
-    else root.classList.remove("dark");
+    const isDarkish = theme === "dark" || theme === "dracula";
+    if (!firstThemePaint.current) {
+      root.classList.add("theme-transition");
+      window.setTimeout(() => root.classList.remove("theme-transition"), 320);
+    }
+    firstThemePaint.current = false;
+    root.classList.toggle("dark", isDarkish);
+    root.classList.toggle("dracula", theme === "dracula");
   }, [theme]);
 
-  // Apply the chosen accent color as CSS custom properties.
+  // Apply the chosen accent color as CSS custom properties. Dracula pins its
+  // signature purple accent instead of the user's brand accent.
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty("--accent", hexToRgbChannels(accentColor));
-    root.style.setProperty("--accent-hover", darkenChannels(accentColor));
-  }, [accentColor]);
+    if (theme === "dracula") {
+      root.style.setProperty("--accent", "189 147 249"); // #bd93f9
+      root.style.setProperty("--accent-hover", "165 122 224");
+    } else {
+      root.style.setProperty("--accent", hexToRgbChannels(accentColor));
+      root.style.setProperty("--accent-hover", darkenChannels(accentColor));
+    }
+  }, [accentColor, theme]);
 
   // Dynamic favicon: custom logo when set, else a default chat-bubble icon.
   useEffect(() => {

@@ -26,8 +26,11 @@ const themeScript = `
       || '{}';
     var s = JSON.parse(raw);
     var t = (s.state && s.state.theme) || 'dark';
-    if (t === 'dark') document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
+    var d = document.documentElement;
+    // Dracula rides on top of the dark class (+ its own override class).
+    if (t === 'dark' || t === 'dracula') d.classList.add('dark');
+    else d.classList.remove('dark');
+    if (t === 'dracula') d.classList.add('dracula');
   } catch(e) { document.documentElement.classList.add('dark'); }
 })();
 `;

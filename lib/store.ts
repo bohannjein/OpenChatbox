@@ -23,7 +23,7 @@ import type {
   Workspace,
 } from "./types";
 
-export type Theme = "light" | "dark";
+export type Theme = "light" | "dark" | "dracula";
 
 const now = () => Date.now();
 
@@ -187,6 +187,10 @@ interface State {
   /** global incognito switch: new chats are temporary while on. */
   incognito: boolean;
   theme: Theme;
+  /** Hidden "Dracula" theme — revealed via the theme-toggle easter egg. */
+  draculaUnlocked: boolean;
+  /** Reveal + activate the Dracula theme (7-click easter egg). */
+  unlockDracula: () => void;
   /** UI language; null = auto-detect from navigator.language on first load. */
   lang: "de" | "en" | null;
   /** chat whose title is being generated → shows the ASCII loader (transient). */
@@ -430,6 +434,7 @@ export const useStore = create<State>()(
       params: defaultParams(),
       incognito: false,
       theme: "dark",
+      draculaUnlocked: false,
       lang: null,
       titlePendingId: null,
       accentColor: "#4f46e5",
@@ -514,8 +519,10 @@ export const useStore = create<State>()(
           chatBackgroundUrl: p.chatBackgroundUrl ?? s.chatBackgroundUrl,
           memory: p.memory ?? s.memory,
           memoryEnabled: p.memoryEnabled ?? s.memoryEnabled,
-          webSearchEnabled: p.webSearchEnabled ?? s.webSearchEnabled,
-          kbEnabled: p.kbEnabled ?? s.kbEnabled,
+          // NOTE: webSearchEnabled / kbEnabled are deliberately NOT restored —
+          // they are per-turn opt-ins that must default OFF on every load and
+          // every new chat (safe start: no surprise search/RAG API cost on the
+          // first prompt). newChat() resets them; see the store defaults.
           selectedModelKey:
             p.selectedModelKey !== undefined ? p.selectedModelKey : s.selectedModelKey,
           autoRouter: p.autoRouter ?? s.autoRouter,
@@ -1121,7 +1128,10 @@ export const useStore = create<State>()(
       setLang: (lang) => set({ lang }),
       setTitlePending: (titlePendingId) => set({ titlePendingId }),
       toggleTheme: () =>
-        set((s) => ({ theme: s.theme === "dark" ? "light" : "dark" })),
+        // Plain toggle stays a two-state light↔dark switch; Dracula counts as
+        // "dark" here so leaving it lands on light.
+        set((s) => ({ theme: s.theme === "light" ? "dark" : "light" })),
+      unlockDracula: () => set({ draculaUnlocked: true, theme: "dracula" }),
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
       setSettingsTab: (settingsTab) => set({ settingsTab }),
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
@@ -1144,6 +1154,7 @@ export const useStore = create<State>()(
         workspaces: s.workspaces,
         activeWorkspaceId: s.activeWorkspaceId,
         theme: s.theme,
+        draculaUnlocked: s.draculaUnlocked,
         lang: s.lang,
         accentColor: s.accentColor,
         appName: s.appName,

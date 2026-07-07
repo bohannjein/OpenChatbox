@@ -9,22 +9,24 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // ChatGPT-like palette
+        // ChatGPT-like palette. Light values are literal; the `dark` tokens are
+        // driven by CSS variables so an alternate dark theme (Dracula) can
+        // retint every surface at once — see globals.css (.dark / .dracula).
         sidebar: {
           light: "#f9f9f9",
-          dark: "#171717",
+          dark: "rgb(var(--surface-sidebar) / <alpha-value>)",
         },
         main: {
           light: "#ffffff",
-          dark: "#212121",
+          dark: "rgb(var(--surface-main) / <alpha-value>)",
         },
         bubble: {
           light: "#f4f4f4",
-          dark: "#2f2f2f",
+          dark: "rgb(var(--surface-bubble) / <alpha-value>)",
         },
         border: {
           light: "#e5e5e5",
-          dark: "#2f2f2f",
+          dark: "rgb(var(--surface-border) / <alpha-value>)",
         },
         accent: {
           DEFAULT: "rgb(var(--accent) / <alpha-value>)",

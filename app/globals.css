@@ -20,10 +20,45 @@
   /* dynamic accent (RGB channels) — overridden at runtime from settings */
   --accent: 16 163 127;
   --accent-hover: 14 142 109;
+  /* Dark-surface tokens (RGB channels) consumed by Tailwind's *-dark colors.
+     Only used behind the `dark:` variant; defined here as a safe fallback. */
+  --surface-main: 33 33 33;
+  --surface-sidebar: 23 23 23;
+  --surface-bubble: 47 47 47;
+  --surface-border: 47 47 47;
 }
 
 .dark {
   color-scheme: dark;
+  --surface-main: 33 33 33; /* #212121 */
+  --surface-sidebar: 23 23 23; /* #171717 */
+  --surface-bubble: 47 47 47; /* #2f2f2f */
+  --surface-border: 47 47 47; /* #2f2f2f */
+}
+
+/* Dracula — high-contrast, purple-accented dark theme (unlocked via the
+   theme-toggle easter egg). Rides on top of `.dark`, retinting every surface. */
+.dracula {
+  color-scheme: dark;
+  --surface-main: 40 42 54; /* #282a36 background */
+  --surface-sidebar: 33 34 44; /* #21222c */
+  --surface-bubble: 68 71 90; /* #44475a current-line */
+  --surface-border: 98 114 164; /* #6272a4 comment — visible separators */
+  /* accent (#bd93f9) is pinned from AppRoot so inline styles don't override it */
+}
+
+/* Butter-smooth theme crossfade. Applied only for the ~300ms around a theme
+   switch (see AppRoot) so it never slows down normal hover/active transitions. */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition:
+    background-color 300ms ease-in-out,
+    border-color 300ms ease-in-out,
+    color 300ms ease-in-out,
+    fill 300ms ease-in-out,
+    stroke 300ms ease-in-out !important;
 }
 
 html,

@@ -17,6 +17,7 @@ import {
   Library,
   Sun,
   Moon,
+  Wand2,
   type LucideIcon,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -95,6 +96,7 @@ export default function SettingsModal() {
   const setVramManaged = useStore((s) => s.setVramManaged);
   const theme = useStore((s) => s.theme);
   const setTheme = useStore((s) => s.setTheme);
+  const draculaUnlocked = useStore((s) => s.draculaUnlocked);
   const lang = useStore((s) => s.lang);
   const setLang = useStore((s) => s.setLang);
   const webSearchEnabled = useStore((s) => s.webSearchEnabled);
@@ -495,6 +497,19 @@ export default function SettingsModal() {
                     >
                       <Moon size={15} /> Dunkel
                     </button>
+                    {draculaUnlocked && (
+                      <button
+                        onClick={() => setTheme("dracula")}
+                        className={clsx(
+                          "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition",
+                          theme === "dracula"
+                            ? "border-[#bd93f9] bg-[#bd93f9]/15 text-[#bd93f9]"
+                            : "border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
+                        )}
+                      >
+                        <Wand2 size={15} /> Dracula
+                      </button>
+                    )}
                     <span className="mx-1 text-neutral-300 dark:text-neutral-600">|</span>
                     <select
                       value={lang ?? "de"}
