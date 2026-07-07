@@ -8,7 +8,7 @@
  * for every user until they open the Info tab again.
  */
 
-export const APP_VERSION = "1.4.2";
+export const APP_VERSION = "0.9.0";
 
 /** owner/name form, shown as a label. */
 export const REPO_NAME = "bohannjein/OpenChatbox";
@@ -24,35 +24,22 @@ export interface ChangelogEntry {
   items: string[];
 }
 
-/** Newest first. The top entry's version drives the notification dot. */
+/** Newest first. The top entry's version drives the notification dot. Kept in
+ *  sync with the GitHub releases (same version + scope). */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "1.4.2",
+    version: "0.9.0",
     date: "2026-07-07",
     items: [
-      "Fuzzy-Eigennamen-Korrektur: firmenspezifische Namen (z. B. „ispa hub“) werden bei Tippfehlern automatisch erkannt und korrigiert, bevor gesucht wird.",
-      "Neues, kontraststarkes „Dracula“-Theme — versteckt und über ein kleines Easter-Egg freischaltbar.",
-      "Stabileres Auto-Scrollen während der Antwort: kein Ruckeln mehr, und die Ansicht bleibt oben stehen, wenn du selbst hochscrollst.",
-      "Sicherer Start: Internetsuche & Wissensdatenbank sind in jedem neuen Chat standardmäßig aus.",
-      "Weiche Theme-Überblendung und behobene Kontraste im hellen Modus.",
-    ],
-  },
-  {
-    version: "1.4.0",
-    date: "2026-06-24",
-    items: [
-      "BookStack-Wiki-Anbindung mit Such-Protokoll, Troubleshooting-Scan und automatischer Rechtschreibkorrektur.",
-      "Dokument-Generator: PDF- und Excel-Dateien direkt aus einer Chat-Antwort.",
-      "Virtueller Konferenzraum: mehrere Sidekicks diskutieren moderiert in einer Runde.",
-    ],
-  },
-  {
-    version: "1.3.0",
-    date: "2026-05-30",
-    items: [
-      "Auto-Router: jede Anfrage landet automatisch beim passenden Modell (Coding, Reasoning, Vision, Standard).",
-      "Wissensdatenbank (RAG) mit Kategorien, Datei-Upload und Quellenangabe.",
-      "Code-Splitscreen mit Live-Vorschau langer Code-Blöcke.",
+      "Chat mit Ollama und OpenAI-kompatiblen Backends, Streaming-Antworten und Markdown.",
+      "Auto-Router: jede Anfrage geht automatisch an das passende Modell (Coding, Reasoning, Vision, Standard).",
+      "Wissensdatenbank (RAG) und BookStack-Wiki-Anbindung mit Quellenangaben und Fuzzy-/Eigennamen-Korrektur der Suche.",
+      "Internetsuche über konfigurierbare Anbieter — pro Chat standardmäßig aus.",
+      "Dokument-Generator (PDF/Excel) und Datei-Upload (PDF, DOCX, XLSX, u. a.).",
+      "Sidekicks, Workspaces und moderierter Gruppen-/Konferenzmodus.",
+      "Themes hell/dunkel (plus verstecktes Dracula) und stabiles Auto-Scrollen.",
+      "Admin-Bereich: Modelle, Rollen, Anbieter, Plugins; Ersteinrichtung mit Admin-Konto.",
+      "Info-Bereich mit Version, Repository und „Was gibt's Neues?“.",
     ],
   },
 ];

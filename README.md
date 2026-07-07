@@ -1,100 +1,121 @@
 # OpenChatbox
 
-Self-hosted, ChatGPT-style chat UI for **Ollama** and **OpenAI-compatible**
-backends. Streaming answers, Markdown with copy buttons, model switcher,
-sidekicks, workspaces, first-run admin setup, and an admin dashboard — all in a
-single Next.js app you run yourself.
+A self-hosted chat web app for local and remote LLMs. It runs as a single
+Next.js service and talks to any [Ollama](https://ollama.com) instance or any
+OpenAI-compatible API. You host it yourself; conversations and configuration
+stay on your own server.
 
----
+Ollama is not bundled. You point OpenChatbox at an Ollama or OpenAI-compatible
+endpoint you already run.
 
-## ⚡ Quick Install (one command)
+## What it does
 
-On any Ubuntu/Linux server with `curl`, run:
+- Streams chat responses from Ollama (NDJSON) and OpenAI-compatible APIs (SSE),
+  normalized server-side into one stream. Reasoning/thinking output is shown
+  separately when a model emits it.
+- Renders Markdown with code blocks, copy buttons, and a split-screen code view.
+- Auto-router: each message can be routed automatically to a model configured
+  for coding, reasoning, vision, or general use.
+- Knowledge base (RAG): upload documents (PDF, TXT, MD, CSV, DOCX, PPTX, XLSX),
+  which are chunked and embedded locally; answers cite their sources.
+- BookStack wiki integration: searches a BookStack instance and cites pages.
+  Search tolerates typos, including a configurable dictionary of company/person
+  proper nouns that are corrected before searching.
+- Web search through a configurable provider (Bing, Tavily, Bocha, Qureit).
+  Off by default in each new chat.
+- Document generation: produces PDF or Excel files from a chat answer.
+- File uploads as structured context; images and documents are parsed on upload.
+- Sidekicks (reusable assistant profiles), workspaces (scoped chats/files), and
+  a moderated group/conference mode with multiple assistants.
+- Light and dark themes, custom accent color and logo, per-user chat history.
+- Accounts with a first-run admin setup, optional Microsoft Entra / OIDC SSO,
+  and optional 2FA.
+- Admin area: pull/alias models, edit roles, configure providers and plugins,
+  and a read-only Ollama web terminal (mapped to the HTTP API, no shell).
+
+## Requirements
+
+- An Ollama server or an OpenAI-compatible API endpoint.
+- To run with Docker: Docker and Docker Compose.
+- To run from source: Node.js 20+.
+
+## Installation
+
+### Option 1 — one-command installer (Linux, Docker)
+
+On a Debian/Ubuntu server with `curl`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/bohannjein/OpenChatbox/main/install.sh | bash
 ```
 
-That's it. The script clones the repo, installs Docker + Compose if missing,
-builds the image, and starts everything **detached on port `6769`**. When it
-finishes, open:
+The script installs Docker and Compose if missing, clones the repository,
+generates an `.env` with an `AUTH_SECRET`, then builds and starts the container
+detached on port `6769`. Open `http://<server-ip>:6769` and complete the setup
+screen (create the admin account, point it at your model backend).
 
-```
-http://<your-server-ip>:6769
-```
+Override the port or install directory:
 
-The first visit shows the **setup screen** — create your admin account and point
-it at your Ollama/OpenAI server. Done.
-
-> Custom port or install dir:
-> ```bash
-> curl -fsSL https://raw.githubusercontent.com/bohannjein/OpenChatbox/main/install.sh | OPENCHATBOX_PORT=8080 bash
-> ```
-
----
-
-## Features
-- **Streaming chat** — Ollama (NDJSON) and OpenAI-compatible (SSE) normalized to
-  one delta stream server-side; reasoning/thinking output split out.
-- **Attachments** — drag & drop / paste images and documents; parsed via a
-  multipart upload endpoint and passed to the model as structured context.
-- **Auto-title** — the first answer names the chat via a hidden model call.
-- **Sidekicks** — reusable assistant profiles (system prompt + model).
-- **Workspaces** — scope chats/sidekicks/files to a collaboration space.
-- **Auth + first-run setup** — local accounts, optional Entra/OIDC SSO, 2FA.
-- **Admin dashboard** — model pull/aliases, custom roles editor, and a secure
-  Ollama web-terminal (HTTP-API mapped, no shell).
-- Light/dark, custom accent + logo, per-user history.
-
-## Manual install (Docker)
 ```bash
-git clone https://github.com/bohannjein/OpenChatbox.git && cd OpenChatbox
-cp .env.example .env          # set AUTH_SECRET: openssl rand -hex 32
+curl -fsSL https://raw.githubusercontent.com/bohannjein/OpenChatbox/main/install.sh | OPENCHATBOX_PORT=8080 bash
+```
+
+### Option 2 — Docker Compose (manual)
+
+```bash
+git clone https://github.com/bohannjein/OpenChatbox.git
+cd OpenChatbox
+cp .env.example .env
+# set AUTH_SECRET in .env:  openssl rand -hex 32
 OPENCHATBOX_PORT=6769 docker compose up -d --build
 ```
 
-## Local development
+The container listens on `3000` internally; `OPENCHATBOX_PORT` sets the external
+port. Runtime state (admin account, server config) is stored in the
+`openchatbox-data` volume.
+
+### Option 3 — from source (development)
+
 ```bash
 npm install
-npm run dev                   # http://localhost:3000
-npm run build && npm start    # production
+npm run dev                 # http://localhost:3000
+# or a production build:
+npm run build && npm start
 ```
 
-## Providers
+## Configuration
+
+- `AUTH_SECRET` (required): session signing key. Generate with
+  `openssl rand -hex 32`.
+- `AUTH_COOKIE_SECURE` (optional): leave empty to auto-detect; set `true` behind
+  HTTPS, `false` to force plain-HTTP cookies on a LAN.
+- SSO (optional): `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`,
+  `OIDC_AUTHORIZE_URL`, `OIDC_TOKEN_URL`. See `.env.example`.
+- `OPENCHATBOX_DATA_DIR` (optional): store runtime state on a host path instead
+  of the Docker volume.
+
+### Model backends
+
 Configured under Settings → Providers:
-- **Ollama (local)** — `http://localhost:11434`. In Docker, use
-  `http://host.docker.internal:11434` or the bundled `ollama` service.
-- **OpenAI-compatible** — `https://api.openai.com/v1` (or HF TGI / vLLM / …).
-  Enter base URL + API key.
 
-## Data & configuration
-- Runtime state (admin account, server config) lives in `data/` — gitignored,
-  never in the image. In Docker it's the `openchatbox-data` volume.
-- Override its location with `OPENCHATBOX_DATA_DIR`.
-- Required env: `AUTH_SECRET`. Optional SSO env: see `.env.example`.
+- Ollama: local is `http://localhost:11434`. From inside Docker, use
+  `http://host.docker.internal:11434` (the Compose file maps that host) or the
+  address of your Ollama server.
+- OpenAI-compatible: base URL plus API key (OpenAI, vLLM, HF TGI, etc.).
 
-## Architecture
-```
-app/
-  layout.tsx              # theme no-flash script, metadata
-  api/chat/route.ts       # streaming proxy: Ollama/OpenAI/Anthropic → delta stream
-  api/upload/route.ts     # multipart file upload → clean JSON attachments
-  api/setup/route.ts      # first-run admin bootstrap
-  api/admin/terminal      # admin-only Ollama web-terminal (streaming)
-  api/admin/roles         # custom roles CRUD
-  api/workspaces          # workspace membership
-components/               # Sidebar, ChatWindow, ChatInput, AdminPanel,
-                          # AdminTerminal, RolesEditor, WorkspaceSwitcher, …
-lib/
-  store.ts                # Zustand store (persist, per-user namespace)
-  providers.ts            # fetchModels, streamChat, generateTitle
-  server/                 # users, sessions, roles, workspaces, config (file-backed)
-```
+## Updating
 
-### Why a proxy?
-The browser talks to `/api/chat`, not directly to Ollama/OpenAI — this avoids
-CORS issues (especially with local Ollama) and normalizes the different provider
-stream formats server-side. API keys are passed per request to your own proxy.
+- Installer / Compose: `git pull` then
+  `docker compose up -d --build`.
+- The running version is shown in Settings → "Über OpenChatbox / Info", which
+  also lists the changelog. Released versions are tagged and published under
+  [Releases](https://github.com/bohannjein/OpenChatbox/releases).
+
+## Data
+
+Runtime state lives in `data/` (Docker volume `openchatbox-data`, mounted at
+`/app/data`). It is gitignored and never baked into the image.
 
 ## License
-See repository.
+
+See the repository.
