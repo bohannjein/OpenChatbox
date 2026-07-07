@@ -273,6 +273,7 @@ export interface ServerUserProfile {
   ollamaKeepAlive?: string;
   sidekicks?: Sidekick[];
   prompts?: PromptTemplate[];
+  whatsNewSeen?: string;
 }
 
 export interface ChatMessagePayload {

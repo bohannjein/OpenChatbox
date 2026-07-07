@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { uid } from "./uid";
+import { LATEST_WHATS_NEW } from "./version";
 import type {
   AuthUser,
   Chat,
@@ -191,6 +192,11 @@ interface State {
   draculaUnlocked: boolean;
   /** Reveal + activate the Dracula theme (7-click easter egg). */
   unlockDracula: () => void;
+  /** Version of the last "What's New" entry this user has seen (server-persisted).
+   *  When it differs from LATEST_WHATS_NEW, the notification dot shows. */
+  whatsNewSeen: string;
+  /** Mark the current changelog as seen (dismisses the dot). */
+  markWhatsNewSeen: () => void;
   /** UI language; null = auto-detect from navigator.language on first load. */
   lang: "de" | "en" | null;
   /** chat whose title is being generated → shows the ASCII loader (transient). */
@@ -435,6 +441,7 @@ export const useStore = create<State>()(
       incognito: false,
       theme: "dark",
       draculaUnlocked: false,
+      whatsNewSeen: "",
       lang: null,
       titlePendingId: null,
       accentColor: "#4f46e5",
@@ -530,6 +537,7 @@ export const useStore = create<State>()(
           ollamaKeepAlive: p.ollamaKeepAlive ?? s.ollamaKeepAlive,
           sidekicks: p.sidekicks ?? s.sidekicks,
           prompts: p.prompts ?? s.prompts,
+          whatsNewSeen: p.whatsNewSeen ?? s.whatsNewSeen,
         })),
 
       // Server chats win when present; an empty server copy keeps local chats
@@ -1132,6 +1140,7 @@ export const useStore = create<State>()(
         // "dark" here so leaving it lands on light.
         set((s) => ({ theme: s.theme === "light" ? "dark" : "light" })),
       unlockDracula: () => set({ draculaUnlocked: true, theme: "dracula" }),
+      markWhatsNewSeen: () => set({ whatsNewSeen: LATEST_WHATS_NEW }),
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
       setSettingsTab: (settingsTab) => set({ settingsTab }),
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),

@@ -115,6 +115,10 @@ export interface ServerConfig {
   plugins?: PluginFlags;
   /** BookStack wiki integration (token secret encrypted, server-only) */
   bookstack?: BookstackConfig;
+  /** Company/person proper-noun dictionary for fuzzy search correction. Each
+   *  entry is a canonical name (single- or multi-word) that mistyped queries are
+   *  corrected TO (Levenshtein) before the search runs. */
+  properNouns?: string[];
   /** epoch ms when setup was completed */
   setupCompletedAt?: number;
 }
@@ -178,6 +182,16 @@ export function setConfig(patch: Partial<ServerConfig>): ServerConfig {
 /** Full provider registry (WITH apiKeys) — server-side only. */
 export function getProviders(): Provider[] {
   return getConfig().providers ?? [];
+}
+
+/** Admin-configured proper-noun dictionary (trimmed, non-empty entries). */
+export function getProperNouns(): string[] {
+  const arr = getConfig().properNouns;
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .filter((n): n is string => typeof n === "string")
+    .map((n) => n.trim())
+    .filter(Boolean);
 }
 
 /** Web-search config (WITH apiKeys) — server-side only. */

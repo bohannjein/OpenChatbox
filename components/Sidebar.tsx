@@ -26,6 +26,7 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { useStore, inWorkspace } from "@/lib/store";
+import { hasUnseenWhatsNew } from "@/lib/version";
 import { useClickOutside } from "@/lib/useClickOutside";
 import type { Chat, Folder } from "@/lib/types";
 import { SidekickAvatar } from "./SidekickIcon";
@@ -59,6 +60,8 @@ export default function Sidebar() {
   const togglePinChat = useStore((s) => s.togglePinChat);
   const toggleTheme = useStore((s) => s.toggleTheme);
   const unlockDracula = useStore((s) => s.unlockDracula);
+  const whatsNewSeen = useStore((s) => s.whatsNewSeen);
+  const showWhatsNewDot = hasUnseenWhatsNew(whatsNewSeen);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const setSettingsTab = useStore((s) => s.setSettingsTab);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
@@ -660,10 +663,16 @@ export default function Sidebar() {
           <div className="flex shrink-0 items-center gap-0.5">
             <button
               onClick={() => setSettingsOpen(true)}
-              title="Einstellungen"
-              className="rounded-lg p-1.5 text-zinc-500 transition-colors hover:text-neutral-900 dark:hover:text-white"
+              title={showWhatsNewDot ? "Einstellungen — neue Updates" : "Einstellungen"}
+              className="relative rounded-lg p-1.5 text-zinc-500 transition-colors hover:text-neutral-900 dark:hover:text-white"
             >
               <Settings size={17} strokeWidth={1.5} />
+              {showWhatsNewDot && (
+                <span
+                  aria-hidden
+                  className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-accent ring-2 ring-sidebar-light dark:ring-sidebar-dark"
+                />
+              )}
             </button>
             <button
               onClick={handleThemeClick}

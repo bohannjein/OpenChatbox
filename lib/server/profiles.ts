@@ -34,6 +34,8 @@ export interface UserProfile {
   ollamaKeepAlive?: string;
   sidekicks?: Sidekick[];
   prompts?: PromptTemplate[];
+  /** version of the last "What's New" entry the user has seen (dismisses the dot) */
+  whatsNewSeen?: string;
 }
 
 // Only these keys are accepted from a client patch (ignore anything else).
@@ -63,6 +65,7 @@ const KEYS: (keyof UserProfile)[] = [
   "ollamaKeepAlive",
   "sidekicks",
   "prompts",
+  "whatsNewSeen",
 ];
 
 const FILE = path.join(DATA_DIR, "profiles.json");

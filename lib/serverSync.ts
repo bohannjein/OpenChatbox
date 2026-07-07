@@ -95,6 +95,7 @@ function profileOf(s: State): ServerUserProfile {
     ollamaKeepAlive: s.ollamaKeepAlive,
     sidekicks: s.sidekicks,
     prompts: s.prompts,
+    whatsNewSeen: s.whatsNewSeen,
   };
 }
 

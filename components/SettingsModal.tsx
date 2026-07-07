@@ -18,9 +18,11 @@ import {
   Sun,
   Moon,
   Wand2,
+  Info,
   type LucideIcon,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { hasUnseenWhatsNew } from "@/lib/version";
 import { DEFAULT_ACCENT, normalizeHex } from "@/lib/branding";
 import { resizeImageToDataUrl } from "@/lib/imageResize";
 import { uid } from "@/lib/uid";
@@ -35,6 +37,7 @@ import SearchProvidersPanel from "./SearchProvidersPanel";
 import KnowledgeBasePanel from "./KnowledgeBasePanel";
 import ImageGenPanel from "./ImageGenPanel";
 import ProvidersPanel from "./ProvidersPanel";
+import AboutPanel from "./AboutPanel";
 
 type TabId =
   | "account"
@@ -45,7 +48,8 @@ type TabId =
   | "knowledge"
   | "chat"
   | "ai"
-  | "plugins";
+  | "plugins"
+  | "info";
 
 const TABS: { id: TabId; label: string; Icon: LucideIcon; adminOnly?: boolean }[] =
   [
@@ -58,6 +62,7 @@ const TABS: { id: TabId; label: string; Icon: LucideIcon; adminOnly?: boolean }[
     { id: "chat", label: "Chateinstellungen", Icon: MessageSquare },
     { id: "ai", label: "KI-Personalisierung", Icon: Brain },
     { id: "plugins", label: "System-Dienste/Plugins", Icon: Blocks, adminOnly: true },
+    { id: "info", label: "Über OpenChatbox / Info", Icon: Info },
   ];
 
 /** Section wrapper — consistent divider + spacing; first section has no border. */
@@ -114,6 +119,8 @@ export default function SettingsModal() {
   const chatBackgroundUrl = useStore((s) => s.chatBackgroundUrl);
   const setChatBackgroundUrl = useStore((s) => s.setChatBackgroundUrl);
   const authUser = useStore((s) => s.authUser);
+  const whatsNewSeen = useStore((s) => s.whatsNewSeen);
+  const showWhatsNewDot = hasUnseenWhatsNew(whatsNewSeen);
 
   // Pick + resize an image file → data URL, into the given setter.
   const pickImage = async (
@@ -176,7 +183,13 @@ export default function SettingsModal() {
                 )}
               >
                 <Icon size={16} className="shrink-0" />
-                {label}
+                <span className="min-w-0 flex-1 truncate">{label}</span>
+                {id === "info" && showWhatsNewDot && (
+                  <span
+                    aria-label="Neue Updates"
+                    className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent"
+                  />
+                )}
               </button>
             ))}
           </nav>
@@ -722,6 +735,12 @@ export default function SettingsModal() {
             {activeTab === "plugins" && isAdmin && (
               <Section>
                 <PluginsPanel />
+              </Section>
+            )}
+
+            {activeTab === "info" && (
+              <Section>
+                <AboutPanel />
               </Section>
             )}
           </div>

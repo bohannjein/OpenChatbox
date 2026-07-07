@@ -180,5 +180,45 @@ await tableTests();
 await kbTests();
 await bookstackTests();
 
+// ── spellfix: proper-noun fuzzy correction ───────────────────────────────
+{
+  const { damerauLevenshtein, correctProperNouns } = await import(
+    "../lib/server/spellfix"
+  );
+  eq("damerau: transposition = 1", damerauLevenshtein("ipsa", "ispa"), 1);
+  eq("damerau: substitution = 1", damerauLevenshtein("hab", "hub"), 1);
+  eq("damerau: identical = 0", damerauLevenshtein("ispa", "ispa"), 0);
+
+  const dict = ["ispa hub"];
+  eq(
+    "properNoun: transposition+sub → canonical",
+    correctProperNouns("wie öffne ich ipsa hab", dict).corrected,
+    "wie öffne ich ispa hub"
+  );
+  eq(
+    "properNoun: single sub → canonical",
+    correctProperNouns("ispa hab login", dict).corrected,
+    "ispa hub login"
+  );
+  eq(
+    "properNoun: transposition → canonical",
+    correctProperNouns("ipsa hub status", dict).corrected,
+    "ispa hub status"
+  );
+  ok(
+    "properNoun: exact match → no replacement",
+    correctProperNouns("ispa hub", dict).replacements.length === 0
+  );
+  eq(
+    "properNoun: unrelated query untouched",
+    correctProperNouns("docker setup anleitung", dict).corrected,
+    "docker setup anleitung"
+  );
+  ok(
+    "properNoun: empty dictionary is a no-op",
+    correctProperNouns("ipsa hab", []).corrected === "ipsa hab"
+  );
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

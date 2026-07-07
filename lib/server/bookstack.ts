@@ -1,8 +1,15 @@
 import http from "node:http";
 import https from "node:https";
-import { getBookstackConfig, getConfig, getProviders, type BookstackResolved } from "./config";
+import {
+  getBookstackConfig,
+  getConfig,
+  getProviders,
+  getProperNouns,
+  type BookstackResolved,
+} from "./config";
 import { parseModelKey } from "@/lib/providers";
 import { completeOnce } from "./complete";
+import { correctProperNouns } from "./spellfix";
 
 /**
  * BookStack integration: translate LLM tool calls into BookStack REST API
@@ -521,24 +528,38 @@ async function searchWithFallback(
   query: string,
   count: number
 ): Promise<SearchOutcome> {
-  let items = await searchRaw(cfg, query, count);
-  if (items.length) return { items };
-  console.log(`[bookstack] „${query}": 0 Treffer → Wildcard-Fallback.`);
+  // Stage 0 — deterministic company/proper-noun correction (Levenshtein vs the
+  // admin dictionary). Runs FIRST: a mistyped proper noun ("ipsa hab") makes the
+  // whole query miss, so we fix it before any search is attempted.
+  const pn = correctProperNouns(query, getProperNouns());
+  const base = pn.corrected;
+  // Surface a proper-noun fix to the user just like a spellcheck fix.
+  const properNounFix = pn.replacements.length ? base : undefined;
+  if (properNounFix)
+    console.log(
+      `[bookstack] Eigennamen-Korrektur: „${query}" → „${base}" (${pn.replacements
+        .map((r) => `${r.from}→${r.to}`)
+        .join(", ")}).`
+    );
+
+  let items = await searchRaw(cfg, base, count);
+  if (items.length) return { items, correctedQuery: properNounFix };
+  console.log(`[bookstack] „${base}": 0 Treffer → Wildcard-Fallback.`);
 
   // Stage 1 — tokenized wildcard.
-  const wq = wildcardQuery(query);
-  if (wq && wq !== query) {
+  const wq = wildcardQuery(base);
+  if (wq && wq !== base) {
     items = await searchRaw(cfg, wq, count);
     if (items.length) {
       console.log(`[bookstack] Wildcard „${wq}": ${items.length} Treffer.`);
-      return { items };
+      return { items, correctedQuery: properNounFix };
     }
   }
 
-  // Stage 2 — LLM spellcheck.
-  const corrected = await spellcheckQuery(query);
-  if (corrected && corrected.toLowerCase() !== query.toLowerCase()) {
-    console.log(`[bookstack] Rechtschreibkorrektur: „${query}" → „${corrected}".`);
+  // Stage 2 — LLM spellcheck (on the proper-noun-corrected base).
+  const corrected = await spellcheckQuery(base);
+  if (corrected && corrected.toLowerCase() !== base.toLowerCase()) {
+    console.log(`[bookstack] Rechtschreibkorrektur: „${base}" → „${corrected}".`);
     items = await searchRaw(cfg, corrected, count);
     if (items.length) return { items, correctedQuery: corrected };
     const cwq = wildcardQuery(corrected);

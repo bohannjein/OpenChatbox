@@ -36,6 +36,9 @@ export default function KnowledgeBasePanel() {
   const [busy, setBusy] = useState<string | null>(null); // categoryId being indexed
   const [error, setError] = useState<string | null>(null);
   const [embModel, setEmbModel] = useState("");
+  // Fuzzy proper-noun dictionary (admin-global), one canonical name per line.
+  const [properNouns, setProperNouns] = useState("");
+  const [pnSaved, setPnSaved] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
 
   const load = useCallback(() => {
@@ -53,7 +56,10 @@ export default function KnowledgeBasePanel() {
     if (isAdmin)
       fetch("/api/admin/config", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
-        .then((d) => setEmbModel(d?.config?.embeddingModel ?? ""))
+        .then((d) => {
+          setEmbModel(d?.config?.embeddingModel ?? "");
+          setProperNouns((d?.config?.properNouns ?? []).join("\n"));
+        })
         .catch(() => {});
   }, [load, isAdmin]);
 
@@ -116,6 +122,21 @@ export default function KnowledgeBasePanel() {
     }).catch(() => {});
   };
 
+  const saveProperNouns = async () => {
+    const list = properNouns
+      .split(/\r?\n/)
+      .map((n) => n.trim())
+      .filter(Boolean);
+    await fetch("/api/admin/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ properNouns: list }),
+    }).catch(() => {});
+    setProperNouns(list.join("\n"));
+    setPnSaved(true);
+    setTimeout(() => setPnSaved(false), 1500);
+  };
+
   return (
     <div>
       <div className="mb-3">
@@ -155,6 +176,37 @@ export default function KnowledgeBasePanel() {
           >
             Speichern
           </button>
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="mb-4 rounded-xl border border-border-light p-3 dark:border-border-dark">
+          <label className="mb-1 block text-sm font-medium">
+            Eigennamen-Wörterbuch (Fuzzy-Suche)
+          </label>
+          <p className="mb-2 text-xs text-neutral-500">
+            Firmen- und Personen-Eigennamen (einer pro Zeile). Tippfehler in der
+            Suche werden per Levenshtein-Distanz automatisch auf den korrekten
+            Namen korrigiert — z. B. „ipsa hab“ → „ispa hub“.
+          </p>
+          <textarea
+            value={properNouns}
+            onChange={(e) => setProperNouns(e.target.value)}
+            rows={4}
+            placeholder={"ispa hub\nSASDIR\nWeller Gruppe"}
+            className="w-full resize-y input-base font-mono"
+          />
+          <div className="mt-2 flex items-center justify-end gap-2">
+            {pnSaved && (
+              <span className="text-xs text-accent">Gespeichert ✓</span>
+            )}
+            <button
+              onClick={saveProperNouns}
+              className="rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
+            >
+              Wörterbuch speichern
+            </button>
+          </div>
         </div>
       )}
 

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUser } from "@/lib/server/adminAuth";
 import { webSearch } from "@/lib/server/search";
+import { getProperNouns } from "@/lib/server/config";
+import { correctProperNouns } from "@/lib/server/spellfix";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,6 +14,9 @@ export async function POST(req: NextRequest) {
   const { query } = await req.json().catch(() => ({}));
   if (typeof query !== "string" || !query.trim())
     return NextResponse.json({ provider: null, results: [] });
-  const out = await webSearch(query);
+  // Correct mistyped company/person proper nouns against the admin dictionary
+  // before the query hits the search provider.
+  const { corrected } = correctProperNouns(query, getProperNouns());
+  const out = await webSearch(corrected);
   return NextResponse.json(out);
 }

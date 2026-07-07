@@ -31,6 +31,12 @@ export async function POST(req: NextRequest) {
     patch.imageGen = body.imageGen as ServerConfig["imageGen"];
   if (body.primaryProvider && typeof body.primaryProvider === "object")
     patch.primaryProvider = body.primaryProvider as ServerConfig["primaryProvider"];
+  if (Array.isArray(body.properNouns))
+    patch.properNouns = (body.properNouns as unknown[])
+      .filter((n): n is string => typeof n === "string")
+      .map((n) => n.trim().slice(0, 100))
+      .filter(Boolean)
+      .slice(0, 500);
 
   const next = setConfig(patch);
   return NextResponse.json({ config: next });
