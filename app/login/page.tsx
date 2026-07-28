@@ -377,19 +377,6 @@ export default function LoginPage() {
                   )}
                   {mode === "login" ? "Anmelden" : "Registrieren"}
                 </button>
-
-                {mode === "login" && passwordResetEnabled && (
-                  <button
-                    onClick={() => {
-                      setMode("forgot");
-                      setError(null);
-                      setPassword("");
-                    }}
-                    className="w-full text-center text-xs text-neutral-500 hover:text-neutral-300"
-                  >
-                    Passwort vergessen?
-                  </button>
-                )}
               </>
             )}
 
@@ -410,7 +397,9 @@ export default function LoginPage() {
               </>
             )}
 
-            {/* Register toggle only when self-registration AND password login are on. */}
+            {/* Footer options — shown in both the login and register masks
+                whenever the respective feature is enabled, so "create account"
+                and "forgot password" are always reachable. */}
             {canRegister && (
               <button
                 onClick={() => {
@@ -422,6 +411,19 @@ export default function LoginPage() {
                 {mode === "login"
                   ? "Noch kein Konto? Registrieren"
                   : "Schon ein Konto? Anmelden"}
+              </button>
+            )}
+
+            {passwordResetEnabled && (
+              <button
+                onClick={() => {
+                  setMode("forgot");
+                  setError(null);
+                  setPassword("");
+                }}
+                className="w-full text-center text-xs text-neutral-500 hover:text-neutral-300"
+              >
+                Passwort vergessen?
               </button>
             )}
 
