@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { oidcConfig, decodeJwtPayload, profileFromClaims } from "@/lib/server/oidc";
+import { decodeJwtPayload, profileFromClaims } from "@/lib/server/oidc";
 import { upsertSsoUser } from "@/lib/server/users";
-import { getAuthMethods } from "@/lib/server/config";
+import { getAuthMethods, resolveOidc } from "@/lib/server/config";
 import {
   makeSession,
   SESSION_COOKIE,
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
-  const cfg = oidcConfig();
+  const cfg = resolveOidc();
   // Reject if SSO is unconfigured or the admin turned the method off.
   if (!cfg || !getAuthMethods().sso.enabled)
     return NextResponse.redirect(`${origin}/login?error=sso`);

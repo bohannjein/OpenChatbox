@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./paths";
 import { decryptSecret } from "./crypto";
-import { oidcConfig } from "./oidc";
+import { oidcConfig, type OidcConfig } from "./oidc";
 import type { Provider } from "@/lib/types";
 
 /**
@@ -89,6 +89,49 @@ export interface BookstackResolved {
   allowInsecure: boolean;
 }
 
+/** SMTP mail server for outbound email (password-reset links). Password
+ *  encrypted at rest; never returned to any client. */
+export interface SmtpConfig {
+  enabled: boolean;
+  host?: string;
+  port?: number;
+  /** implicit TLS (true = port 465; false = STARTTLS on 587/25). */
+  secure?: boolean;
+  user?: string;
+  /** encrypted (enc:v1:…) — never returned to any client. */
+  passwordSecret?: string;
+  /** From: header, e.g. "OpenChatbox <noreply@firma.de>". */
+  from?: string;
+}
+/** Fully resolved (decrypted) SMTP config — server-side only. */
+export interface SmtpResolved {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  password: string;
+  from: string;
+}
+
+/**
+ * Admin-configurable SSO (OIDC) — an alternative to the ENTRA_ / AUTH_ env vars.
+ * `provider` picks the flavor: "entra" derives Microsoft v2.0 endpoints from the
+ * tenant; "ad"/generic OIDC needs explicit authorize/token URLs (e.g. ADFS or
+ * Keycloak). The client secret is encrypted at rest; never returned to a client.
+ */
+export interface OidcStoredConfig {
+  enabled: boolean;
+  provider: "entra" | "ad";
+  clientId?: string;
+  /** encrypted (enc:v1:…) — never returned to any client. */
+  clientSecretEnc?: string;
+  /** Entra tenant id (also restricts sign-in to that org via the tid claim). */
+  tenantId?: string;
+  /** explicit endpoints (required for "ad"/generic OIDC; optional for entra). */
+  authorizeUrl?: string;
+  tokenUrl?: string;
+}
+
 /** Self-registration policy. When disabled, only admins create accounts. */
 export interface SelfRegistrationConfig {
   enabled: boolean;
@@ -145,6 +188,10 @@ export interface ServerConfig {
   plugins?: PluginFlags;
   /** BookStack wiki integration (token secret encrypted, server-only) */
   bookstack?: BookstackConfig;
+  /** SMTP mail server for password-reset emails (password encrypted, server-only) */
+  smtp?: SmtpConfig;
+  /** admin-configured SSO/OIDC (client secret encrypted, server-only) */
+  oidc?: OidcStoredConfig;
   /** self-registration policy (Login-Seite „Registrieren“) */
   selfRegistration?: SelfRegistrationConfig;
   /** guest access policy (chat without an account) */
@@ -311,6 +358,63 @@ export function getBookstackConfig(): BookstackResolved | null {
   };
 }
 
+/**
+ * Resolved SMTP config (decrypted password) if enabled and fully configured;
+ * otherwise null. Server-side only — never expose the password.
+ */
+export function getSmtpConfig(): SmtpResolved | null {
+  const s = getConfig().smtp;
+  if (!s?.enabled) return null;
+  const host = (s.host ?? "").trim();
+  const port = Number(s.port) || 0;
+  const user = (s.user ?? "").trim();
+  const password = decryptSecret(s.passwordSecret).trim();
+  const from = (s.from ?? "").trim() || user;
+  if (!host || !port || !from) return null;
+  return { host, port, secure: !!s.secure, user, password, from };
+}
+
+/** Whether password-reset email is available (SMTP fully configured). */
+export function isPasswordResetEnabled(): boolean {
+  return !!getSmtpConfig();
+}
+
+/**
+ * The effective OIDC config: admin-stored settings take precedence; otherwise
+ * fall back to the environment-based config (legacy / infra-managed). Returns
+ * null when neither is usable. Server-side only (carries the client secret).
+ */
+export function resolveOidc(): OidcConfig | null {
+  const o = getConfig().oidc;
+  if (o?.enabled) {
+    const clientId = (o.clientId ?? "").trim();
+    const clientSecret = decryptSecret(o.clientSecretEnc).trim();
+    const tenant = (o.tenantId ?? "").trim();
+    // Entra derives Microsoft v2.0 endpoints from the tenant when not given.
+    const authorizeUrl =
+      (o.authorizeUrl ?? "").trim() ||
+      (o.provider === "entra" && tenant
+        ? `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize`
+        : "");
+    const tokenUrl =
+      (o.tokenUrl ?? "").trim() ||
+      (o.provider === "entra" && tenant
+        ? `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`
+        : "");
+    if (clientId && clientSecret && authorizeUrl && tokenUrl)
+      return { authorizeUrl, tokenUrl, clientId, clientSecret, tenantId: tenant || undefined };
+  }
+  return oidcConfig();
+}
+
+/** SSO source: "config" (admin UI), "env" (environment), or null (unconfigured). */
+export function oidcSource(): "config" | "env" | null {
+  const o = getConfig().oidc;
+  if (o?.enabled && (o.clientId ?? "").trim() && decryptSecret(o.clientSecretEnc).trim())
+    return "config";
+  return oidcConfig() ? "env" : null;
+}
+
 /** Strip the secret apiKey from a provider before sending it to a client. */
 function sanitizeProvider(p: Provider): Omit<Provider, "apiKey"> {
   const { apiKey, ...rest } = p;
@@ -367,8 +471,10 @@ export function publicConfig(c: ServerConfig = getConfig()) {
     // has the SSO method enabled. `configured` lets the admin panel explain why a
     // toggle is inert (env missing) vs. simply turned off.
     sso: {
-      enabled: !!oidcConfig() && (c.authMethods?.sso?.enabled ?? true),
-      configured: !!oidcConfig(),
+      enabled: !!resolveOidc() && (c.authMethods?.sso?.enabled ?? true),
+      configured: !!resolveOidc(),
     },
+    // Whether the login page should show a "forgot password" link (SMTP set up).
+    passwordReset: { enabled: !!getSmtpConfig() },
   };
 }

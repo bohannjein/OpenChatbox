@@ -49,7 +49,10 @@ export interface SessionPayload {
   uid: string;
   username: string;
   role: string;
-  purpose?: "session" | "2fa" | "guest";
+  purpose?: "session" | "2fa" | "guest" | "reset";
+  /** password fingerprint — binds a reset ticket to the CURRENT password so the
+   *  link becomes single-use (invalid once the password changes). */
+  fp?: string;
   exp: number;
 }
 
@@ -113,6 +116,26 @@ export const makePendingTicket = (u: { id: string; username: string; role: strin
     role: u.role,
     purpose: "2fa",
     exp: Date.now() + PENDING_TTL,
+  });
+
+const RESET_TTL = 1000 * 60 * 30; // 30 min for a password-reset link
+
+/** Fingerprint of the current password hash — makes a reset ticket single-use. */
+export const passwordFingerprint = (passHash: string) =>
+  b64u(crypto.createHmac("sha256", getSecret()).update("pwfp:" + passHash).digest()).slice(0, 22);
+
+/** A password-reset ticket bound to the user's current password fingerprint. */
+export const makeResetTicket = (
+  u: { id: string; username: string; role: string },
+  fp: string
+) =>
+  sign({
+    uid: u.id,
+    username: u.username,
+    role: u.role,
+    purpose: "reset",
+    fp,
+    exp: Date.now() + RESET_TTL,
   });
 
 /**

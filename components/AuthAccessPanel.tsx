@@ -5,6 +5,7 @@ import { Loader2, RefreshCw } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { loadAllModels, displayName } from "@/lib/providers";
 import type { ModelOption } from "@/lib/types";
+import InfoTip from "./InfoTip";
 
 /**
  * Admin-only access policy: self-registration (with an optional email-domain
@@ -92,15 +93,18 @@ export default function AuthAccessPanel() {
           Anmeldearten
         </div>
 
-        <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={passwordEnabled}
-            onChange={(e) => setPasswordEnabled(e.target.checked)}
-            className="h-4 w-4 accent-[rgb(var(--accent))]"
-          />
-          Passwort-Anmeldung erlauben (Benutzername & Passwort)
-        </label>
+        <div className="flex items-center gap-1.5">
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={passwordEnabled}
+              onChange={(e) => setPasswordEnabled(e.target.checked)}
+              className="h-4 w-4 accent-[rgb(var(--accent))]"
+            />
+            Passwort-Anmeldung erlauben (Benutzername & Passwort)
+          </label>
+          <InfoTip text="Erlaubt die klassische Anmeldung mit Benutzername und Passwort. Ausschalten für reinen SSO-Betrieb — der Administrator kann sich dann weiterhin per Passwort anmelden." />
+        </div>
         {!passwordEnabled && (
           <p className="mt-1 pl-6 text-xs text-neutral-500">
             Nutzer melden sich nur per Firmen-Login an. Der Administrator kann sich
@@ -108,19 +112,22 @@ export default function AuthAccessPanel() {
           </p>
         )}
 
-        <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={ssoEnabled}
-            onChange={(e) => setSsoEnabled(e.target.checked)}
-            className="h-4 w-4 accent-[rgb(var(--accent))]"
-          />
-          Firmen-Login (SSO / Microsoft Entra ID) erlauben
-        </label>
+        <div className="mt-3 flex items-center gap-1.5">
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={ssoEnabled}
+              onChange={(e) => setSsoEnabled(e.target.checked)}
+              className="h-4 w-4 accent-[rgb(var(--accent))]"
+            />
+            Firmen-Login (SSO / Microsoft Entra ID) erlauben
+          </label>
+          <InfoTip text="Zeigt den „Mit Firmen-Account anmelden“-Button. Die Zugangsdaten (Entra ID oder AD/OIDC) richtest du im Abschnitt „Firmen-Login (SSO)“ weiter unten ein." />
+        </div>
         {ssoEnabled && !ssoConfigured && (
           <p className="mt-1 pl-6 text-xs text-amber-600 dark:text-amber-500">
-            SSO ist nicht per Umgebungsvariablen konfiguriert — der Button bleibt
-            inaktiv, bis die OIDC-Zugangsdaten hinterlegt sind.
+            SSO ist noch nicht konfiguriert — der Button bleibt inaktiv, bis du die
+            Zugangsdaten unter „Firmen-Login (SSO)“ hinterlegst.
           </p>
         )}
         {!passwordEnabled && !ssoEnabled && (
@@ -132,19 +139,23 @@ export default function AuthAccessPanel() {
       </div>
 
       {/* Self-registration */}
-      <label className="flex cursor-pointer items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={selfReg}
-          onChange={(e) => setSelfReg(e.target.checked)}
-          className="h-4 w-4 accent-[rgb(var(--accent))]"
-        />
-        Selbstregistrierung erlauben (zeigt „Registrieren“ auf der Login-Seite)
-      </label>
+      <div className="flex items-center gap-1.5">
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={selfReg}
+            onChange={(e) => setSelfReg(e.target.checked)}
+            className="h-4 w-4 accent-[rgb(var(--accent))]"
+          />
+          Selbstregistrierung erlauben (zeigt „Registrieren“ auf der Login-Seite)
+        </label>
+        <InfoTip text="Erlaubt Besuchern, sich selbst ein Konto anzulegen. Aus = nur der Admin legt Konten an (Benutzerverwaltung oben)." />
+      </div>
       {selfReg && (
         <div className="mt-2 pl-6">
-          <label className="mb-1 block text-xs text-neutral-500">
+          <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
             Erlaubte E-Mail-Domains (optional, eine pro Zeile). Leer = alle Domains.
+            <InfoTip text="Beschränkt die Selbstregistrierung auf bestimmte E-Mail-Domains (z. B. firma.de). Der Benutzername muss dann eine E-Mail dieser Domain sein." />
           </label>
           <textarea
             value={domains}
@@ -157,15 +168,18 @@ export default function AuthAccessPanel() {
       )}
 
       {/* Guest access */}
-      <label className="mt-5 flex cursor-pointer items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={guestEnabled}
-          onChange={(e) => setGuestEnabled(e.target.checked)}
-          className="h-4 w-4 accent-[rgb(var(--accent))]"
-        />
-        Gast-Zugang erlauben (Nutzung ohne Anmeldung)
-      </label>
+      <div className="mt-5 flex items-center gap-1.5">
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={guestEnabled}
+            onChange={(e) => setGuestEnabled(e.target.checked)}
+            className="h-4 w-4 accent-[rgb(var(--accent))]"
+          />
+          Gast-Zugang erlauben (Nutzung ohne Anmeldung)
+        </label>
+        <InfoTip text="Nicht angemeldete Besucher dürfen den Chatbot mit genau einem festgelegten Modell testen. Ideal zum Ausprobieren ohne Konto." />
+      </div>
       {guestEnabled && (
         <div className="mt-2 flex items-center gap-2 pl-6">
           <div className="min-w-0 flex-1">

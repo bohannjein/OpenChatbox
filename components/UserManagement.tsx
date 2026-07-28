@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Users, Trash2, Lock, Unlock, KeyRound, Loader2, UserPlus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Users, Trash2, Lock, Unlock, KeyRound, Loader2, UserPlus, Search, Mail } from "lucide-react";
 import clsx from "clsx";
 import { providerLabel } from "@/lib/authProvider";
 
@@ -13,6 +13,10 @@ type U = {
   blocked: boolean;
   builtin: boolean;
   kbCategories: string[];
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+  email?: string;
 };
 
 type Cat = { id: string; name: string };
@@ -25,7 +29,15 @@ export default function UserManagement() {
   const [cats, setCats] = useState<Cat[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [nu, setNu] = useState({ username: "", password: "", role: "user" });
+  const [query, setQuery] = useState("");
+  const [nu, setNu] = useState({
+    firstName: "",
+    lastName: "",
+    username: "",
+    email: "",
+    password: "",
+    role: "user",
+  });
 
   const load = async () => {
     try {
@@ -89,6 +101,10 @@ export default function UserManagement() {
   };
 
   const createUser = async () => {
+    if (!nu.firstName.trim() || !nu.lastName.trim()) {
+      setErr("Vor- und Nachname erforderlich.");
+      return;
+    }
     if (!nu.username.trim() || nu.password.length < 6) {
       setErr("Benutzername und Passwort (min. 6 Zeichen) nötig.");
       return;
@@ -104,7 +120,7 @@ export default function UserManagement() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Fehler");
       setUsers(d.users);
-      setNu({ username: "", password: "", role: "user" });
+      setNu({ firstName: "", lastName: "", username: "", email: "", password: "", role: "user" });
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -120,6 +136,29 @@ export default function UserManagement() {
   const del = (u: U) => {
     if (window.confirm(`Benutzer "${u.username}" wirklich löschen?`)) act(u.id, "delete");
   };
+  const editEmail = (u: U) => {
+    const mail = window.prompt(
+      `E-Mail für "${u.username}" (für Passwort-Reset; leer = entfernen):`,
+      u.email ?? ""
+    );
+    if (mail !== null) act(u.id, "setEmail", mail.trim());
+  };
+
+  // Full name for display; falls back to username when no name is stored.
+  const fullName = (u: U) =>
+    [u.firstName, u.lastName].filter(Boolean).join(" ") || u.displayName || "";
+
+  // Case-insensitive search across name, username and email.
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q || !users) return users ?? [];
+    return users.filter((u) =>
+      [fullName(u), u.username, u.email ?? ""]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
+    );
+  }, [users, query]);
 
   return (
     <div>
@@ -133,24 +172,43 @@ export default function UserManagement() {
       {err && <div className="mb-2 text-sm text-red-500">⚠ {err}</div>}
 
       {/* Create account */}
-      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border-light p-2 dark:border-border-dark">
+      <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-border-light p-2 dark:border-border-dark">
+        <input
+          value={nu.firstName}
+          onChange={(e) => setNu({ ...nu, firstName: e.target.value })}
+          placeholder="Vorname"
+          className="input-base min-w-0 py-1"
+        />
+        <input
+          value={nu.lastName}
+          onChange={(e) => setNu({ ...nu, lastName: e.target.value })}
+          placeholder="Nachname"
+          className="input-base min-w-0 py-1"
+        />
         <input
           value={nu.username}
           onChange={(e) => setNu({ ...nu, username: e.target.value })}
           placeholder="Benutzername"
-          className="input-base min-w-0 flex-1 py-1"
+          className="input-base min-w-0 py-1"
+        />
+        <input
+          type="email"
+          value={nu.email}
+          onChange={(e) => setNu({ ...nu, email: e.target.value })}
+          placeholder="E-Mail (optional, für Passwort-Reset)"
+          className="input-base min-w-0 py-1"
         />
         <input
           type="password"
           value={nu.password}
           onChange={(e) => setNu({ ...nu, password: e.target.value })}
           placeholder="Passwort"
-          className="input-base min-w-0 flex-1 py-1"
+          className="input-base min-w-0 py-1"
         />
         <select
           value={nu.role}
           onChange={(e) => setNu({ ...nu, role: e.target.value })}
-          className="input-base w-28 py-1 text-xs"
+          className="input-base py-1 text-xs"
         >
           {ROLES.map((r) => (
             <option key={r} value={r}>
@@ -161,17 +219,35 @@ export default function UserManagement() {
         <button
           onClick={createUser}
           disabled={busy !== null}
-          className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-40"
+          className="col-span-2 flex items-center justify-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-40"
         >
           <UserPlus size={15} /> Anlegen
         </button>
       </div>
 
+      {/* Search */}
+      <div className="relative mb-2">
+        <Search
+          size={15}
+          className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400"
+        />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Nach Name, Benutzername oder E-Mail suchen…"
+          className="input-base w-full py-1.5 pl-8"
+        />
+      </div>
+
       {!users ? (
         <Loader2 size={16} className="animate-spin text-neutral-400" />
+      ) : filtered.length === 0 ? (
+        <p className="py-4 text-center text-sm text-neutral-400">
+          Keine Benutzer gefunden.
+        </p>
       ) : (
-        <div className="space-y-1.5">
-          {users.map((u) => (
+        <div className="max-h-96 space-y-1.5 overflow-y-auto pr-1">
+          {filtered.map((u) => (
             <div
               key={u.id}
               className="rounded-xl border border-border-light dark:border-border-dark"
@@ -184,7 +260,7 @@ export default function UserManagement() {
               >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 truncate text-sm font-medium">
-                  {u.username}
+                  {fullName(u) || u.username}
                   {u.builtin && (
                     <span className="rounded bg-accent/15 px-1 text-[10px] text-accent">
                       built-in
@@ -192,7 +268,11 @@ export default function UserManagement() {
                   )}
                   {u.blocked && <span className="text-[10px] text-red-500">gesperrt</span>}
                 </div>
-                <div className="text-xs text-neutral-400">{providerLabel(u.provider)}</div>
+                <div className="truncate text-xs text-neutral-400">
+                  {fullName(u) ? `${u.username} · ` : ""}
+                  {providerLabel(u.provider)}
+                  {u.email ? ` · ${u.email}` : ""}
+                </div>
               </div>
 
               <select
@@ -208,6 +288,18 @@ export default function UserManagement() {
                   </option>
                 ))}
               </select>
+
+              <button
+                onClick={() => editEmail(u)}
+                disabled={busy !== null}
+                title={u.email ? `E-Mail: ${u.email}` : "E-Mail hinterlegen (für Passwort-Reset)"}
+                className={clsx(
+                  "rounded-lg p-1.5 transition hover:bg-neutral-200 dark:hover:bg-white/10",
+                  u.email ? "text-accent" : "text-neutral-500 hover:text-accent"
+                )}
+              >
+                <Mail size={15} />
+              </button>
 
               <button
                 onClick={() => resetPw(u)}

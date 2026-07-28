@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // Public routes (no session required).
 const PUBLIC = [
   /^\/login/,
+  /^\/reset/,
   /^\/setup/,
   /^\/api\/auth\//,
   /^\/api\/setup/,

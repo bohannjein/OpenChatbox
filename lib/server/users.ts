@@ -15,6 +15,9 @@ export interface User {
   /** email + display name (populated for SSO accounts from the ID token) */
   email?: string;
   displayName?: string;
+  /** given/family name — admin-entered for locally-created accounts */
+  firstName?: string;
+  lastName?: string;
   /** knowledge-base category ids this user may access (ACL). Admins see all
    *  categories implicitly regardless of this list. */
   kbCategories?: string[];
@@ -113,10 +116,29 @@ export function findById(id: string): User | undefined {
   return load().find((u) => u.id === id);
 }
 
+/** Find by username OR email (case-insensitive) — for password-reset requests. */
+export function findByUsernameOrEmail(identifier: string): User | undefined {
+  ensureSeed();
+  const id = identifier.trim().toLowerCase();
+  if (!id) return undefined;
+  return load().find(
+    (u) =>
+      u.username.toLowerCase() === id ||
+      (!!u.email && u.email.toLowerCase() === id)
+  );
+}
+
 export function createUser(
   username: string,
   password: string,
-  opts: { role?: User["role"]; provider?: string } = {}
+  opts: {
+    role?: User["role"];
+    provider?: string;
+    firstName?: string;
+    lastName?: string;
+    displayName?: string;
+    email?: string;
+  } = {}
 ): User {
   const users = load();
   if (
@@ -126,6 +148,13 @@ export function createUser(
   const { salt, passHash } = password
     ? hashPassword(password)
     : { salt: "", passHash: "" };
+  const firstName = opts.firstName?.trim() || undefined;
+  const lastName = opts.lastName?.trim() || undefined;
+  // displayName falls back to "Vorname Nachname" when not given explicitly.
+  const displayName =
+    opts.displayName?.trim() ||
+    [firstName, lastName].filter(Boolean).join(" ") ||
+    undefined;
   const user: User = {
     id: uid(),
     username: username.trim(),
@@ -133,6 +162,10 @@ export function createUser(
     salt,
     role: opts.role ?? "user",
     provider: opts.provider ?? "local",
+    firstName,
+    lastName,
+    displayName,
+    email: opts.email?.trim() || undefined,
     twoFactor: { enabled: false },
     createdAt: Date.now(),
   };
@@ -190,6 +223,8 @@ export function publicUser(u: User) {
     username: u.username,
     email: u.email,
     displayName: u.displayName,
+    firstName: u.firstName,
+    lastName: u.lastName,
     role: u.role,
     provider: u.provider,
     kbCategories: u.kbCategories ?? [],
@@ -268,6 +303,18 @@ export function setUserBlocked(id: string, blocked: boolean): boolean {
   const u = users.find((x) => x.id === id);
   if (!u || isBuiltinAdmin(u)) return false;
   updateUser(id, { blocked });
+  return true;
+}
+
+/** Admin: set/clear a user's email (used for password-reset delivery). */
+export function setUserEmail(id: string, email: string): boolean {
+  const users = load();
+  const u = users.find((x) => x.id === id);
+  if (!u) return false;
+  const clean = email.trim().slice(0, 200);
+  // Light sanity check: allow empty (clear) or a plausible address.
+  if (clean && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) return false;
+  updateUser(id, { email: clean || undefined });
   return true;
 }
 

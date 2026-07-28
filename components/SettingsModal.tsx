@@ -39,6 +39,8 @@ import ImageGenPanel from "./ImageGenPanel";
 import ProvidersPanel from "./ProvidersPanel";
 import AboutPanel from "./AboutPanel";
 import AuthAccessPanel from "./AuthAccessPanel";
+import SsoConfigPanel from "./SsoConfigPanel";
+import SmtpConfigPanel from "./SmtpConfigPanel";
 
 type TabId =
   | "account"
@@ -546,6 +548,16 @@ export default function SettingsModal() {
                 {/* Registration & guest access */}
                 <Section>
                   <AuthAccessPanel />
+                </Section>
+
+                {/* SSO / OIDC (Entra ID or generic AD) */}
+                <Section>
+                  <SsoConfigPanel />
+                </Section>
+
+                {/* Outbound mail (SMTP) for password-reset links */}
+                <Section>
+                  <SmtpConfigPanel />
                 </Section>
 
                 {/* Branding */}

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdmin } from "@/lib/server/adminAuth";
-import { getConfig, setConfig, type ServerConfig } from "@/lib/server/config";
-import { oidcConfig } from "@/lib/server/oidc";
+import { getConfig, setConfig, resolveOidc, type ServerConfig } from "@/lib/server/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +11,7 @@ export async function GET(req: NextRequest) {
   // `ssoConfigured` tells the panel whether the OIDC env is present, so it can
   // show the SSO toggle as inert-until-configured instead of silently doing
   // nothing when enabled without env.
-  return NextResponse.json({ config: getConfig(), ssoConfigured: !!oidcConfig() });
+  return NextResponse.json({ config: getConfig(), ssoConfigured: !!resolveOidc() });
 }
 
 /** Patch the admin-global master config. Whitelisted keys only. */

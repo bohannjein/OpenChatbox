@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { oidcConfig } from "@/lib/server/oidc";
-import { getAuthMethods } from "@/lib/server/config";
+import { getAuthMethods, resolveOidc } from "@/lib/server/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const cfg = oidcConfig();
+  const cfg = resolveOidc();
   const origin = req.nextUrl.origin;
   // SSO must be both env-configured and enabled by the admin.
   if (!cfg || !getAuthMethods().sso.enabled)

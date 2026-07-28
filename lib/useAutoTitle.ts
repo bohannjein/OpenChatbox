@@ -21,12 +21,20 @@ export function useAutoTitle() {
       const chat = useStore.getState().chats.find((c) => c.id === chatId);
       if (!chat || chat.temporary) return;
 
-      // Only after the very first complete answer (1 non-empty assistant msg).
+      // Fire once, on the FIRST user turn, as soon as an answer exists. Gate on
+      // the user-message count (exactly one) rather than the assistant count —
+      // the answer pipeline (OCR→answer, doc-gen, search) can append MORE than
+      // one assistant message, which used to fail an `=== 1` check and leave the
+      // provisional first-line title in place. This stays idempotent: after the
+      // user sends a second message it no longer runs.
+      const userMsgs = chat.messages.filter(
+        (m) => m.role === "user" && m.content.trim()
+      );
       const answers = chat.messages.filter(
         (m) => m.role === "assistant" && m.content.trim()
       );
-      const firstUser = chat.messages.find((m) => m.role === "user");
-      if (answers.length !== 1 || !firstUser) return;
+      const firstUser = userMsgs[0];
+      if (userMsgs.length !== 1 || answers.length < 1 || !firstUser) return;
 
       // Effective model: a sidekick wins; else the dedicated thread-naming
       // model (Standardmodelle → Thread-Benennung); else the current selection.
@@ -64,6 +72,6 @@ export function useAutoTitle() {
         setTitlePending(null);
       }
     },
-    [providers, selectedModelKey, sidekicks, renameChat, setTitlePending]
+    [providers, selectedModelKey, titleModelKey, sidekicks, renameChat, setTitlePending]
   );
 }

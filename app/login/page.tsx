@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { Building2, Loader2, ShieldCheck, LogIn, UserPlus } from "lucide-react";
 
-type Mode = "login" | "register";
+type Mode = "login" | "register" | "forgot";
 
 interface AccessCfg {
   selfRegistration: { enabled: boolean; domains: string[] };
   guest: { enabled: boolean; model: string | null };
   authMethods: { password: boolean; sso: boolean };
+  passwordReset: boolean;
   sso: boolean;
 }
 
@@ -59,6 +60,8 @@ export default function LoginPage() {
   // Reveal the password form even when password sign-in is off — the built-in
   // admin recovery path (server still accepts the built-in admin's password).
   const [showPwFallback, setShowPwFallback] = useState(false);
+  // Whether the "forgot password" request has been submitted (generic confirm).
+  const [forgotSent, setForgotSent] = useState(false);
 
   useEffect(() => {
     try {
@@ -87,6 +90,7 @@ export default function LoginPage() {
           selfRegistration?: AccessCfg["selfRegistration"];
           guest?: AccessCfg["guest"];
           authMethods?: { password?: boolean; sso?: boolean };
+          passwordReset?: { enabled?: boolean };
           sso?: { enabled?: boolean };
         };
         setCfg({
@@ -96,6 +100,7 @@ export default function LoginPage() {
             password: c?.authMethods?.password ?? true,
             sso: c?.authMethods?.sso ?? true,
           },
+          passwordReset: !!c?.passwordReset?.enabled,
           sso: !!c?.sso?.enabled,
         });
         if (cameFromApp && !e && c?.guest?.enabled && c?.guest?.model) {
@@ -180,9 +185,24 @@ export default function LoginPage() {
     }
   };
 
+  const submitForgot = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      // Always succeeds from the caller's view (no account enumeration).
+      await post("/api/auth/forgot", { identifier: username });
+    } catch {
+      /* ignore — generic confirmation either way */
+    } finally {
+      setForgotSent(true);
+      setBusy(false);
+    }
+  };
+
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key !== "Enter") return;
     if (ticket) submit2fa();
+    else if (mode === "forgot") submitForgot();
     else if (mode === "login") submitLogin();
     else submitRegister();
   };
@@ -196,6 +216,8 @@ export default function LoginPage() {
   const showCreds = passwordEnabled || showPwFallback;
   // Registering needs password accounts to be usable at all.
   const canRegister = selfRegEnabled && passwordEnabled;
+  // "Forgot password" needs SMTP configured AND password sign-in on.
+  const passwordResetEnabled = !!cfg?.passwordReset && passwordEnabled;
 
   // Splash while deciding (guest auto-entry vs. form) — never flash the form.
   if (!ready) {
@@ -217,6 +239,8 @@ export default function LoginPage() {
           <p className="mt-1 text-sm text-neutral-400">
             {ticket
               ? "Bestätige mit deinem Authenticator-Code"
+              : mode === "forgot"
+              ? "Passwort zurücksetzen"
               : !showCreds
               ? "Mit Firmen-Account anmelden"
               : mode === "login"
@@ -260,6 +284,59 @@ export default function LoginPage() {
               Zurück
             </button>
           </div>
+        ) : mode === "forgot" ? (
+          <div className="space-y-3">
+            {forgotSent ? (
+              <>
+                <p className="rounded-lg border border-border-dark bg-white/5 px-3 py-3 text-sm text-neutral-300">
+                  Falls ein Konto mit dieser Angabe existiert, wurde ein Link zum
+                  Zurücksetzen des Passworts per E-Mail verschickt. Prüfe dein
+                  Postfach (auch Spam).
+                </p>
+                <button
+                  onClick={() => {
+                    setMode("login");
+                    setForgotSent(false);
+                  }}
+                  className="w-full text-sm text-neutral-400 hover:text-neutral-200"
+                >
+                  Zurück zur Anmeldung
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-neutral-500">
+                  Gib deinen Benutzernamen oder deine E-Mail ein — wir senden dir
+                  einen Link zum Zurücksetzen.
+                </p>
+                <input
+                  autoFocus
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  onKeyDown={onKey}
+                  placeholder="Benutzername oder E-Mail"
+                  className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent"
+                />
+                <button
+                  onClick={submitForgot}
+                  disabled={busy || !username}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2 font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
+                >
+                  {busy ? <Loader2 size={16} className="animate-spin" /> : null}
+                  Link anfordern
+                </button>
+                <button
+                  onClick={() => {
+                    setMode("login");
+                    setError(null);
+                  }}
+                  className="w-full text-sm text-neutral-400 hover:text-neutral-200"
+                >
+                  Zurück zur Anmeldung
+                </button>
+              </>
+            )}
+          </div>
         ) : (
           <div className="space-y-3">
             {showCreds && (
@@ -300,6 +377,19 @@ export default function LoginPage() {
                   )}
                   {mode === "login" ? "Anmelden" : "Registrieren"}
                 </button>
+
+                {mode === "login" && passwordResetEnabled && (
+                  <button
+                    onClick={() => {
+                      setMode("forgot");
+                      setError(null);
+                      setPassword("");
+                    }}
+                    className="w-full text-center text-xs text-neutral-500 hover:text-neutral-300"
+                  >
+                    Passwort vergessen?
+                  </button>
+                )}
               </>
             )}
 

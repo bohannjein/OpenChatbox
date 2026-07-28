@@ -8,6 +8,7 @@ import {
   adminResetPassword,
   createUser,
   setUserKbCategories,
+  setUserEmail,
 } from "@/lib/server/users";
 
 export const runtime = "nodejs";
@@ -28,14 +29,22 @@ export async function POST(req: NextRequest) {
   if (action === "create") {
     const username = String(body.username ?? "").trim();
     const password = String(body.password ?? "");
+    const firstName = String(body.firstName ?? "").trim();
+    const lastName = String(body.lastName ?? "").trim();
+    const email = String(body.email ?? "").trim();
     const role = ["admin", "poweruser", "user"].includes(body.role) ? body.role : "user";
     if (!username || password.length < 6)
       return NextResponse.json(
         { error: "Benutzername und Passwort (min. 6 Zeichen) nötig." },
         { status: 400 }
       );
+    if (!firstName || !lastName)
+      return NextResponse.json(
+        { error: "Vor- und Nachname erforderlich." },
+        { status: 400 }
+      );
     try {
-      createUser(username, password, { role });
+      createUser(username, password, { role, firstName, lastName, email });
       return NextResponse.json({ ok: true, users: listUsers() });
     } catch (e) {
       return NextResponse.json(
@@ -69,6 +78,9 @@ export async function POST(req: NextRequest) {
         userId,
         Array.isArray(body.kbCategories) ? body.kbCategories : []
       );
+      break;
+    case "setEmail":
+      ok = setUserEmail(userId, String(value ?? ""));
       break;
     default:
       return NextResponse.json({ error: "Unbekannte Aktion" }, { status: 400 });
