@@ -1,0 +1,910 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenChatbox — Handbuch</title>
+
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f6f7f9;
+    --bg-code: #f2f3f5;
+    --fg: #1c1f23;
+    --fg-soft: #5b6169;
+    --fg-faint: #868d96;
+    --line: #e3e6ea;
+    --accent: #4f46e5;
+    --accent-soft: rgba(79, 70, 229, 0.1);
+    --warn-bg: #fff8e6;
+    --warn-line: #e8c66a;
+    --warn-fg: #6b5310;
+    --danger-bg: #fdf0f0;
+    --danger-line: #e2a0a0;
+    --danger-fg: #8a2b2b;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1114;
+      --bg-soft: #171a1f;
+      --bg-code: #1b1f25;
+      --fg: #e7e9ec;
+      --fg-soft: #a3aab4;
+      --fg-faint: #767e89;
+      --line: #262b32;
+      --accent: #8b85f5;
+      --accent-soft: rgba(139, 133, 245, 0.14);
+      --warn-bg: #241f10;
+      --warn-line: #6b5a24;
+      --warn-fg: #e2c777;
+      --danger-bg: #2a1618;
+      --danger-line: #6d3235;
+      --danger-fg: #f0a5a5;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #ffffff; --bg-soft: #f6f7f9; --bg-code: #f2f3f5;
+    --fg: #1c1f23; --fg-soft: #5b6169; --fg-faint: #868d96;
+    --line: #e3e6ea; --accent: #4f46e5; --accent-soft: rgba(79,70,229,.1);
+    --warn-bg: #fff8e6; --warn-line: #e8c66a; --warn-fg: #6b5310;
+    --danger-bg: #fdf0f0; --danger-line: #e2a0a0; --danger-fg: #8a2b2b;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1114; --bg-soft: #171a1f; --bg-code: #1b1f25;
+    --fg: #e7e9ec; --fg-soft: #a3aab4; --fg-faint: #767e89;
+    --line: #262b32; --accent: #8b85f5; --accent-soft: rgba(139,133,245,.14);
+    --warn-bg: #241f10; --warn-line: #6b5a24; --warn-fg: #e2c777;
+    --danger-bg: #2a1618; --danger-line: #6d3235; --danger-fg: #f0a5a5;
+  }
+
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.65 var(--sans);
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 3rem; max-width: 1180px; margin: 0 auto; padding: 0 1.5rem; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; gap: 0; padding: 0 1.1rem; } }
+
+  /* ── Table of contents ───────────────────────────────── */
+  nav.toc {
+    position: sticky; top: 0; align-self: start;
+    max-height: 100vh; overflow-y: auto;
+    padding: 2.5rem 0 3rem; font-size: 13.5px;
+  }
+  @media (max-width: 900px) {
+    nav.toc { position: static; max-height: none; border-bottom: 1px solid var(--line); margin-bottom: 2rem; }
+  }
+  nav.toc .toc-title { font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--fg-faint); margin-bottom: .9rem; }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; }
+  nav.toc > ol > li { margin-bottom: .15rem; }
+  nav.toc a { display: block; padding: .28rem .6rem; border-radius: 6px; color: var(--fg-soft); text-decoration: none; }
+  nav.toc a:hover { background: var(--bg-soft); color: var(--fg); }
+  nav.toc ol ol { margin: .1rem 0 .35rem .75rem; border-left: 1px solid var(--line); }
+  nav.toc ol ol a { padding-left: .75rem; font-size: 13px; color: var(--fg-faint); }
+
+  /* ── Content ─────────────────────────────────────────── */
+  main { padding: 2.5rem 0 6rem; min-width: 0; }
+  header.doc { border-bottom: 1px solid var(--line); padding-bottom: 1.6rem; margin-bottom: 2.5rem; }
+  header.doc h1 { font-size: 2.1rem; line-height: 1.15; margin: 0 0 .5rem; letter-spacing: -.02em; }
+  header.doc p { margin: 0; color: var(--fg-soft); }
+  .badges { margin-top: .9rem; display: flex; flex-wrap: wrap; gap: .4rem; }
+  .badge { font: 600 11.5px/1 var(--mono); background: var(--accent-soft); color: var(--accent); padding: .35rem .55rem; border-radius: 5px; }
+
+  h2 { font-size: 1.5rem; margin: 3.2rem 0 1rem; padding-top: .6rem; letter-spacing: -.01em; scroll-margin-top: 1rem; }
+  h2:first-of-type { margin-top: 0; }
+  h3 { font-size: 1.12rem; margin: 2rem 0 .6rem; scroll-margin-top: 1rem; }
+  h4 { font-size: .98rem; margin: 1.4rem 0 .4rem; color: var(--fg-soft); }
+  p, li { color: var(--fg); }
+  a { color: var(--accent); }
+  code { font: .875em var(--mono); background: var(--bg-code); padding: .12em .38em; border-radius: 4px; word-break: break-word; }
+  pre { background: var(--bg-code); border: 1px solid var(--line); border-radius: 9px; padding: .9rem 1rem; overflow-x: auto; margin: .9rem 0; }
+  pre code { background: none; padding: 0; font-size: 13px; line-height: 1.6; }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin: .25rem 0; }
+
+  .table-scroll { overflow-x: auto; margin: 1rem 0; border: 1px solid var(--line); border-radius: 9px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: .6rem .8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--bg-soft); font-weight: 600; font-size: 13px; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td code { white-space: nowrap; }
+
+  .note, .warn, .danger {
+    border-left: 3px solid var(--accent); background: var(--bg-soft);
+    padding: .8rem 1rem; border-radius: 0 8px 8px 0; margin: 1.1rem 0; font-size: 14.7px;
+  }
+  .warn { border-left-color: var(--warn-line); background: var(--warn-bg); color: var(--warn-fg); }
+  .danger { border-left-color: var(--danger-line); background: var(--danger-bg); color: var(--danger-fg); }
+  .note :first-child, .warn :first-child, .danger :first-child { margin-top: 0; }
+  .note :last-child, .warn :last-child, .danger :last-child { margin-bottom: 0; }
+
+  /* Symptom → cause → fix blocks */
+  .fix { border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; margin: 1rem 0; }
+  .fix > .sym { font-weight: 650; margin: 0 0 .5rem; }
+  .fix dl { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .3rem .9rem; font-size: 14.7px; }
+  .fix dt { color: var(--fg-faint); font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding-top: .22rem; }
+  .fix dd { margin: 0; min-width: 0; }
+  @media (max-width: 560px) { .fix dl { grid-template-columns: 1fr; gap: .1rem; } .fix dd { margin-bottom: .5rem; } }
+
+  .lede { color: var(--fg-soft); font-size: 15.5px; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 3rem 0 0; }
+  footer { color: var(--fg-faint); font-size: 13.5px; padding-top: 1.2rem; }
+</style>
+
+<div class="wrap">
+
+<nav class="toc">
+  <div class="toc-title">Inhalt</div>
+  <ol>
+    <li><a href="#ueberblick">1 · Überblick</a></li>
+    <li><a href="#schnellstart">2 · Schnellstart</a>
+      <ol>
+        <li><a href="#installer">Installer (Linux)</a></li>
+        <li><a href="#compose">Docker Compose</a></li>
+        <li><a href="#quellcode">Aus dem Quellcode</a></li>
+        <li><a href="#ersteinrichtung">Ersteinrichtung</a></li>
+      </ol>
+    </li>
+    <li><a href="#konfiguration">3 · Konfiguration</a>
+      <ol>
+        <li><a href="#env">Umgebungsvariablen</a></li>
+        <li><a href="#appurl">Öffentliche App-URL</a></li>
+        <li><a href="#anbieter">Modellanbieter</a></li>
+      </ol>
+    </li>
+    <li><a href="#bedienung">4 · Bedienung</a>
+      <ol>
+        <li><a href="#chatten">Chatten</a></li>
+        <li><a href="#chatinfo">Zu diesem Chat</a></li>
+        <li><a href="#inkognito">Inkognito</a></li>
+        <li><a href="#sidekicks">Sidekicks &amp; Workspaces</a></li>
+      </ol>
+    </li>
+    <li><a href="#einstellungen">5 · Einstellungen</a></li>
+    <li><a href="#administration">6 · Administration</a>
+      <ol>
+        <li><a href="#benutzer">Benutzer &amp; Rollen</a></li>
+        <li><a href="#sso">Single Sign-On</a></li>
+        <li><a href="#mail">E-Mail-Versand</a></li>
+        <li><a href="#modelle-admin">Modelle</a></li>
+        <li><a href="#wissen-admin">Wissensdatenbank</a></li>
+        <li><a href="#leistung">Leistung / VRAM</a></li>
+      </ol>
+    </li>
+    <li><a href="#architektur">7 · Architektur</a>
+      <ol>
+        <li><a href="#datenablage">Datenablage</a></li>
+        <li><a href="#chatsync">Chat-Synchronisation</a></li>
+        <li><a href="#routen">API-Routen</a></li>
+      </ol>
+    </li>
+    <li><a href="#betrieb">8 · Betrieb</a>
+      <ol>
+        <li><a href="#update">Update</a></li>
+        <li><a href="#backup">Backup</a></li>
+        <li><a href="#logs">Logs &amp; Healthcheck</a></li>
+      </ol>
+    </li>
+    <li><a href="#troubleshooting">9 · Troubleshooting</a>
+      <ol>
+        <li><a href="#ts-start">Start &amp; Container</a></li>
+        <li><a href="#ts-login">Anmeldung</a></li>
+        <li><a href="#ts-modelle">Modelle &amp; Antworten</a></li>
+        <li><a href="#ts-funktionen">Funktionen</a></li>
+        <li><a href="#ts-daten">Daten</a></li>
+      </ol>
+    </li>
+    <li><a href="#entwicklung">10 · Entwicklung</a></li>
+    <li><a href="#referenz">11 · Referenz</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="doc">
+  <h1>OpenChatbox — Handbuch</h1>
+  <p class="lede">Vollständige Dokumentation: Installation, Betrieb, Bedienung und Fehlersuche.</p>
+  <div class="badges">
+    <span class="badge">v0.10.0</span>
+    <span class="badge">Next.js 16 · App Router</span>
+    <span class="badge">Node 20+</span>
+    <span class="badge">Ein Dienst, keine Datenbank</span>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════ -->
+<h2 id="ueberblick">1 · Überblick</h2>
+
+<p>OpenChatbox ist eine selbst gehostete Chat-Oberfläche für große Sprachmodelle. Sie läuft als
+<strong>ein einziger Next.js-Dienst</strong> und spricht mit einer beliebigen
+<a href="https://ollama.com">Ollama</a>-Instanz oder einer OpenAI-kompatiblen API. Unterhaltungen und
+Konfiguration bleiben auf dem eigenen Server.</p>
+
+<div class="note">
+<strong>Ollama ist nicht enthalten.</strong> Die Anwendung wird auf einen Endpunkt gerichtet, den du
+bereits betreibst. Es gibt bewusst keinen mitgelieferten Ollama-Container.
+</div>
+
+<h3>Was die Anwendung kann</h3>
+<ul>
+  <li>Antworten streamen — Ollama (NDJSON) und OpenAI-kompatible APIs (SSE) werden serverseitig auf einen Strom normalisiert. „Reasoning“-Ausgabe wird separat dargestellt.</li>
+  <li>Auto-Router: jede Nachricht wird automatisch an das Modell geleitet, das für Programmieren, Reasoning, Bildverständnis oder Allgemeines hinterlegt ist.</li>
+  <li>Wissensdatenbank (RAG): Dokumente (PDF, TXT, MD, CSV, DOCX, PPTX, XLSX) werden lokal zerlegt und eingebettet; Antworten belegen ihre Quellen.</li>
+  <li>BookStack-Anbindung: durchsucht ein BookStack-Wiki und zitiert Seiten.</li>
+  <li>Websuche über einen konfigurierbaren Anbieter — pro Chat standardmäßig aus.</li>
+  <li>Dokumenterzeugung: PDF oder Excel aus einer Antwort.</li>
+  <li>Sidekicks (wiederverwendbare Assistenten-Profile), Workspaces, moderierter Gruppenmodus.</li>
+  <li>Konten mit Ersteinrichtung, optionalem Entra-ID-/OIDC-SSO und optionaler Zwei-Faktor-Authentifizierung.</li>
+</ul>
+
+<h3>Voraussetzungen</h3>
+<ul>
+  <li>Ein Ollama-Server oder ein OpenAI-kompatibler Endpunkt.</li>
+  <li>Für Docker-Betrieb: Docker und Docker Compose.</li>
+  <li>Für den Betrieb aus dem Quellcode: Node.js 20 oder neuer.</li>
+</ul>
+
+<!-- ══════════════════════════════════════════════════ -->
+<h2 id="schnellstart">2 · Schnellstart</h2>
+
+<h3 id="installer">Variante 1 — Installer (Linux, Docker)</h3>
+<p>Auf einem Debian- oder Ubuntu-Server mit <code>curl</code>:</p>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/bohannjein/OpenChatbox/main/install.sh | bash</code></pre>
+<p>Das Skript installiert Docker und Compose falls nötig, klont das Repository, erzeugt eine
+<code>.env</code> mit <code>AUTH_SECRET</code> und startet den Container im Hintergrund auf Port
+<code>6769</code>. Danach <code>http://&lt;server-ip&gt;:6769</code> öffnen.</p>
+
+<p>Port oder Zielverzeichnis überschreiben:</p>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/bohannjein/OpenChatbox/main/install.sh | OPENCHATBOX_PORT=8080 bash</code></pre>
+
+<h3 id="compose">Variante 2 — Docker Compose von Hand</h3>
+<pre><code>git clone https://github.com/bohannjein/OpenChatbox.git
+cd OpenChatbox
+cp .env.example .env
+
+# AUTH_SECRET in .env eintragen:
+openssl rand -hex 32
+
+OPENCHATBOX_PORT=6769 docker compose up -d --build</code></pre>
+<p>Der Container lauscht intern auf <code>3000</code>; <code>OPENCHATBOX_PORT</code> bestimmt den
+Port nach außen. Laufzeitdaten liegen im Volume <code>openchatbox-data</code>.</p>
+
+<h3 id="quellcode">Variante 3 — aus dem Quellcode</h3>
+<pre><code>npm install
+npm run dev                    # http://localhost:3000
+
+# oder produktiv:
+npm run build &amp;&amp; npm start</code></pre>
+
+<h3 id="ersteinrichtung">Ersteinrichtung</h3>
+<p>Beim ersten Aufruf erscheint der Einrichtungsbildschirm. Dort wird das Administratorkonto angelegt.
+Anschließend als Administrator anmelden und unter <strong>Einstellungen → Modelle → Anbieter &amp;
+Endpunkte</strong> mindestens einen Modellanbieter eintragen — vorher kann niemand chatten.</p>
+
+<div class="warn">
+<p><strong>Standardzugang ändern.</strong> Eine frische Installation legt das Konto
+<code>administrator</code> mit einem bekannten Standardpasswort an. Das ist ein
+Erstinbetriebnahme-Zugang, kein Betriebszustand: melde dich sofort an und ändere das Passwort unter
+<strong>Einstellungen → Mein Konto</strong>, bevor die Instanz über das Netz erreichbar ist.</p>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<h2 id="konfiguration">3 · Konfiguration</h2>
+
+<h3 id="env">Umgebungsvariablen</h3>
+<p>Alles in <code>.env</code> (Compose) bzw. <code>.env.local</code> (Entwicklung). Nur
+<code>AUTH_SECRET</code> ist Pflicht.</p>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Variable</th><th>Pflicht</th><th>Bedeutung</th></tr></thead>
+  <tbody>
+    <tr><td><code>AUTH_SECRET</code></td><td>ja</td><td>HMAC-Schlüssel, mit dem Session-Cookies signiert werden. <code>openssl rand -hex 32</code>. Fehlt er, weicht die App auf ein zufälliges Geheimnis in <code>data/.auth_secret</code> aus — dann werden alle Sitzungen bei jedem Neuaufbau ungültig.</td></tr>
+    <tr><td><code>AUTH_COOKIE_SECURE</code></td><td>nein</td><td>Leer = automatisch aus dem Anfrageprotokoll erkannt. <code>true</code> hinter HTTPS, <code>false</code> erzwingt Cookies über reines HTTP im LAN.</td></tr>
+    <tr><td><code>OPENCHATBOX_DATA_DIR</code></td><td>nein</td><td>Ablageort der Laufzeitdaten. Standard <code>./data</code> neben dem Prozess, im Container <code>/app/data</code>.</td></tr>
+    <tr><td><code>OPENCHATBOX_PORT</code></td><td>nein</td><td>Nur Compose: äußerer Port. Intern bleibt es <code>3000</code>.</td></tr>
+    <tr><td><code>APP_URL</code></td><td>nein</td><td>Öffentliche Basisadresse. Siehe <a href="#appurl">unten</a> — Alternativen: <code>NEXT_PUBLIC_APP_URL</code>, <code>AUTH_URL</code>.</td></tr>
+    <tr><td><code>AUTH_MICROSOFT_ENTRA_ID_ID</code></td><td>nein</td><td>SSO: Client-ID. Ältere Bezeichnung <code>ENTRA_CLIENT_ID</code> wird weiterhin akzeptiert.</td></tr>
+    <tr><td><code>AUTH_MICROSOFT_ENTRA_ID_SECRET</code></td><td>nein</td><td>SSO: Client-Secret (alt: <code>ENTRA_CLIENT_SECRET</code>).</td></tr>
+    <tr><td><code>AZURE_AD_TENANT_ID</code></td><td>nein</td><td>Mandanten-ID. Gesetzt erzeugt sie die v2.0-Endpunkte <em>und</em> beschränkt die Anmeldung auf diesen Mandanten (der <code>tid</code>-Anspruch muss passen). Alt: <code>ENTRA_TENANT_ID</code>.</td></tr>
+    <tr><td><code>OIDC_AUTHORIZE_URL</code><br><code>OIDC_TOKEN_URL</code></td><td>nein</td><td>Endpunkte für generisches OIDC / ADFS / Keycloak. Ohne diese werden sie aus der Mandanten-ID abgeleitet.</td></tr>
+    <tr><td><code>ENTRA_ADMIN_ROLE</code><br><code>ENTRA_POWERUSER_ROLE</code></td><td>nein</td><td>Rollenzuordnung aus dem <code>roles</code>-Anspruch. Standard <code>admin</code> bzw. <code>poweruser</code>.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3 id="appurl">Öffentliche App-URL</h3>
+<p>Die von außen erreichbare Adresse der Instanz. Sie wird an zwei kritischen Stellen gebraucht:</p>
+<ul>
+  <li><strong>Absolute Links in E-Mails</strong> — etwa der Passwort-Reset-Link.</li>
+  <li><strong>OIDC <code>redirect_uri</code></strong> — der Wert, den <code>/api/auth/oidc/start</code> an den Identitätsanbieter schickt und den der Callback byteweise identisch erwartet.</li>
+</ul>
+<p>Auflösung in dieser Reihenfolge (<code>getPublicBaseUrl()</code>):</p>
+<ol>
+  <li>Adminfeld <strong>Einstellungen → Marke → Öffentliche Adresse</strong></li>
+  <li>Umgebung: <code>APP_URL</code> → <code>NEXT_PUBLIC_APP_URL</code> → <code>AUTH_URL</code></li>
+  <li>Herkunft der Anfrage — als letzter Ausweg</li>
+</ol>
+<div class="warn">
+Schritt 3 ist unzuverlässig. Hinter einem Reverse-Proxy oder bei Bindung an <code>0.0.0.0</code>
+entsteht daraus eine unbrauchbare Adresse — E-Mail-Links zeigen ins Leere und SSO scheitert an einer
+nicht übereinstimmenden <code>redirect_uri</code>. Trage die Adresse in produktiven Installationen
+immer explizit ein.
+</div>
+
+<h3 id="anbieter">Modellanbieter</h3>
+<p>Unter <strong>Einstellungen → Modelle → Anbieter &amp; Endpunkte</strong>. API-Schlüssel werden
+serverseitig verschlüsselt abgelegt und nie an den Browser ausgeliefert.</p>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Lage</th><th>Basis-URL</th></tr></thead>
+  <tbody>
+    <tr><td>Ollama auf demselben Rechner (aus dem Quellcode betrieben)</td><td><code>http://localhost:11434</code></td></tr>
+    <tr><td>Ollama auf dem Docker-Host</td><td><code>http://host.docker.internal:11434</code></td></tr>
+    <tr><td>Ollama auf einem anderen Server</td><td><code>http://&lt;host&gt;:11434</code></td></tr>
+    <tr><td>OpenAI-kompatibel (OpenAI, vLLM, TGI …)</td><td>Basis-URL des Dienstes + API-Schlüssel</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Die Compose-Datei bildet <code>host.docker.internal</code> bereits über
+<code>extra_hosts: host-gateway</code> ab.</p>
+
+<!-- ══════════════════════════════════════════════════ -->
+<h2 id="bedienung">4 · Bedienung</h2>
+
+<h3 id="chatten">Chatten</h3>
+<p>Nachricht eintippen, Enter senden, Umschalt+Enter für einen Zeilenumbruch. Links neben dem
+Eingabefeld sitzen drei Schalter:</p>
+<ul>
+  <li><strong>Büroklammer</strong> — Dateien anhängen. Bilder und Dokumente werden beim Hochladen geparst und als Kontext übergeben.</li>
+  <li><strong>Globus</strong> — Websuche. Eingeschaltet wird der Knopf zu einer beschrifteten Pille „Websuche“; das ist auch die Erklärung, warum eine Antwort länger dauert.</li>
+  <li><strong>Bücherstapel</strong> — Wissensdatenbank. Sucht vorab in den hinterlegten Dokumenten und belegt die Antwort mit Quellen.</li>
+</ul>
+<p>Über dem Chat wählt der Modellumschalter das Modell; <strong>Auto</strong> überlässt die Wahl dem
+Router. Der Schieberegler-Knopf daneben öffnet den <strong>Antwortstil</strong> —
+Präzise · Ausgewogen · Kreativ und die Antwortlänge. Die Rohwerte (Temperatur, Top-P, maximale
+Tokenzahl) liegen darunter unter „Erweitert“.</p>
+
+<h4>Nachrichten-Aktionen</h4>
+<p>Beim Überfahren einer Nachricht erscheinen Kopieren, Bearbeiten (eigene) beziehungsweise Neu
+generieren, Vorlesen, Bewertung (Antworten) — und der <strong>Stern</strong>, der die Nachricht
+markiert.</p>
+
+<h3 id="chatinfo">„Zu diesem Chat“</h3>
+<p>Das Symbol rechts in der Kopfzeile öffnet ein Panel mit allem, was zum aktuellen Chat gehört:</p>
+<ul>
+  <li><strong>Dateien</strong> — hochgeladene und erzeugte Dateien, mit Sprung zur Nachricht und Download.</li>
+  <li><strong>Markiert</strong> — die mit Stern versehenen Nachrichten.</li>
+  <li><strong>Notizen</strong> — Freitext zu diesem einen Chat.</li>
+</ul>
+<p>Davon zu unterscheiden: die <strong>chatübergreifenden</strong> persönlichen Notizen im Fuß der
+Seitenleiste.</p>
+
+<h3 id="inkognito">Inkognito / temporäre Chats</h3>
+<p>Das Geist-Symbol startet einen temporären Chat: die Oberfläche blendet nach Schwarz, und nichts
+wird auf dem Server gespeichert. Im Geist-Menü lässt sich der Chat nachträglich
+<strong>behalten</strong> (dann wird er normal gespeichert) oder <strong>sofort löschen</strong>.</p>
+
+<h3 id="sidekicks">Sidekicks &amp; Workspaces</h3>
+<p><strong>Sidekicks</strong> sind gespeicherte Assistenten-Profile mit eigenem Modell und
+System-Prompt — etwa „Protokollant“ oder „Code-Reviewer“. Mehrere in einem Chat ergeben einen
+moderierten Gruppenmodus.</p>
+<p><strong>Workspaces</strong> sind Kollaborationsräume. Chats, Sidekicks und geteilte Dateien
+gehören zu genau einem Workspace, ein Konto kann in mehreren Mitglied sein. Der Workspace
+<code>ws-default</code> („Persönlich“) existiert immer; Inhalte ohne Zuordnung fallen automatisch
+dorthin.</p>
+
+<!-- ══════════════════════════════════════════════════ -->
+<h2 id="einstellungen">5 · Einstellungen</h2>
+<p>Die Einstellungen sind in fünf Blöcke gegliedert. Der Block <em>Administration</em> ist für
+Nicht-Administratoren vollständig unsichtbar.</p>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Block</th><th>Eintrag</th><th>Inhalt</th></tr></thead>
+  <tbody>
+    <tr><td>Konto</td><td>Mein Konto</td><td>Profil, Passwort ändern, Zwei-Faktor-Authentifizierung</td></tr>
+    <tr><td rowspan="3">Personalisierung</td><td>Darstellung</td><td>Design, Sprache</td></tr>
+    <tr><td>Chat</td><td>Layout, Anzeige, Bilder, Code-Panel</td></tr>
+    <tr><td>Assistent</td><td>Anweisungen, Vorlagen, Sidekicks, Gedächtnis</td></tr>
+    <tr><td rowspan="3">Funktionen</td><td>Websuche</td><td>Ein/Aus für den eigenen Zugang</td></tr>
+    <tr><td>Wissen</td><td>Kategorien und Dokumente</td></tr>
+    <tr><td>Daten &amp; Verlauf</td><td>Alle Chats löschen</td></tr>
+    <tr><td rowspan="7">Administration</td><td>Benutzer &amp; Zugriff</td><td>Konten, Rollen, Registrierung, Gastzugang</td></tr>
+    <tr><td>Anmeldung &amp; E-Mail</td><td>Single Sign-On, E-Mail-Versand</td></tr>
+    <tr><td>Modelle</td><td>Anbieter, Modelle laden, Anzeigenamen, Standardmodelle</td></tr>
+    <tr><td>Bildgenerierung</td><td>Backend für die Bilderzeugung</td></tr>
+    <tr><td>Integrationen</td><td>Suchanbieter, Dienste</td></tr>
+    <tr><td>Marke</td><td>Akzentfarbe, Name, Logo, öffentliche Adresse</td></tr>
+    <tr><td>Leistung</td><td>VRAM-Verwaltung</td></tr>
+    <tr><td>System</td><td>Über OpenChatbox</td><td>Version und Änderungsverlauf</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<h2 id="administration">6 · Administration</h2>
+
+<h3 id="benutzer">Benutzer &amp; Rollen</h3>
+<p><strong>Einstellungen → Benutzer &amp; Zugriff.</strong> Konten anlegen, Rollen vergeben, sperren,
+Passwörter zurücksetzen, löschen. Rollen:</p>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Rolle</th><th>Darf</th></tr></thead>
+  <tbody>
+    <tr><td><code>admin</code></td><td>Alles. Implizit Zugriff auf sämtliche Wissens-Kategorien.</td></tr>
+    <tr><td><code>poweruser</code></td><td>Wissens-Kategorien und Dokumente anlegen, hochladen, löschen. Wer eine Kategorie anlegt, bekommt sie automatisch freigeschaltet.</td></tr>
+    <tr><td><code>user</code></td><td>Chatten; Wissens-Kategorien nur lesend und nur die ausdrücklich freigegebenen.</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Im selben Bereich liegen <strong>Selbstregistrierung</strong> (optional auf E-Mail-Domänen
+begrenzt) und der <strong>Gastzugang</strong>. Gäste bekommen eine abgespeckte Oberfläche, ein fest
+vorgegebenes Modell, keine Werkzeuge und rein flüchtige Chats.</p>
+
+<h3 id="sso">Single Sign-On</h3>
+<p><strong>Einstellungen → Anmeldung &amp; E-Mail → Single Sign-On.</strong> Eigener OIDC-Ablauf,
+kein NextAuth. Beim Identitätsanbieter muss als Umleitungsziel eingetragen sein:</p>
+<pre><code>&lt;öffentliche App-URL&gt;/api/auth/oidc/callback</code></pre>
+<p>Der Wert muss <strong>zeichengenau</strong> mit dem übereinstimmen, was die App sendet — siehe
+<a href="#appurl">Öffentliche App-URL</a>. Ist eine Mandanten-ID gesetzt, wird die Anmeldung zusätzlich
+auf diesen Mandanten beschränkt. Rollen werden aus dem <code>roles</code>-Anspruch übernommen.</p>
+
+<h3 id="mail">E-Mail-Versand</h3>
+<p><strong>Einstellungen → Anmeldung &amp; E-Mail → E-Mail-Versand.</strong> Nötig für den
+Self-Service-Passwortreset. Gefordert sind <em>alle</em> folgenden Angaben — fehlt eine, gilt SMTP
+als nicht konfiguriert:</p>
+<ul>
+  <li>Schalter „aktiviert“</li>
+  <li>Host</li>
+  <li>Port</li>
+  <li>Absenderadresse (ersatzweise der Benutzername)</li>
+</ul>
+<div class="note">
+Der Link „Passwort vergessen?“ auf der Anmeldeseite erscheint nur, wenn SMTP vollständig
+konfiguriert <em>und</em> die Passwort-Anmeldung aktiv ist. Ohne Versandweg wäre der Link eine
+Sackgasse, deshalb wird er ausgeblendet statt ins Leere zu führen.
+</div>
+
+<h3 id="modelle-admin">Modelle</h3>
+<p><strong>Einstellungen → Modelle.</strong> Vier Abschnitte:</p>
+<ul>
+  <li><strong>Anbieter &amp; Endpunkte</strong> — Basis-URLs und Schlüssel.</li>
+  <li><strong>Modelle laden</strong> — Ollama-Pull direkt aus der Oberfläche.</li>
+  <li><strong>Anzeigenamen &amp; Favoriten</strong> — Aliasse. Der Alias ersetzt die technische Modell-ID überall in der App; Ein-Klick-Vorschläge bieten Zwecknamen wie „Schnell“ oder „Versteht Bilder“ an. Für Nutzer ohne technischen Hintergrund ist das der Unterschied zwischen einer Auswahl und einem Rätsel.</li>
+  <li><strong>Standardmodelle</strong> — welches Modell der Auto-Router je Aufgabe lädt (Programmieren, Reasoning, Bildverständnis, Suchbegriff-Konstruktion …).</li>
+</ul>
+
+<h3 id="wissen-admin">Wissensdatenbank</h3>
+<p>Ein <strong>organisationsweiter, gemeinsamer</strong> Speicher — nicht pro Konto. Jede Kategorie
+ist zugleich eine Berechtigung: ein Konto sieht ausschließlich die ihm zugewiesenen Kategorien,
+Administratoren sehen alle. Die Zuweisung erfolgt über die Kategorie-Matrix in der
+Benutzerverwaltung. Die Prüfung geschieht serverseitig, bevor irgendein Inhalt in den Kontext
+gelangt; ohne Zuweisung greift „alles verboten“.</p>
+<p>Die Suche läuft gebündelt: lokale Vektorsuche (bereits nach Berechtigung gefiltert) und
+BookStack werden parallel abgefragt, zusammengeführt, entdoppelt und mit Quellenangabe versehen.</p>
+
+<h3 id="leistung">Leistung / VRAM</h3>
+<p><strong>Einstellungen → Leistung.</strong> Steuert, wie schnell Ollama Modelle aus dem
+Grafikspeicher entlädt — relevant, wenn sich mehrere Nutzer eine GPU teilen. Bei Alleinnutzung
+ausgeschaltet lassen.</p>
+<div class="table-scroll">
+<table>
+  <thead><tr><th><code>keep_alive</code></th><th>Wirkung</th></tr></thead>
+  <tbody>
+    <tr><td><code>2m</code>, <code>30m</code></td><td>Nach dieser Zeit ohne Anfrage entladen.</td></tr>
+    <tr><td><code>0</code></td><td>Sofort nach jeder Antwort entladen. Sparsam, aber jede Anfrage zahlt die Ladezeit.</td></tr>
+    <tr><td><code>-1</code></td><td>Dauerhaft geladen lassen.</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Ergänzend auf dem Ollama-Host: <code>OLLAMA_NUM_PARALLEL=1</code>,
+<code>OLLAMA_MAX_LOADED_MODELS=1</code>.</p>
+
+<!-- ══════════════════════════════════════════════════ -->
+<h2 id="architektur">7 · Architektur</h2>
+
+<p>Ein Next.js-Dienst (App Router). Oberfläche und API-Routen laufen im selben Server; die
+API-Routen wirken als Backend-for-Frontend gegenüber Ollama, den OpenAI-kompatiblen Endpunkten,
+BookStack und den Suchanbietern. Client-Zustand liegt in einem Zustand-Store
+(<code>lib/store.ts</code>).</p>
+
+<div class="note">
+<strong>Es gibt keine laufende Datenbank.</strong> Sämtlicher Serverzustand liegt in JSON-Dateien,
+die atomar geschrieben werden (temporäre Datei, dann Umbenennen). Ein
+<code>prisma/schema.prisma</code> existiert, ist aber <strong>ruhend</strong> — ein dokumentiertes
+Zielmodell, kein zur Laufzeit genutzter Client.
+</div>
+
+<h3 id="datenablage">Datenablage</h3>
+<p>Alles unterhalb von <code>data/</code> — im Container <code>/app/data</code>, im Volume
+<code>openchatbox-data</code>. Nicht im Git, nicht im Image.</p>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Datei</th><th>Inhalt</th></tr></thead>
+  <tbody>
+    <tr><td><code>config.json</code></td><td>Administrative Gesamtkonfiguration: Anbieter, Marke, Authentifizierungsregeln, SMTP, OIDC, Standardmodelle</td></tr>
+    <tr><td><code>users.json</code></td><td>Konten, Rollen, Passwort-Hashes, 2FA-Geheimnisse, Wissens-Kategorien</td></tr>
+    <tr><td><code>profiles.json</code></td><td>Einstellungen je Konto</td></tr>
+    <tr><td><code>workspaces.json</code></td><td>Workspaces und Mitgliedschaften</td></tr>
+    <tr><td><code>roles.json</code></td><td>Eigene Rollendefinitionen</td></tr>
+    <tr><td><code>files.json</code></td><td>Dateiregister</td></tr>
+    <tr><td><code>notes.json</code></td><td>Chatübergreifende persönliche Notizen</td></tr>
+    <tr><td><code>kb/shared.json</code></td><td>Gemeinsame Wissensdatenbank samt Einbettungen</td></tr>
+    <tr><td><code>chats/&lt;uid&gt;.json</code></td><td>Persönliche Chats je Konto</td></tr>
+    <tr><td><code>chats/ws/&lt;wsId&gt;.json</code></td><td>Workspace-Chats</td></tr>
+    <tr><td><code>.auth_secret</code></td><td>Ersatzschlüssel für Sitzungen, falls <code>AUTH_SECRET</code> fehlt</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3 id="chatsync">Chat-Synchronisation</h3>
+<p>Chats sind <strong>client-autoritativ</strong>. Der Store hält sie und schiebt den
+<em>gesamten Satz</em> zeitverzögert per <code>PUT /api/chats</code> zum Server, der Persönliches und
+Workspace-Chats wieder auseinandersortiert.</p>
+<div class="warn">
+<p><strong>Für Weiterentwicklung wichtig:</strong> keine eigenen REST-Routen für chat-nahe Daten
+anlegen (etwa <code>POST /api/folders</code>). Der Rundumschlag von <code>PUT /api/chats</code>
+überschreibt sie. Stattdessen den bestehenden Kanal mitbenutzen und das Chat-Objekt erweitern —
+so sind Ordner, Chat-Notizen und markierte Nachrichten umgesetzt.</p>
+</div>
+<p>Serverautoritativ sind dagegen die administrative <code>config.json</code> (wirkt über
+<code>/api/config</code> für alle) und die Profile je Konto.</p>
+
+<h3 id="routen">API-Routen</h3>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Bereich</th><th>Routen</th></tr></thead>
+  <tbody>
+    <tr><td>Anmeldung</td><td><code>auth/login</code>, <code>auth/logout</code>, <code>auth/register</code>, <code>auth/session</code>, <code>auth/2fa</code>, <code>auth/forgot</code>, <code>auth/reset</code>, <code>auth/guest</code>, <code>auth/oidc/start</code>, <code>auth/oidc/callback</code></td></tr>
+    <tr><td>Konto</td><td><code>account/password</code>, <code>account/2fa</code>, <code>profile</code></td></tr>
+    <tr><td>Chat</td><td><code>chat</code>, <code>chats</code>, <code>models</code>, <code>image</code>, <code>generate-doc</code>, <code>search</code>, <code>notes</code></td></tr>
+    <tr><td>Wissen</td><td><code>kb</code>, <code>kb/query</code>, <code>kb/bookstack</code>, <code>kb/unified</code></td></tr>
+    <tr><td>Dateien</td><td><code>upload</code>, <code>files</code>, <code>files/[id]</code></td></tr>
+    <tr><td>Workspaces</td><td><code>workspaces</code>, <code>workspaces/join</code></td></tr>
+    <tr><td>Administration</td><td><code>admin/config</code>, <code>admin/users</code>, <code>admin/roles</code>, <code>admin/smtp</code>, <code>admin/oidc</code>, <code>admin/plugins</code>, <code>admin/bookstack</code>, <code>admin/bookstack/test</code>, <code>admin/terminal</code>, <code>pull</code>, <code>unload</code></td></tr>
+    <tr><td>Öffentlich</td><td><code>config</code> (minimale Richtlinien ohne Anmeldung), <code>setup</code> (auch Healthcheck)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>Anmeldung im Detail</h4>
+<p>Eigenes, dateigestütztes System — <strong>bewusst nicht</strong> NextAuth. Sitzungen laufen über
+ein signiertes Cookie <code>nexus_session</code> mit einem Zweck-Feld
+(<code>session</code> | <code>2fa</code> | <code>guest</code>). Die Middleware prüft am Rand nur, ob
+ein Cookie vorhanden ist — sie hat keinen Dateisystemzugriff. Die eigentliche Prüfung passiert in
+den Routen; Gast- und 2FA-Cookies liefern dort kein Konto zurück, wodurch jede kontogebundene Route
+Gäste automatisch abweist.</p>
+
+<!-- ══════════════════════════════════════════════════ -->
+<h2 id="betrieb">8 · Betrieb</h2>
+
+<h3 id="update">Update</h3>
+<pre><code>cd /pfad/zu/OpenChatbox
+git pull
+docker compose up -d --build</code></pre>
+<p>Die laufende Version steht unter <strong>Einstellungen → Über OpenChatbox</strong>, zusammen mit
+dem Änderungsverlauf. Das Volume überlebt den Neuaufbau — Konten und Konfiguration bleiben.</p>
+
+<h3 id="backup">Backup</h3>
+<p>Zu sichern ist genau ein Ort: das Datenverzeichnis.</p>
+<pre><code># Volume sichern
+docker run --rm \
+  -v openchatbox-data:/data \
+  -v "$PWD":/backup \
+  alpine tar czf /backup/openchatbox-$(date +%F).tar.gz -C /data .
+
+# Wiederherstellen
+docker run --rm \
+  -v openchatbox-data:/data \
+  -v "$PWD":/backup \
+  alpine sh -c "rm -rf /data/* &amp;&amp; tar xzf /backup/openchatbox-JJJJ-MM-TT.tar.gz -C /data"</code></pre>
+<div class="danger">
+<p><strong>Achtung, Wiederherstellung löscht.</strong> Der zweite Befehl leert
+<code>/data</code> vollständig, bevor er das Archiv auspackt. Stoppe den Container vorher
+(<code>docker compose stop</code>), prüfe den Archivnamen, und lege im Zweifel erst ein frisches
+Backup des aktuellen Stands an.</p>
+<p>Sichere <code>.env</code> getrennt mit. Geht <code>AUTH_SECRET</code> verloren, sind alle
+Sitzungen ungültig und alle serverseitig verschlüsselten Geheimnisse (etwa der BookStack-Token)
+nicht mehr entschlüsselbar.</p>
+</div>
+
+<h3 id="logs">Logs &amp; Healthcheck</h3>
+<pre><code>docker compose logs -f openchatbox     # mitlesen
+docker compose ps                      # Status inkl. Health
+docker compose restart openchatbox     # neu starten</code></pre>
+<p>Der Container prüft sich alle 30 Sekunden selbst über <code>GET /api/setup</code>. Diese Route ist
+öffentlich und liefert JSON — sie eignet sich auch für externe Überwachung.</p>
+
+<!-- ══════════════════════════════════════════════════ -->
+<h2 id="troubleshooting">9 · Troubleshooting</h2>
+<p class="lede">Jeweils Symptom, Ursache, Behebung.</p>
+
+<h3 id="ts-start">Start &amp; Container</h3>
+
+<div class="fix">
+  <p class="sym">Container startet nicht, Meldung <code>set AUTH_SECRET in .env</code></p>
+  <dl>
+    <dt>Ursache</dt><dd>Compose verlangt die Variable und bricht ohne sie ab.</dd>
+    <dt>Behebung</dt><dd><code>openssl rand -hex 32</code> ausführen, Ergebnis in <code>.env</code> als <code>AUTH_SECRET=</code> eintragen, <code>docker compose up -d</code>.</dd>
+  </dl>
+</div>
+
+<div class="fix">
+  <p class="sym">Port belegt — <code>address already in use</code></p>
+  <dl>
+    <dt>Ursache</dt><dd>Der äußere Port ist vergeben. Intern ist es immer <code>3000</code>.</dd>
+    <dt>Behebung</dt><dd><code>OPENCHATBOX_PORT=8080 docker compose up -d</code> oder den Wert in <code>.env</code> setzen.</dd>
+  </dl>
+</div>
+
+<div class="fix">
+  <p class="sym">Container läuft, aber „unhealthy“</p>
+  <dl>
+    <dt>Ursache</dt><dd>Der Healthcheck erreicht <code>/api/setup</code> nicht — meist wegen eines Startfehlers im Anwendungscode.</dd>
+    <dt>Behebung</dt><dd><code>docker compose logs --tail=80 openchatbox</code> lesen. Häufig ein unlesbares Datenverzeichnis: Rechte auf dem Volume prüfen, der Prozess läuft als UID <code>1001</code>.</dd>
+  </dl>
+</div>
+
+<h3 id="ts-login">Anmeldung</h3>
+
+<div class="fix">
+  <p class="sym">Anmeldung wirkt erfolgreich, aber man landet sofort wieder auf der Anmeldeseite</p>
+  <dl>
+    <dt>Ursache</dt><dd>Der Browser verwirft das Sitzungscookie, weil es mit <code>Secure</code> gesetzt ist, die Seite aber über einfaches HTTP läuft.</dd>
+    <dt>Behebung</dt><dd><code>AUTH_COOKIE_SECURE=false</code> setzen für HTTP im LAN, <code>true</code> hinter HTTPS. Leer lassen bedeutet automatische Erkennung, die hinter manchen Proxys danebengreift.</dd>
+  </dl>
+</div>
+
+<div class="fix">
+  <p class="sym">Alle Nutzer sind nach einem Neustart abgemeldet</p>
+  <dl>
+    <dt>Ursache</dt><dd><code>AUTH_SECRET</code> ist nicht gesetzt. Die App erzeugt dann ein zufälliges Geheimnis in <code>data/.auth_secret</code> — geht das Verzeichnis verloren oder wird es nicht dauerhaft gespeichert, werden alle Signaturen ungültig.</dd>
+    <dt>Behebung</dt><dd>Festes <code>AUTH_SECRET</code> in <code>.env</code> hinterlegen und das Volume dauerhaft einbinden.</dd>
+  </dl>
+</div>
+
+<div class="fix">
+  <p class="sym">„Passwort vergessen?“ fehlt auf der Anmeldeseite</p>
+  <dl>
+    <dt>Ursache</dt><dd>Der Link setzt vollständig konfiguriertes SMTP voraus <em>und</em> aktive Passwort-Anmeldung. Ohne Versandweg wäre er wirkungslos, deshalb wird er ausgeblendet.</dd>
+    <dt>Behebung</dt><dd><strong>Einstellungen → Anmeldung &amp; E-Mail → E-Mail-Versand</strong>: aktivieren, Host, Port und Absender eintragen. Prüfen, dass unter <em>Benutzer &amp; Zugriff</em> die Passwort-Anmeldung nicht abgeschaltet ist.</dd>
+  </dl>
+</div>
+
+<div class="fix">
+  <p class="sym">SSO bricht ab mit einer Meldung zur <code>redirect_uri</code></p>
+  <dl>
+    <dt>Ursache</dt><dd>Die von der App gesendete Adresse weicht von der beim Identitätsanbieter registrierten ab. Ohne gesetzte öffentliche App-URL rät die App die Adresse aus der Anfrage und liegt hinter einem Proxy fast immer daneben.</dd>
+    <dt>Behebung</dt><dd><strong>Einstellungen → Marke → Öffentliche Adresse</strong> auf die echte, von außen erreichbare HTTPS-Adresse setzen. Beim Anbieter exakt <code>&lt;App-URL&gt;/api/auth/oidc/callback</code> registrieren — zeichengenau, auch beim abschließenden Schrägstrich.</dd>
+  </dl>
+</div>
+
+<div class="fix">
+  <p class="sym">SSO-Knopf erscheint gar nicht</p>
+  <dl>
+    <dt>Ursache</dt><dd>SSO muss beides sein: über Umgebung oder Adminfeld konfiguriert <em>und</em> im Adminbereich eingeschaltet.</dd>
+    <dt>Behebung</dt><dd>Client-ID und Secret prüfen, dann <strong>Benutzer &amp; Zugriff</strong> → Anmeldearten.</dd>
+  </dl>
+</div>
+
+<div class="fix">
+  <p class="sym">Anmeldung wird abgelehnt, obwohl das Konto beim Anbieter existiert</p>
+  <dl>
+    <dt>Ursache</dt><dd>Eine gesetzte Mandanten-ID beschränkt die Anmeldung: der <code>tid</code>-Anspruch im Token muss übereinstimmen. Gastkonten aus anderen Mandanten fallen dadurch heraus.</dd>
+    <dt>Behebung</dt><dd>Mandanten-ID prüfen oder für mandantenübergreifende Anmeldung leer lassen und die Endpunkte per <code>OIDC_AUTHORIZE_URL</code> / <code>OIDC_TOKEN_URL</code> vorgeben.</dd>
+  </dl>
+</div>
+
+<div class="fix">
+  <p class="sym">Passwort des Administrators vergessen, kein SMTP eingerichtet</p>
+  <dl>
+    <dt>Ursache</dt><dd>Ohne Versandweg gibt es keinen Self-Service-Reset. Den Passwort-Hash in <code>users.json</code> zu löschen hilft <em>nicht</em> — <code>verifyPassword()</code> lehnt ein Konto ohne Hash grundsätzlich ab, das Konto wäre danach endgültig gesperrt.</dd>
+    <dt>Behebung</dt><dd>Nur mit Zugriff auf das Datenverzeichnis. Container stoppen, <code>data/users.json</code> sichern, dann den Eintrag des Administratorkontos <em>vollständig</em> aus der Liste entfernen. Bleibt danach kein Konto mit der Rolle <code>admin</code> übrig, meldet <code>/api/setup</code> wieder <code>needsSetup</code> und die Ersteinrichtung erscheint beim nächsten Aufruf.</dd>
+  </dl>
+</div>
+
+<h3 id="ts-modelle">Modelle &amp; Antworten</h3>
+
+<p>Die Anwendung übersetzt Fehler der Modell-Endpunkte in Klartext. Die folgende Tabelle ordnet
+jeder Meldung die technische Ursache zu.</p>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Meldung im Chat</th><th>Dahinter steckt</th><th>Prüfen</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>„Der KI-Server ist nicht erreichbar.“</td>
+      <td><code>fetch failed</code>, <code>ECONNREFUSED</code>, DNS-Fehler</td>
+      <td>Läuft Ollama? Stimmt die Basis-URL? Aus dem Container muss es <code>host.docker.internal</code> sein, nicht <code>localhost</code>.</td>
+    </tr>
+    <tr>
+      <td>„Dieses Modell steht gerade nicht zur Verfügung.“</td>
+      <td>404 / <code>model … not found</code></td>
+      <td>Modell auf dem Server vorhanden? Über <em>Modelle laden</em> nachziehen. Nach dem Entfernen eines Modells kann ein Standardmodell ins Leere zeigen.</td>
+    </tr>
+    <tr>
+      <td>„Der Zugang zum KI-Dienst wurde abgelehnt.“</td>
+      <td>401 / 403, ungültiger API-Schlüssel</td>
+      <td>Schlüssel unter <em>Anbieter &amp; Endpunkte</em> erneuern. Schlüssel werden verschlüsselt gespeichert und nie an den Browser gegeben.</td>
+    </tr>
+    <tr>
+      <td>„Gerade sind zu viele Anfragen unterwegs.“</td>
+      <td>429</td>
+      <td>Kontingent des Anbieters, oder zu viele gleichzeitige Nutzer auf einer GPU.</td>
+    </tr>
+    <tr>
+      <td>„Die Antwort hat zu lange gedauert.“</td>
+      <td>Zeitüberschreitung</td>
+      <td>Erstes Laden eines großen Modells dauert. <code>keep_alive</code> erhöhen, damit es geladen bleibt.</td>
+    </tr>
+    <tr>
+      <td>„Diese Unterhaltung ist zu lang geworden.“</td>
+      <td>Kontextfenster überschritten</td>
+      <td>Neuen Chat beginnen. Angehängte Dokumente und Wissenstreffer verbrauchen zusätzlich Kontext.</td>
+    </tr>
+    <tr>
+      <td>„Dem Server ist der Speicher ausgegangen.“</td>
+      <td>Grafikspeicher erschöpft</td>
+      <td>Kleineres Modell, oder <code>OLLAMA_MAX_LOADED_MODELS=1</code> und <code>OLLAMA_NUM_PARALLEL=1</code> auf dem Ollama-Host.</td>
+    </tr>
+    <tr>
+      <td>„Der KI-Dienst hat einen Fehler gemeldet.“</td>
+      <td>5xx</td>
+      <td>Logs des Modellservers ansehen.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note">
+Unter jeder dieser Meldungen steht kleingedruckt „Technisch: …“ mit dem Originaltext. Genau die
+Zeile gehört in eine Fehlermeldung an den Support.
+</div>
+
+<div class="fix">
+  <p class="sym">Modellauswahl ist leer</p>
+  <dl>
+    <dt>Ursache</dt><dd>Kein Anbieter eingetragen oder er antwortet nicht.</dd>
+    <dt>Behebung</dt><dd><strong>Einstellungen → Modelle → Anbieter &amp; Endpunkte</strong>. Erreichbarkeit direkt gegenprüfen: <code>curl http://&lt;host&gt;:11434/api/tags</code>.</dd>
+  </dl>
+</div>
+
+<h3 id="ts-funktionen">Funktionen</h3>
+
+<div class="fix">
+  <p class="sym">Websuche liefert nichts</p>
+  <dl>
+    <dt>Ursache</dt><dd>Kein Suchanbieter mit Schlüssel aktiv. Verwendet wird der erste aktivierte Anbieter, der einen Schlüssel hat.</dd>
+    <dt>Behebung</dt><dd><strong>Einstellungen → Integrationen → Suchanbieter</strong>. Zusätzlich muss unter <em>Standardmodelle</em> ein Modell für die Suchbegriff-Konstruktion hinterlegt sein.</dd>
+  </dl>
+</div>
+
+<div class="fix">
+  <p class="sym">Ein Nutzer sieht seine Wissens-Kategorien nicht</p>
+  <dl>
+    <dt>Ursache</dt><dd>Kategorien sind Berechtigungen, und die Grundeinstellung ist „alles verboten“. Ohne Zuweisung ist nichts sichtbar.</dd>
+    <dt>Behebung</dt><dd><strong>Benutzer &amp; Zugriff</strong> → Kategorie-Matrix beim jeweiligen Konto ankreuzen. Administratoren sehen implizit alles, weshalb der Fehler beim Testen mit einem Adminkonto unsichtbar bleibt.</dd>
+  </dl>
+</div>
+
+<div class="fix">
+  <p class="sym">Antworten belegen keine Quellen</p>
+  <dl>
+    <dt>Ursache</dt><dd>Die Wissensdatenbank ist im Chat abgeschaltet, oder es passt kein Dokument zur Frage.</dd>
+    <dt>Behebung</dt><dd>Den Bücherstapel neben dem Eingabefeld einschalten — aktiv zeigt er die Beschriftung „Wissen“.</dd>
+  </dl>
+</div>
+
+<div class="fix">
+  <p class="sym">Gäste können nicht chatten</p>
+  <dl>
+    <dt>Ursache</dt><dd>Gastzugang aus, oder kein Gastmodell hinterlegt. Für Gäste wird das Modell serverseitig erzwungen.</dd>
+    <dt>Behebung</dt><dd><strong>Benutzer &amp; Zugriff</strong> → Gastzugang einschalten und ein Modell wählen.</dd>
+  </dl>
+</div>
+
+<h3 id="ts-daten">Daten</h3>
+
+<div class="fix">
+  <p class="sym">Nach dem Update sind Konten und Einstellungen weg</p>
+  <dl>
+    <dt>Ursache</dt><dd>Das Datenvolume wurde nicht eingebunden oder wurde entfernt. <code>docker compose down -v</code> löscht Volumes mit.</dd>
+    <dt>Behebung</dt><dd>Zum Stoppen <code>docker compose down</code> ohne <code>-v</code> verwenden. <code>docker volume ls</code> zeigt, ob <code>openchatbox-data</code> noch existiert.</dd>
+  </dl>
+</div>
+
+<div class="fix">
+  <p class="sym">Chats verschwinden oder springen zurück</p>
+  <dl>
+    <dt>Ursache</dt><dd>Chats sind client-autoritativ: der Browser schiebt den gesamten Satz zeitverzögert zum Server. Zwei gleichzeitig offene Tabs desselben Kontos können sich gegenseitig überschreiben.</dd>
+    <dt>Behebung</dt><dd>Pro Konto einen Tab verwenden. Erscheint unten der Hinweis „Serverspeicherung fehlgeschlagen“, ist der Schreibvorgang gescheitert — Plattenplatz und Schreibrechte auf <code>data/</code> prüfen.</dd>
+  </dl>
+</div>
+
+<div class="fix">
+  <p class="sym">Inkognito-Chats sind nach dem Neuladen weg</p>
+  <dl>
+    <dt>Ursache</dt><dd>Kein Fehler, sondern der Zweck. Temporäre Chats werden nie zum Server geschickt.</dd>
+    <dt>Behebung</dt><dd>Vor dem Verlassen im Geist-Menü „Chat behalten &amp; speichern“ wählen.</dd>
+  </dl>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<h2 id="entwicklung">10 · Entwicklung</h2>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Befehl</th><th>Zweck</th></tr></thead>
+  <tbody>
+    <tr><td><code>npm run dev</code></td><td>Entwicklungsserver auf Port 3000</td></tr>
+    <tr><td><code>npm run build</code></td><td>Produktionsbuild (erzeugt <code>.next/standalone</code>)</td></tr>
+    <tr><td><code>npm start</code></td><td>Produktionsbuild ausführen</td></tr>
+    <tr><td><code>npm run typecheck</code></td><td><code>tsc --noEmit</code></td></tr>
+    <tr><td><code>npm test</code></td><td>Testlauf über <code>tests/all.test.mts</code></td></tr>
+    <tr><td><code>npm run release</code></td><td>Version taggen und Release veröffentlichen</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="warn">
+<p><strong>Bekanntes Problem: <code>npm run lint</code> läuft nicht.</strong> Das Skript ruft
+<code>next lint</code> auf, das es in Next 16 nicht mehr gibt; zudem liegt weder eine
+<code>eslint.config.*</code> noch eine <code>.eslintrc</code> im Projekt, und ESLint ist keine
+Abhängigkeit. Als Qualitätsschranke dienen derzeit <code>npm run typecheck</code>,
+<code>npm run build</code> und <code>npm test</code>.</p>
+</div>
+
+<h3>Versionierung und Release</h3>
+<p>Einzige Quelle der Wahrheit ist <code>lib/version.ts</code> mit <code>APP_VERSION</code> und
+<code>CHANGELOG</code> (neuester Eintrag zuerst). Der Bereich <em>Über OpenChatbox</em> rendert
+diesen Änderungsverlauf; der Benachrichtigungspunkt richtet sich nach der obersten Version.</p>
+<p>Für ein Release <code>APP_VERSION</code> erhöhen, einen neuen obersten Changelog-Eintrag
+schreiben, dann <code>npm run release</code>. Das Skript setzt und schiebt den Tag
+<code>vX.Y.Z</code> und verwendet den Changelog-Eintrag wörtlich als Release-Text, damit
+Releases-Seite und Oberfläche nicht auseinanderlaufen.</p>
+
+<h3>Konventionen</h3>
+<ul>
+  <li>Oberfläche und Änderungsverlauf sind deutsch; README und Code-Kommentare englisch.</li>
+  <li><code>data/</code> und <code>.env</code> gehören niemals ins Repository.</li>
+  <li>Keine neuen REST-Routen für chat-nahe Daten — siehe <a href="#chatsync">Chat-Synchronisation</a>.</li>
+</ul>
+
+<!-- ══════════════════════════════════════════════════ -->
+<h2 id="referenz">11 · Referenz</h2>
+
+<h3>Standardports</h3>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Port</th><th>Wer</th></tr></thead>
+  <tbody>
+    <tr><td><code>3000</code></td><td>Anwendung, im Container fest</td></tr>
+    <tr><td><code>6769</code></td><td>Vom Installer gesetzter Port nach außen</td></tr>
+    <tr><td><code>11434</code></td><td>Ollama (Standard)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Unterstützte Dokumentformate</h3>
+<p>PDF, TXT, MD, CSV, DOCX, PPTX, XLSX — für Anhänge wie für die Wissensdatenbank.</p>
+
+<h3>Erste Anlaufstellen bei einem Problem</h3>
+<ol>
+  <li>Die Klartextmeldung im Chat lesen — dort steht meist schon der nächste Schritt.</li>
+  <li>Die Zeile „Technisch: …“ darunter notieren.</li>
+  <li><code>docker compose logs --tail=80 openchatbox</code>.</li>
+  <li>Modellserver direkt prüfen: <code>curl http://&lt;host&gt;:11434/api/tags</code>.</li>
+  <li>Version unter <em>Einstellungen → Über OpenChatbox</em> festhalten.</li>
+</ol>
+
+<hr>
+<footer>
+  <p>OpenChatbox v0.10.0 · Dieses Handbuch liegt im Repository unter <code>docs/index.html</code>.
+  Bei Änderungen an Einrichtung, Einstellungen oder Fehlerverhalten bitte mitpflegen.</p>
+</footer>
+
+</main>
+</div>
