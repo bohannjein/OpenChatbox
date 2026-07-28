@@ -33,6 +33,7 @@ import CodePanel from "./CodePanel";
 import ChatInfoPanel from "./ChatInfoPanel";
 import NotesPanel from "./NotesPanel";
 import ShatterOverlay from "./ShatterOverlay";
+import { errorForChat, rawText } from "@/lib/errorMessage";
 import { CodePanelContext } from "./codePanelContext";
 import { SidekickAvatar } from "./SidekickIcon";
 import type { ChatFile, Message, Role } from "@/lib/types";
@@ -491,15 +492,17 @@ export default function ChatWindow() {
               }),
             }).catch(() => {});
           } else {
-            setMessageContent(chatId, assistantId, `⚠️ ${d.error || "Bildgenerierung fehlgeschlagen."}`);
-          }
-        } catch (e) {
-          if ((e as Error)?.name !== "AbortError")
             setMessageContent(
               chatId,
               assistantId,
-              `⚠️ ${e instanceof Error ? e.message : String(e)}`
+              d.error
+                ? errorForChat(d.error)
+                : "⚠️ Das Bild konnte nicht erzeugt werden. Formuliere die Beschreibung anders oder versuch es noch einmal."
             );
+          }
+        } catch (e) {
+          if ((e as Error)?.name !== "AbortError")
+            setMessageContent(chatId, assistantId, errorForChat(e));
         } finally {
           setMessagePipeline(chatId, assistantId, undefined);
           finalizeVariant(chatId, assistantId);
@@ -777,7 +780,7 @@ export default function ChatWindow() {
           .chats.find((c) => c.id === chatId)
           ?.messages.find((x) => x.id === assistantId);
         if (m && !m.content)
-          setMessageContent(chatId, assistantId, `⚠️ Fehler: ${msg}`);
+          setMessageContent(chatId, assistantId, errorForChat(e));
       }
     } finally {
       setMessagePipeline(chatId, assistantId, undefined);
@@ -832,7 +835,7 @@ export default function ChatWindow() {
       try {
         resolved = resolveModel(sk.modelKey || selectedModelKey);
       } catch (e) {
-        setMessageContent(chatId, assistantId, `⚠️ ${(e as Error).message}`);
+        setMessageContent(chatId, assistantId, errorForChat(e));
         finalizeVariant(chatId, assistantId);
         return;
       }
@@ -1124,9 +1127,9 @@ export default function ChatWindow() {
             appendToMessage(
               chatId,
               assistantId,
-              `\n\n_⚠️ Dokument konnte nicht erstellt werden: ${
-                e instanceof Error ? e.message : String(e)
-              }_`
+              `\n\n⚠️ Das Dokument konnte nicht erstellt werden.\n\n_Technisch: ${rawText(
+                e
+              )}_`
             );
             break;
           }

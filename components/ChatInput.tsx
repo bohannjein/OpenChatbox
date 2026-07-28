@@ -642,35 +642,44 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
             >
               <Paperclip size={18} />
             </button>
+            {/* Active state carries a label, not just a tint — on touch there
+                is no hover to reveal the title, and the label explains why an
+                answer is taking longer. */}
             <button
               onClick={() => toggleWebSearch()}
               disabled={disabled}
               title={
                 webSearchEnabled
-                  ? "Internetsuche: an"
-                  : "Internetsuche: aus"
+                  ? "Internetsuche ist an — zum Ausschalten klicken"
+                  : "Internetsuche einschalten"
               }
               className={clsx(
-                "mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition disabled:opacity-40",
+                "mb-0.5 flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full transition-all duration-150 ease-out disabled:opacity-40",
                 webSearchEnabled
-                  ? "bg-accent/15 text-accent"
-                  : "text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
+                  ? "bg-accent/15 pl-2.5 pr-3 text-sm font-medium text-accent"
+                  : "w-9 text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
               )}
             >
-              <Globe size={18} />
+              <Globe size={18} className="shrink-0" />
+              {webSearchEnabled && <span>Websuche</span>}
             </button>
             <button
               onClick={() => toggleKb()}
               disabled={disabled}
-              title={kbEnabled ? "Wissensdatenbank: an" : "Wissensdatenbank: aus"}
-              className={clsx(
-                "mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition disabled:opacity-40",
+              title={
                 kbEnabled
-                  ? "bg-accent/15 text-accent"
-                  : "text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
+                  ? "Wissensdatenbank ist an — zum Ausschalten klicken"
+                  : "Wissensdatenbank einschalten"
+              }
+              className={clsx(
+                "mb-0.5 flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full transition-all duration-150 ease-out disabled:opacity-40",
+                kbEnabled
+                  ? "bg-accent/15 pl-2.5 pr-3 text-sm font-medium text-accent"
+                  : "w-9 text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
               )}
             >
-              <Library size={18} />
+              <Library size={18} className="shrink-0" />
+              {kbEnabled && <span>Wissen</span>}
             </button>
 
             <textarea

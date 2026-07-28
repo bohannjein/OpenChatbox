@@ -16,6 +16,16 @@ import { fetchModels, modelKey, pullModel } from "@/lib/providers";
 import AdminTerminal from "./AdminTerminal";
 import RolesEditor from "./RolesEditor";
 
+/** Ready-made display names describing what a model is *for*, offered as
+ *  one-click fills next to the free-text alias field. */
+const PURPOSE_NAMES = [
+  "Schnell",
+  "Gründlich",
+  "Versteht Bilder",
+  "Programmieren",
+  "Übersetzen",
+];
+
 export default function AdminPanel() {
   const providers = useStore((s) => s.providers);
   const favorites = useStore((s) => s.favorites);
@@ -205,7 +215,9 @@ export default function AdminPanel() {
           <div>
             <h4 className="font-medium">Anzeigenamen & Favoriten</h4>
             <p className="text-sm text-neutral-500">
-              Freundlichen Alias vergeben, Favoriten markieren.
+              Der Anzeigename ersetzt die Modell-ID überall in der App. Nutzer
+              ohne technischen Hintergrund können mit „gemma4:e4b" nichts
+              anfangen — ein Name nach Zweck schon.
             </p>
           </div>
           <button
@@ -234,27 +246,50 @@ export default function AdminPanel() {
             return (
               <div
                 key={m}
-                className="flex items-center gap-2 rounded-lg border border-border-light p-2 dark:border-border-dark"
+                className="rounded-lg border border-border-light p-2 dark:border-border-dark"
               >
-                <button
-                  onClick={() => toggleFavorite(key)}
-                  title={fav ? "Favorit entfernen" : "Favorisieren"}
-                  className="shrink-0 text-neutral-400 hover:text-amber-400"
-                >
-                  <Star
-                    size={16}
-                    className={fav ? "fill-amber-400 text-amber-400" : ""}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => toggleFavorite(key)}
+                    title={fav ? "Favorit entfernen" : "Favorisieren"}
+                    className="shrink-0 text-neutral-400 hover:text-amber-400"
+                  >
+                    <Star
+                      size={16}
+                      className={fav ? "fill-amber-400 text-amber-400" : ""}
+                    />
+                  </button>
+                  <code
+                    className="w-40 shrink-0 truncate text-xs text-neutral-500"
+                    title={m}
+                  >
+                    {m}
+                  </code>
+                  <input
+                    value={aliases[key] ?? ""}
+                    onChange={(e) => setAlias(key, e.target.value)}
+                    placeholder="Anzeigename (Alias)…"
+                    className="min-w-0 flex-1 input-base"
                   />
-                </button>
-                <code className="w-40 shrink-0 truncate text-xs text-neutral-500" title={m}>
-                  {m}
-                </code>
-                <input
-                  value={aliases[key] ?? ""}
-                  onChange={(e) => setAlias(key, e.target.value)}
-                  placeholder="Anzeigename (Alias)…"
-                  className="min-w-0 flex-1 input-base"
-                />
+                </div>
+                {/* One-click purpose names — the point is to make naming cheap
+                    enough that it actually gets done. */}
+                <div className="mt-1.5 flex flex-wrap gap-1 pl-[26px]">
+                  {PURPOSE_NAMES.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setAlias(key, p)}
+                      className={clsx(
+                        "rounded-md border px-2 py-0.5 text-xs transition",
+                        aliases[key] === p
+                          ? "border-accent bg-accent/15 text-accent"
+                          : "border-border-light text-neutral-500 hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
+                      )}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
               </div>
             );
           })}

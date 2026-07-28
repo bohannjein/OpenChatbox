@@ -48,6 +48,7 @@ import AuthAccessPanel from "./AuthAccessPanel";
 import SsoConfigPanel from "./SsoConfigPanel";
 import SmtpConfigPanel from "./SmtpConfigPanel";
 import InfoTip from "./InfoTip";
+import Modal from "./Modal";
 
 type TabId =
   | "account"
@@ -295,6 +296,7 @@ export default function SettingsModal() {
   };
 
   const [tab, setTab] = useState<TabId>("account");
+  const [confirmClear, setConfirmClear] = useState(false);
 
   // Honor a one-shot tab request (e.g. footer → "Mein Konto"), mapping any
   // pre-regroup id onto its replacement.
@@ -779,10 +781,7 @@ export default function SettingsModal() {
                     Entfernt alle Unterhaltungen dieses Kontos. Nicht umkehrbar.
                   </p>
                   <button
-                    onClick={() => {
-                      if (confirm("Wirklich alle Chats löschen?"))
-                        clearAllChats();
-                    }}
+                    onClick={() => setConfirmClear(true)}
                     className="rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40"
                   >
                     Alle Chats löschen
@@ -1008,6 +1007,34 @@ export default function SettingsModal() {
           </button>
         </div>
       </div>
+
+      {confirmClear && (
+        <Modal onClose={() => setConfirmClear(false)}>
+          <h2 className="text-lg font-bold">Alle Chats löschen?</h2>
+          <p className="mt-2 text-sm text-neutral-500">
+            Sämtliche Unterhaltungen dieses Kontos werden entfernt — mit allen
+            Prompts, Antworten und angehängten Dateien. Das lässt sich nicht
+            rückgängig machen.
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              onClick={() => setConfirmClear(false)}
+              className="rounded-lg border border-border-light px-4 py-2 text-sm font-medium transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
+            >
+              Abbrechen
+            </button>
+            <button
+              onClick={() => {
+                clearAllChats();
+                setConfirmClear(false);
+              }}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
+            >
+              Alle löschen
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
