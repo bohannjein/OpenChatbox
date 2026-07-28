@@ -229,6 +229,7 @@ export interface GlobalConfigPayload {
   appName?: string;
   logoUrl?: string;
   accentColor?: string;
+  appUrl?: string;
   providers?: Provider[];
   routerModels?: {
     standard: string | null;

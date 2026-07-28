@@ -205,6 +205,8 @@ interface State {
   accentColor: string;
   logoUrl: string;
   appName: string;
+  /** public base URL of this instance (https), used for links in email etc. */
+  appUrl: string;
   // model management
   favorites: string[]; // model keys pinned to top
   aliases: Record<string, string>; // model key → friendly display name
@@ -363,6 +365,7 @@ interface State {
   setAccentColor: (id: string) => void;
   setLogoUrl: (url: string) => void;
   setAppName: (name: string) => void;
+  setAppUrl: (url: string) => void;
 
   // model management
   toggleFavorite: (key: string) => void;
@@ -453,6 +456,7 @@ export const useStore = create<State>()(
       accentColor: "#4f46e5",
       logoUrl: "",
       appName: "OpenChatbox",
+      appUrl: "",
       favorites: [],
       aliases: {},
       chatLayout: "classic",
@@ -509,6 +513,7 @@ export const useStore = create<State>()(
           appName: c.appName ?? s.appName,
           logoUrl: c.logoUrl ?? s.logoUrl,
           accentColor: c.accentColor || s.accentColor,
+          appUrl: c.appUrl ?? s.appUrl,
           plugins: c.plugins ?? s.plugins,
           searchAvailable: c.search?.enabled ?? s.searchAvailable,
           imageGenAvailable: c.imageGen?.enabled ?? s.imageGenAvailable,
@@ -971,6 +976,7 @@ export const useStore = create<State>()(
       setAccentColor: (accentColor) => set({ accentColor }),
       setLogoUrl: (logoUrl) => set({ logoUrl }),
       setAppName: (appName) => set({ appName }),
+      setAppUrl: (appUrl) => set({ appUrl }),
 
       toggleFavorite: (key) =>
         set((s) => ({
@@ -1178,6 +1184,7 @@ export const useStore = create<State>()(
         accentColor: s.accentColor,
         appName: s.appName,
         logoUrl: s.logoUrl,
+        appUrl: s.appUrl,
       }),
       migrate: (persisted, version) => {
         const s = persisted as Partial<State>;

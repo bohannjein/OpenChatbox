@@ -31,6 +31,8 @@ export async function POST(req: NextRequest) {
 
   const patch: Partial<ServerConfig> = {};
   if (typeof body.appName === "string") patch.appName = body.appName.slice(0, 80);
+  if (typeof body.appUrl === "string")
+    patch.appUrl = body.appUrl.trim().replace(/\/+$/, "").slice(0, 500) || undefined;
   if (typeof body.logoUrl === "string") patch.logoUrl = body.logoUrl.slice(0, 500_000);
   if (typeof body.accentColor === "string") patch.accentColor = body.accentColor.slice(0, 32);
   if (Array.isArray(body.providers)) patch.providers = body.providers as ServerConfig["providers"];

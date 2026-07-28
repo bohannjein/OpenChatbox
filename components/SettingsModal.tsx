@@ -41,6 +41,7 @@ import AboutPanel from "./AboutPanel";
 import AuthAccessPanel from "./AuthAccessPanel";
 import SsoConfigPanel from "./SsoConfigPanel";
 import SmtpConfigPanel from "./SmtpConfigPanel";
+import InfoTip from "./InfoTip";
 
 type TabId =
   | "account"
@@ -94,6 +95,8 @@ export default function SettingsModal() {
   const setLogoUrl = useStore((s) => s.setLogoUrl);
   const appName = useStore((s) => s.appName);
   const setAppName = useStore((s) => s.setAppName);
+  const appUrl = useStore((s) => s.appUrl);
+  const setAppUrl = useStore((s) => s.setAppUrl);
   const codeSplitEnabled = useStore((s) => s.codeSplitEnabled);
   const setCodeSplitEnabled = useStore((s) => s.setCodeSplitEnabled);
   const codeSplitThreshold = useStore((s) => s.codeSplitThreshold);
@@ -618,6 +621,19 @@ export default function SettingsModal() {
                         className="w-full input-base font-mono"
                       />
                     </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
+                      Öffentliche App-URL (HTTPS)
+                      <InfoTip text="Die von außen erreichbare Adresse dieser Instanz, z. B. https://chat.firma.de. Wird für absolute Links in E-Mails (z. B. Passwort-Reset) verwendet. Ohne diese Angabe rät die App die Adresse aus der Anfrage — hinter einem Reverse-Proxy / bei Bind auf 0.0.0.0 ergibt das eine unbrauchbare URL." />
+                    </label>
+                    <input
+                      value={appUrl}
+                      onChange={(e) => setAppUrl(e.target.value)}
+                      placeholder="https://chat.firma.de"
+                      className="w-full input-base font-mono"
+                    />
                   </div>
                 </Section>
 

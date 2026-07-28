@@ -455,6 +455,7 @@ export function publicConfig(c: ServerConfig = getConfig()) {
     appName: c.appName,
     logoUrl: c.logoUrl,
     accentColor: c.accentColor,
+    appUrl: c.appUrl ?? "",
     primaryProvider: c.primaryProvider
       ? { type: c.primaryProvider.type, baseUrl: c.primaryProvider.baseUrl }
       : undefined,

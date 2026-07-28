@@ -63,6 +63,7 @@ function globalOf(s: State): GlobalConfigPayload {
     appName: s.appName,
     logoUrl: s.logoUrl,
     accentColor: s.accentColor,
+    appUrl: s.appUrl,
     routerModels: s.routerModels,
   };
 }

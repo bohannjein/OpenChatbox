@@ -22,10 +22,7 @@ function publicView(s: SmtpConfig | undefined) {
 /** Current SMTP settings WITHOUT the password (only whether one is stored). */
 export async function GET(req: NextRequest) {
   if (!getAdmin(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  return NextResponse.json({
-    smtp: publicView(getConfig().smtp),
-    appUrl: getConfig().appUrl ?? "",
-  });
+  return NextResponse.json({ smtp: publicView(getConfig().smtp) });
 }
 
 /**
@@ -41,12 +38,6 @@ export async function POST(req: NextRequest) {
     const r = await verifySmtp();
     return NextResponse.json(r, { status: r.ok ? 200 : 400 });
   }
-
-  // Public base URL (top-level config) — stored alongside SMTP since it's what
-  // makes the reset-email links resolvable. Empty clears it (falls back to env).
-  const appUrlPatch: { appUrl?: string } = {};
-  if (typeof body.appUrl === "string")
-    appUrlPatch.appUrl = body.appUrl.trim().replace(/\/+$/, "").slice(0, 500) || undefined;
 
   const prev = getConfig().smtp ?? ({} as SmtpConfig);
   const next: SmtpConfig = {
@@ -65,6 +56,6 @@ export async function POST(req: NextRequest) {
         : prev.passwordSecret,
   };
 
-  setConfig({ smtp: next, ...appUrlPatch });
-  return NextResponse.json({ smtp: publicView(next), appUrl: getConfig().appUrl ?? "" });
+  setConfig({ smtp: next });
+  return NextResponse.json({ smtp: publicView(next) });
 }
