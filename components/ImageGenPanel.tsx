@@ -57,7 +57,7 @@ export default function ImageGenPanel() {
     <div>
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-medium">Bildgenerierung</h3>
+          <h4 className="font-medium">Backend</h4>
           <p className="text-sm text-neutral-500">
             Backend für „generiere ein Bild …". Key bleibt serverseitig.
           </p>

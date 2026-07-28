@@ -85,7 +85,7 @@ export default function AuthAccessPanel() {
   return (
     <div>
       <div className="mb-3">
-        <h3 className="font-medium">Registrierung & Zugang</h3>
+        <h4 className="font-medium">Registrierung & Gastzugang</h4>
         <p className="text-sm text-neutral-500">
           Welche Anmeldearten verfügbar sind, wer sich registrieren darf, und ob
           nicht angemeldete Gäste den Chatbot testen können.

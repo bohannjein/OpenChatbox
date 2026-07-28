@@ -48,7 +48,7 @@ export default function DefaultModelsPanel() {
     <div>
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-medium">Standardmodelle</h3>
+          <h4 className="font-medium">Standardmodelle</h4>
           <p className="text-sm text-neutral-500">
             Weise jeder Aufgabe ein konkretes Modell zu. Im „Auto"-Modus prüft der
             Chat, was gebraucht wird, und lädt genau das hier festgelegte Modell.

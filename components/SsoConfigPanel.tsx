@@ -108,7 +108,7 @@ export default function SsoConfigPanel() {
     <div>
       <div className="mb-2 flex items-center gap-2">
         <Building2 size={16} className="text-accent" />
-        <h3 className="font-medium">Firmen-Login (SSO)</h3>
+        <h4 className="font-medium">Single Sign-On</h4>
         <InfoTip text="Single Sign-On: Nutzer melden sich mit ihrem Firmen-Konto an (Microsoft Entra ID oder ein AD/OIDC-Server wie ADFS/Keycloak) statt mit lokalem Passwort." />
       </div>
       <p className="mb-3 text-sm text-neutral-500">

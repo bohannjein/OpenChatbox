@@ -132,7 +132,7 @@ export default function AdminPanel() {
 
       {/* Pull */}
       <section>
-        <h3 className="font-medium">Modell laden (Ollama Pull)</h3>
+        <h4 className="font-medium">Modelle laden</h4>
         <p className="mb-2 text-sm text-neutral-500">
           Modellname aus der Ollama-Bibliothek eingeben (z. B. <code>phi3</code>,{" "}
           <code>llama3.2</code>, <code>qwen2.5:14b</code>). Lädt auf{" "}
@@ -203,7 +203,7 @@ export default function AdminPanel() {
       <section className="border-t border-border-light pt-4 dark:border-border-dark">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <h3 className="font-medium">Modelle & Anzeigenamen</h3>
+            <h4 className="font-medium">Anzeigenamen & Favoriten</h4>
             <p className="text-sm text-neutral-500">
               Freundlichen Alias vergeben, Favoriten markieren.
             </p>

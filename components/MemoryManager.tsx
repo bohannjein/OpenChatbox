@@ -24,7 +24,7 @@ export default function MemoryManager() {
     <section>
       <div className="mb-1 flex items-center gap-2">
         <Brain size={16} className="text-accent" />
-        <h3 className="font-medium">Mein Gedächtnis</h3>
+        <h4 className="font-medium">Gedächtnis</h4>
       </div>
       <p className="mb-2 text-sm text-neutral-500">
         Dauerhafte Fakten über dich. Werden bei jedem Chat unsichtbar als

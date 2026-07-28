@@ -7,14 +7,20 @@ import {
   Trash2,
   Plus,
   User,
+  Palette,
   MessageSquare,
+  Bot,
   Brain,
   Blocks,
-  SlidersHorizontal,
   Server,
-  ListChecks,
   Globe,
   Library,
+  Database,
+  Users,
+  KeyRound,
+  Image as ImageIcon,
+  Paintbrush,
+  Gauge,
   Sun,
   Moon,
   Wand2,
@@ -45,29 +51,157 @@ import InfoTip from "./InfoTip";
 
 type TabId =
   | "account"
-  | "general"
-  | "providers"
-  | "defaults"
-  | "search"
-  | "knowledge"
+  | "appearance"
   | "chat"
-  | "ai"
-  | "plugins"
-  | "info";
+  | "assistant"
+  | "websearch"
+  | "knowledge"
+  | "data"
+  | "admin-users"
+  | "admin-login"
+  | "admin-models"
+  | "admin-imagegen"
+  | "admin-integrations"
+  | "admin-branding"
+  | "admin-performance"
+  | "about";
 
-const TABS: { id: TabId; label: string; Icon: LucideIcon; adminOnly?: boolean }[] =
-  [
-    { id: "account", label: "Mein Konto", Icon: User },
-    { id: "general", label: "Allgemein", Icon: SlidersHorizontal },
-    { id: "providers", label: "Modellanbieter & Modelle", Icon: Server, adminOnly: true },
-    { id: "defaults", label: "Standardmodelle", Icon: ListChecks, adminOnly: true },
-    { id: "search", label: "Internetsuche", Icon: Globe },
-    { id: "knowledge", label: "Wissensdatenbank", Icon: Library },
-    { id: "chat", label: "Chateinstellungen", Icon: MessageSquare },
-    { id: "ai", label: "KI-Personalisierung", Icon: Brain },
-    { id: "plugins", label: "System-Dienste/Plugins", Icon: Blocks, adminOnly: true },
-    { id: "info", label: "Über OpenChatbox / Info", Icon: Info },
-  ];
+type Tab = { id: TabId; label: string; Icon: LucideIcon; desc: string };
+
+/**
+ * Grouped like a phone's settings app: identity first, then personalization,
+ * then features, admin bundled into one block, "about" last. `adminOnly` sits
+ * on the group so the whole heading disappears for non-admins.
+ */
+const GROUPS: { title: string; adminOnly?: boolean; tabs: Tab[] }[] = [
+  {
+    title: "Konto",
+    tabs: [
+      {
+        id: "account",
+        label: "Mein Konto",
+        Icon: User,
+        desc: "Profil, Passwort und Zwei-Faktor-Authentifizierung.",
+      },
+    ],
+  },
+  {
+    title: "Personalisierung",
+    tabs: [
+      {
+        id: "appearance",
+        label: "Darstellung",
+        Icon: Palette,
+        desc: "Design und Sprache der Oberfläche.",
+      },
+      {
+        id: "chat",
+        label: "Chat",
+        Icon: MessageSquare,
+        desc: "Layout und Personalisierung des Chatverlaufs.",
+      },
+      {
+        id: "assistant",
+        label: "Assistent",
+        Icon: Bot,
+        desc: "Wie sich das Modell verhält — Anweisungen, Vorlagen, Sidekicks, Gedächtnis.",
+      },
+    ],
+  },
+  {
+    title: "Funktionen",
+    tabs: [
+      {
+        id: "websearch",
+        label: "Websuche",
+        Icon: Globe,
+        desc: "Aktuelle Informationen aus dem Web als Kontext für Antworten.",
+      },
+      {
+        id: "knowledge",
+        label: "Wissen",
+        Icon: Library,
+        desc: "Eigene Dokumente als durchsuchbare Wissensdatenbank.",
+      },
+      {
+        id: "data",
+        label: "Daten & Verlauf",
+        Icon: Database,
+        desc: "Gespeicherte Unterhaltungen verwalten und löschen.",
+      },
+    ],
+  },
+  {
+    title: "Administration",
+    adminOnly: true,
+    tabs: [
+      {
+        id: "admin-users",
+        label: "Benutzer & Zugriff",
+        Icon: Users,
+        desc: "Konten, Rollen und wer sich überhaupt anmelden darf.",
+      },
+      {
+        id: "admin-login",
+        label: "Anmeldung & E-Mail",
+        Icon: KeyRound,
+        desc: "Single Sign-On und ausgehender E-Mail-Versand.",
+      },
+      {
+        id: "admin-models",
+        label: "Modelle",
+        Icon: Server,
+        desc: "Anbieter, verfügbare Modelle und Standardzuordnungen.",
+      },
+      {
+        id: "admin-imagegen",
+        label: "Bildgenerierung",
+        Icon: ImageIcon,
+        desc: "Backend für die Bilderzeugung im Chat.",
+      },
+      {
+        id: "admin-integrations",
+        label: "Integrationen",
+        Icon: Blocks,
+        desc: "Externe Dienste und serverseitige Hintergrund-Dienste.",
+      },
+      {
+        id: "admin-branding",
+        label: "Marke",
+        Icon: Paintbrush,
+        desc: "Farbe, Name, Logo und öffentliche Adresse dieser Instanz.",
+      },
+      {
+        id: "admin-performance",
+        label: "Leistung",
+        Icon: Gauge,
+        desc: "Wie die GPU zwischen mehreren Nutzern geteilt wird.",
+      },
+    ],
+  },
+  {
+    title: "System",
+    tabs: [
+      {
+        id: "about",
+        label: "Über OpenChatbox",
+        Icon: Info,
+        desc: "Version und Änderungsverlauf.",
+      },
+    ],
+  },
+];
+
+/** Tab ids from before the settings regroup — persisted state may still hold one. */
+const LEGACY_TABS: Record<string, TabId> = {
+  general: "appearance",
+  providers: "admin-models",
+  defaults: "admin-models",
+  search: "websearch",
+  ai: "assistant",
+  plugins: "admin-integrations",
+  info: "about",
+};
 
 /** Section wrapper — consistent divider + spacing; first section has no border. */
 function Section({ children }: { children: React.ReactNode }) {
@@ -75,6 +209,22 @@ function Section({ children }: { children: React.ReactNode }) {
     <section className="border-t border-border-light pt-6 first:border-0 first:pt-0 dark:border-border-dark">
       {children}
     </section>
+  );
+}
+
+/** Heading for a section that used to carry its own <h3> inside a panel. */
+function SectionTitle({
+  title,
+  hint,
+}: {
+  title: string;
+  hint?: React.ReactNode;
+}) {
+  return (
+    <>
+      <h4 className="font-medium">{title}</h4>
+      {hint && <p className="mb-3 text-sm text-neutral-500">{hint}</p>}
+    </>
   );
 }
 
@@ -146,10 +296,11 @@ export default function SettingsModal() {
 
   const [tab, setTab] = useState<TabId>("account");
 
-  // Honor a one-shot tab request (e.g. footer → "Profil & Sicherheit").
+  // Honor a one-shot tab request (e.g. footer → "Mein Konto"), mapping any
+  // pre-regroup id onto its replacement.
   useEffect(() => {
     if (open && requestedTab) {
-      setTab(requestedTab as TabId);
+      setTab((LEGACY_TABS[requestedTab] ?? requestedTab) as TabId);
       setRequestedTab(null);
     }
   }, [open, requestedTab, setRequestedTab]);
@@ -157,8 +308,11 @@ export default function SettingsModal() {
   if (!open) return null;
 
   const isAdmin = authUser?.role === "admin";
-  const visibleTabs = TABS.filter((t) => !t.adminOnly || isAdmin);
-  const activeTab = visibleTabs.some((t) => t.id === tab) ? tab : "account";
+  const visibleGroups = GROUPS.filter((g) => !g.adminOnly || isAdmin);
+  const visibleTabs = visibleGroups.flatMap((g) => g.tabs);
+  const active =
+    visibleTabs.find((t) => t.id === tab) ?? visibleTabs[0];
+  const activeTab = active.id;
 
   return (
     <div className="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-black/50 p-4">
@@ -175,291 +329,454 @@ export default function SettingsModal() {
         </div>
 
         <div className="flex min-h-0 flex-1">
-          {/* Tab sidebar */}
-          <nav className="w-52 shrink-0 space-y-0.5 overflow-y-auto border-r border-border-light p-2 dark:border-border-dark">
-            {visibleTabs.map(({ id, label, Icon }) => (
-              <button
-                key={id}
-                onClick={() => setTab(id)}
-                className={clsx(
-                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors duration-150 ease-out",
-                  activeTab === id
-                    ? "bg-neutral-200 font-medium dark:bg-white/10"
-                    : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-white/5"
-                )}
-              >
-                <Icon size={16} className="shrink-0" />
-                <span className="min-w-0 flex-1 truncate">{label}</span>
-                {id === "info" && showWhatsNewDot && (
-                  <span
-                    aria-label="Neue Updates"
-                    className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent"
-                  />
-                )}
-              </button>
+          {/* Grouped tab sidebar */}
+          <nav className="w-52 shrink-0 overflow-y-auto border-r border-border-light p-2 dark:border-border-dark">
+            {visibleGroups.map((group) => (
+              <div key={group.title} className="space-y-0.5">
+                <div className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wide text-neutral-400 first:pt-1 dark:text-neutral-500">
+                  {group.title}
+                </div>
+                {group.tabs.map(({ id, label, Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => setTab(id)}
+                    className={clsx(
+                      "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors duration-150 ease-out",
+                      activeTab === id
+                        ? "bg-neutral-200 font-medium dark:bg-white/10"
+                        : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-white/5"
+                    )}
+                  >
+                    <Icon size={16} className="shrink-0" />
+                    <span className="min-w-0 flex-1 truncate">{label}</span>
+                    {id === "about" && showWhatsNewDot && (
+                      <span
+                        aria-label="Neue Updates"
+                        className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent"
+                      />
+                    )}
+                  </button>
+                ))}
+              </div>
             ))}
           </nav>
 
           {/* Content */}
-          <div className="min-w-0 flex-1 space-y-6 overflow-y-auto overflow-x-hidden break-words p-5">
-            {activeTab === "account" && (
-              <Section>
-                <AccountPanel />
-              </Section>
-            )}
+          <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden break-words p-5">
+            {/* Page title — replaces the per-panel heading */}
+            <div className="mb-5">
+              <div className="flex items-center gap-2">
+                <active.Icon size={18} className="shrink-0 text-accent" />
+                <h3 className="text-base font-semibold">{active.label}</h3>
+              </div>
+              <p className="mt-0.5 text-sm text-neutral-500">{active.desc}</p>
+            </div>
 
-            {activeTab === "chat" && (
-              <>
+            <div className="space-y-6">
+              {activeTab === "account" && (
                 <Section>
-                  <h3 className="font-medium">Chat-Darstellung</h3>
-                  <p className="mb-3 text-sm text-neutral-500">
-                    Layout und Personalisierung des Chatverlaufs.
-                  </p>
+                  <AccountPanel />
+                </Section>
+              )}
 
-                  {/* Layout */}
-                  <label className="mb-1 block text-xs text-neutral-500">Layout</label>
-                  <div className="mb-4 flex gap-2">
-                    {(
-                      [
-                        ["classic", "Klassisch", "Flaches Design"],
-                        ["bubble", "Bubble-Layout", "Sprechblasen (KI links, du rechts)"],
-                      ] as const
-                    ).map(([val, label, hint]) => (
+              {activeTab === "appearance" && (
+                <>
+                  <Section>
+                    <SectionTitle
+                      title="Design"
+                      hint="Farbschema der gesamten Oberfläche."
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
-                        key={val}
-                        onClick={() => setChatLayout(val)}
+                        onClick={() => setTheme("light")}
                         className={clsx(
-                          "flex-1 rounded-xl border px-3 py-2 text-left text-sm transition",
-                          chatLayout === val
-                            ? "border-accent bg-accent/10"
+                          "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition",
+                          theme === "light"
+                            ? "border-accent bg-accent/15 text-accent"
                             : "border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
                         )}
                       >
-                        <div className="font-medium">{label}</div>
-                        <div className="text-xs text-neutral-400">{hint}</div>
+                        <Sun size={15} /> Hell
                       </button>
-                    ))}
-                  </div>
-
-                  {/* Toggles */}
-                  <div className="mb-4 space-y-2">
-                    {(
-                      [
-                        ["avatar", "Avatar neben Nachrichten", chatShowAvatar, setChatShowAvatar],
-                        ["ts", "Zeitstempel anzeigen", chatShowTimestamps, setChatShowTimestamps],
-                        ["stats", "Statistiken (Wörter & ~Tokens)", chatShowStats, setChatShowStats],
-                      ] as const
-                    ).map(([id, label, val, setter]) => (
-                      <label
-                        key={id}
-                        className="flex cursor-pointer items-center gap-2 text-sm"
+                      <button
+                        onClick={() => setTheme("dark")}
+                        className={clsx(
+                          "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition",
+                          theme === "dark"
+                            ? "border-accent bg-accent/15 text-accent"
+                            : "border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
+                        )}
                       >
-                        <input
-                          type="checkbox"
-                          checked={val}
-                          onChange={(e) => setter(e.target.checked)}
-                          className="h-4 w-4 accent-[rgb(var(--accent))]"
-                        />
-                        {label}
-                      </label>
-                    ))}
-                  </div>
-
-                  {/* Image uploads */}
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1 block text-xs text-neutral-500">
-                        Assistenten-Profilbild
-                      </label>
-                      <div className="flex items-center gap-3">
-                        {assistantAvatarUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={assistantAvatarUrl}
-                            alt="Avatar"
-                            className="h-12 w-12 rounded-full object-cover ring-1 ring-border-light dark:ring-border-dark"
-                          />
-                        ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 text-accent">
-                            <Brain size={20} />
-                          </div>
-                        )}
-                        <label className="cursor-pointer rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5">
-                          Bild wählen
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => pickImage(e, setAssistantAvatarUrl, 256)}
-                          />
-                        </label>
-                        {assistantAvatarUrl && (
-                          <button
-                            onClick={() => setAssistantAvatarUrl("")}
-                            className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
-                            title="Entfernen"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
+                        <Moon size={15} /> Dunkel
+                      </button>
+                      {draculaUnlocked && (
+                        <button
+                          onClick={() => setTheme("dracula")}
+                          className={clsx(
+                            "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition",
+                            theme === "dracula"
+                              ? "border-[#bd93f9] bg-[#bd93f9]/15 text-[#bd93f9]"
+                              : "border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
+                          )}
+                        >
+                          <Wand2 size={15} /> Dracula
+                        </button>
+                      )}
                     </div>
-                    <div>
-                      <label className="mb-1 block text-xs text-neutral-500">
-                        Chathintergrund
-                      </label>
-                      <div className="flex items-center gap-3">
-                        {chatBackgroundUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={chatBackgroundUrl}
-                            alt="Hintergrund"
-                            className="h-12 w-20 rounded-lg object-cover ring-1 ring-border-light dark:ring-border-dark"
-                          />
-                        ) : (
-                          <div className="h-12 w-20 rounded-lg bg-neutral-100 ring-1 ring-border-light dark:bg-white/5 dark:ring-border-dark" />
-                        )}
-                        <label className="cursor-pointer rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5">
-                          Bild wählen
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => pickImage(e, setChatBackgroundUrl, 1600)}
-                          />
-                        </label>
-                        {chatBackgroundUrl && (
-                          <button
-                            onClick={() => setChatBackgroundUrl("")}
-                            className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
-                            title="Entfernen"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </Section>
+                  </Section>
 
-                <Section>
-                  <h3 className="font-medium">Benutzerdefinierte Anweisungen</h3>
-                  <p className="mb-2 text-sm text-neutral-500">
-                    Dauerhafte Rolle/Regeln für das Modell — wird jeder
-                    Unterhaltung als System-Prompt vorangestellt.
-                  </p>
-                  <textarea
-                    value={customInstructions}
-                    onChange={(e) => setCustomInstructions(e.target.value)}
-                    rows={3}
-                    placeholder="z. B. Antworte immer auf Deutsch und fasse dich kurz."
-                    className="input-base w-full resize-y px-3 py-2"
-                  />
-                </Section>
-
-                <Section>
-                  <div className="mb-3 flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium">Prompt-Bibliothek</h3>
-                      <p className="text-sm text-neutral-500">
-                        Firmen-Vorlagen — im Chat per „/" aufrufbar.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() =>
-                        upsertPrompt({
-                          id: uid(),
-                          title: "Neue Vorlage",
-                          shortcut: "",
-                          content: "",
-                        })
-                      }
-                      className="flex shrink-0 items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover"
+                  <Section>
+                    <SectionTitle
+                      title="Sprache"
+                      hint="Sprache der Bedienoberfläche."
+                    />
+                    <select
+                      value={lang ?? "de"}
+                      onChange={(e) => setLang(e.target.value as "de" | "en")}
+                      className="input-base py-1.5 text-sm dark:bg-sidebar-dark"
                     >
-                      <Plus size={15} /> Hinzufügen
-                    </button>
-                  </div>
-                  <div className="space-y-3">
-                    {prompts.map((p) => (
-                      <div
-                        key={p.id}
-                        className="rounded-xl border border-border-light p-3 dark:border-border-dark"
-                      >
-                        <div className="flex items-center gap-2">
-                          <input
-                            value={p.title}
-                            onChange={(e) =>
-                              upsertPrompt({ ...p, title: e.target.value })
-                            }
-                            placeholder="Titel"
-                            className="min-w-0 flex-1 input-base"
-                          />
-                          <input
-                            value={p.shortcut ?? ""}
-                            onChange={(e) =>
-                              upsertPrompt({ ...p, shortcut: e.target.value })
-                            }
-                            placeholder="/kürzel"
-                            className="w-28 input-base font-mono"
-                          />
-                          <button
-                            onClick={() => removePrompt(p.id)}
-                            className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
-                            title="Vorlage entfernen"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                        <textarea
-                          value={p.content}
-                          onChange={(e) =>
-                            upsertPrompt({ ...p, content: e.target.value })
-                          }
-                          rows={2}
-                          placeholder="Prompt-Text…"
-                          className="mt-2 w-full resize-y input-base"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </Section>
+                      <option value="de">Deutsch</option>
+                      <option value="en">English</option>
+                    </select>
+                  </Section>
+                </>
+              )}
 
+              {activeTab === "chat" && (
+                <>
+                  <Section>
+                    <SectionTitle
+                      title="Layout"
+                      hint="Grundform des Chatverlaufs."
+                    />
+                    <div className="flex gap-2">
+                      {(
+                        [
+                          ["classic", "Klassisch", "Flaches Design"],
+                          [
+                            "bubble",
+                            "Bubble-Layout",
+                            "Sprechblasen (KI links, du rechts)",
+                          ],
+                        ] as const
+                      ).map(([val, label, hint]) => (
+                        <button
+                          key={val}
+                          onClick={() => setChatLayout(val)}
+                          className={clsx(
+                            "flex-1 rounded-xl border px-3 py-2 text-left text-sm transition",
+                            chatLayout === val
+                              ? "border-accent bg-accent/10"
+                              : "border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
+                          )}
+                        >
+                          <div className="font-medium">{label}</div>
+                          <div className="text-xs text-neutral-400">{hint}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </Section>
+
+                  <Section>
+                    <SectionTitle
+                      title="Anzeige"
+                      hint="Was neben jeder Nachricht eingeblendet wird."
+                    />
+                    <div className="space-y-2">
+                      {(
+                        [
+                          [
+                            "avatar",
+                            "Avatar neben Nachrichten",
+                            chatShowAvatar,
+                            setChatShowAvatar,
+                          ],
+                          [
+                            "ts",
+                            "Zeitstempel anzeigen",
+                            chatShowTimestamps,
+                            setChatShowTimestamps,
+                          ],
+                          [
+                            "stats",
+                            "Statistiken (Wörter & ~Tokens)",
+                            chatShowStats,
+                            setChatShowStats,
+                          ],
+                        ] as const
+                      ).map(([id, label, val, setter]) => (
+                        <label
+                          key={id}
+                          className="flex cursor-pointer items-center gap-2 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={val}
+                            onChange={(e) => setter(e.target.checked)}
+                            className="h-4 w-4 accent-[rgb(var(--accent))]"
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </Section>
+
+                  <Section>
+                    <SectionTitle
+                      title="Bilder"
+                      hint="Profilbild des Assistenten und Hintergrund des Verlaufs."
+                    />
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs text-neutral-500">
+                          Assistenten-Profilbild
+                        </label>
+                        <div className="flex items-center gap-3">
+                          {assistantAvatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={assistantAvatarUrl}
+                              alt="Avatar"
+                              className="h-12 w-12 rounded-full object-cover ring-1 ring-border-light dark:ring-border-dark"
+                            />
+                          ) : (
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 text-accent">
+                              <Brain size={20} />
+                            </div>
+                          )}
+                          <label className="cursor-pointer rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5">
+                            Bild wählen
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) =>
+                                pickImage(e, setAssistantAvatarUrl, 256)
+                              }
+                            />
+                          </label>
+                          {assistantAvatarUrl && (
+                            <button
+                              onClick={() => setAssistantAvatarUrl("")}
+                              className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
+                              title="Entfernen"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-neutral-500">
+                          Chathintergrund
+                        </label>
+                        <div className="flex items-center gap-3">
+                          {chatBackgroundUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={chatBackgroundUrl}
+                              alt="Hintergrund"
+                              className="h-12 w-20 rounded-lg object-cover ring-1 ring-border-light dark:ring-border-dark"
+                            />
+                          ) : (
+                            <div className="h-12 w-20 rounded-lg bg-neutral-100 ring-1 ring-border-light dark:bg-white/5 dark:ring-border-dark" />
+                          )}
+                          <label className="cursor-pointer rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5">
+                            Bild wählen
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) =>
+                                pickImage(e, setChatBackgroundUrl, 1600)
+                              }
+                            />
+                          </label>
+                          {chatBackgroundUrl && (
+                            <button
+                              onClick={() => setChatBackgroundUrl("")}
+                              className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
+                              title="Entfernen"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Section>
+
+                  <Section>
+                    <SectionTitle
+                      title="Code-Panel"
+                      hint="Lange Codeblöcke öffnen sich automatisch in einem Panel rechts."
+                    />
+                    <label className="flex cursor-pointer items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={codeSplitEnabled}
+                        onChange={(e) => setCodeSplitEnabled(e.target.checked)}
+                        className="h-4 w-4 accent-[rgb(var(--accent))]"
+                      />
+                      Aktiviert
+                    </label>
+                    <div className="mt-2 flex items-center gap-2 text-sm">
+                      <span className="text-neutral-500">Ab</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={codeSplitThreshold}
+                        onChange={(e) =>
+                          setCodeSplitThreshold(Number(e.target.value))
+                        }
+                        className="w-20 input-base"
+                      />
+                      <span className="text-neutral-500">Zeilen</span>
+                    </div>
+                  </Section>
+                </>
+              )}
+
+              {activeTab === "assistant" && (
+                <>
+                  <Section>
+                    <SectionTitle
+                      title="Anweisungen"
+                      hint="Dauerhafte Rolle/Regeln für das Modell — wird jeder Unterhaltung als System-Prompt vorangestellt."
+                    />
+                    <textarea
+                      value={customInstructions}
+                      onChange={(e) => setCustomInstructions(e.target.value)}
+                      rows={3}
+                      placeholder="z. B. Antworte immer auf Deutsch und fasse dich kurz."
+                      className="input-base w-full resize-y px-3 py-2"
+                    />
+                  </Section>
+
+                  <Section>
+                    <div className="mb-3 flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium">Vorlagen</h4>
+                        <p className="text-sm text-neutral-500">
+                          Prompt-Bibliothek — im Chat per „/" aufrufbar.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() =>
+                          upsertPrompt({
+                            id: uid(),
+                            title: "Neue Vorlage",
+                            shortcut: "",
+                            content: "",
+                          })
+                        }
+                        className="flex shrink-0 items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover"
+                      >
+                        <Plus size={15} /> Hinzufügen
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {prompts.map((p) => (
+                        <div
+                          key={p.id}
+                          className="rounded-xl border border-border-light p-3 dark:border-border-dark"
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              value={p.title}
+                              onChange={(e) =>
+                                upsertPrompt({ ...p, title: e.target.value })
+                              }
+                              placeholder="Titel"
+                              className="min-w-0 flex-1 input-base"
+                            />
+                            <input
+                              value={p.shortcut ?? ""}
+                              onChange={(e) =>
+                                upsertPrompt({ ...p, shortcut: e.target.value })
+                              }
+                              placeholder="/kürzel"
+                              className="w-28 input-base font-mono"
+                            />
+                            <button
+                              onClick={() => removePrompt(p.id)}
+                              className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
+                              title="Vorlage entfernen"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                          <textarea
+                            value={p.content}
+                            onChange={(e) =>
+                              upsertPrompt({ ...p, content: e.target.value })
+                            }
+                            rows={2}
+                            placeholder="Prompt-Text…"
+                            className="mt-2 w-full resize-y input-base"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </Section>
+
+                  <Section>
+                    <SidekickManager />
+                  </Section>
+
+                  <Section>
+                    <MemoryManager />
+                  </Section>
+                </>
+              )}
+
+              {activeTab === "websearch" && (
                 <Section>
-                  <h3 className="font-medium">Code-Splitscreen</h3>
-                  <p className="mb-2 text-sm text-neutral-500">
-                    Lange Codeblöcke öffnen sich automatisch in einem Panel
-                    rechts.
-                  </p>
+                  <SectionTitle
+                    title="Websuche"
+                    hint={
+                      <>
+                        Erlaubt dem Modell, für aktuelle Fragen das Web zu
+                        durchsuchen. Die Suchanfrage formuliert das Modell
+                        „Suchbegriff-Konstruktion" (siehe Modelle →
+                        Standardmodelle); die Treffer werden dem Antwortmodell
+                        als Kontext übergeben.
+                      </>
+                    }
+                  />
                   <label className="flex cursor-pointer items-center gap-2 text-sm">
                     <input
                       type="checkbox"
-                      checked={codeSplitEnabled}
-                      onChange={(e) => setCodeSplitEnabled(e.target.checked)}
+                      checked={webSearchEnabled}
+                      onChange={() => toggleWebSearch()}
                       className="h-4 w-4 accent-[rgb(var(--accent))]"
                     />
-                    Aktiviert
+                    Websuche aktivieren
                   </label>
-                  <div className="mt-2 flex items-center gap-2 text-sm">
-                    <span className="text-neutral-500">Ab</span>
-                    <input
-                      type="number"
-                      min={1}
-                      value={codeSplitThreshold}
-                      onChange={(e) =>
-                        setCodeSplitThreshold(Number(e.target.value))
-                      }
-                      className="w-20 input-base"
-                    />
-                    <span className="text-neutral-500">Zeilen</span>
-                  </div>
+                  {isAdmin && (
+                    <button
+                      onClick={() => setTab("admin-integrations")}
+                      className="mt-3 text-sm text-accent transition hover:underline"
+                    >
+                      Suchanbieter konfigurieren →
+                    </button>
+                  )}
                 </Section>
+              )}
 
+              {activeTab === "knowledge" && (
                 <Section>
-                  <h3 className="font-medium text-red-600 dark:text-red-400">
-                    Verlauf löschen
-                  </h3>
+                  <KnowledgeBasePanel />
+                </Section>
+              )}
+
+              {activeTab === "data" && (
+                <Section>
+                  <h4 className="font-medium text-red-600 dark:text-red-400">
+                    Alle Chats löschen
+                  </h4>
                   <p className="mb-2 text-sm text-neutral-500">
-                    Entfernt alle Chats aus dem LocalStorage. Nicht umkehrbar.
+                    Entfernt alle Unterhaltungen dieses Kontos. Nicht umkehrbar.
                   </p>
                   <button
                     onClick={() => {
@@ -471,159 +788,131 @@ export default function SettingsModal() {
                     Alle Chats löschen
                   </button>
                 </Section>
-              </>
-            )}
+              )}
 
-            {activeTab === "ai" && (
-              <>
-                <Section>
-                  <SidekickManager />
-                </Section>
-                <Section>
-                  <MemoryManager />
-                </Section>
-              </>
-            )}
+              {activeTab === "admin-users" && isAdmin && (
+                <>
+                  <Section>
+                    <UserManagement />
+                  </Section>
+                  <Section>
+                    <AuthAccessPanel />
+                  </Section>
+                </>
+              )}
 
-            {activeTab === "general" && (
-              <>
-                {/* Appearance — theme + language (all users) */}
+              {activeTab === "admin-login" && isAdmin && (
+                <>
+                  <Section>
+                    <SsoConfigPanel />
+                  </Section>
+                  <Section>
+                    <SmtpConfigPanel />
+                  </Section>
+                </>
+              )}
+
+              {activeTab === "admin-models" && isAdmin && (
+                <>
+                  <Section>
+                    <ProvidersPanel />
+                  </Section>
+                  <Section>
+                    <AdminPanel />
+                  </Section>
+                  <Section>
+                    <DefaultModelsPanel />
+                  </Section>
+                </>
+              )}
+
+              {activeTab === "admin-imagegen" && isAdmin && (
                 <Section>
-                  <h3 className="font-medium">Darstellung</h3>
-                  <p className="mb-2 text-sm text-neutral-500">
-                    Design und Sprache der Oberfläche.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={() => setTheme("light")}
-                      className={clsx(
-                        "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition",
-                        theme === "light"
-                          ? "border-accent bg-accent/15 text-accent"
-                          : "border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
-                      )}
-                    >
-                      <Sun size={15} /> Hell
-                    </button>
-                    <button
-                      onClick={() => setTheme("dark")}
-                      className={clsx(
-                        "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition",
-                        theme === "dark"
-                          ? "border-accent bg-accent/15 text-accent"
-                          : "border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
-                      )}
-                    >
-                      <Moon size={15} /> Dunkel
-                    </button>
-                    {draculaUnlocked && (
+                  <ImageGenPanel />
+                </Section>
+              )}
+
+              {activeTab === "admin-integrations" && isAdmin && (
+                <>
+                  <Section>
+                    <SearchProvidersPanel />
+                  </Section>
+                  <Section>
+                    <PluginsPanel />
+                  </Section>
+                </>
+              )}
+
+              {activeTab === "admin-branding" && isAdmin && (
+                <>
+                  <Section>
+                    <SectionTitle
+                      title="Akzentfarbe"
+                      hint="Wird für Buttons, Links und Hervorhebungen verwendet."
+                    />
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={normalizeHex(accentColor)}
+                        onChange={(e) => setAccentColor(e.target.value)}
+                        title="Akzentfarbe wählen"
+                        className="h-9 w-12 cursor-pointer rounded-lg border border-border-light bg-transparent dark:border-border-dark"
+                      />
+                      <input
+                        value={accentColor}
+                        onChange={(e) => setAccentColor(e.target.value)}
+                        placeholder={DEFAULT_ACCENT}
+                        className="w-28 input-base font-mono"
+                      />
                       <button
-                        onClick={() => setTheme("dracula")}
-                        className={clsx(
-                          "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition",
-                          theme === "dracula"
-                            ? "border-[#bd93f9] bg-[#bd93f9]/15 text-[#bd93f9]"
-                            : "border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
-                        )}
+                        onClick={() => setAccentColor(DEFAULT_ACCENT)}
+                        className="rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
                       >
-                        <Wand2 size={15} /> Dracula
+                        Zurücksetzen (Indigo)
                       </button>
-                    )}
-                    <span className="mx-1 text-neutral-300 dark:text-neutral-600">|</span>
-                    <select
-                      value={lang ?? "de"}
-                      onChange={(e) => setLang(e.target.value as "de" | "en")}
-                      className="input-base py-1.5 text-sm dark:bg-sidebar-dark"
-                    >
-                      <option value="de">Deutsch</option>
-                      <option value="en">English</option>
-                    </select>
-                  </div>
-                </Section>
-
-                {isAdmin && (
-                  <>
-                {/* User management */}
-                <Section>
-                  <UserManagement />
-                </Section>
-
-                {/* Registration & guest access */}
-                <Section>
-                  <AuthAccessPanel />
-                </Section>
-
-                {/* SSO / OIDC (Entra ID or generic AD) */}
-                <Section>
-                  <SsoConfigPanel />
-                </Section>
-
-                {/* Outbound mail (SMTP) for password-reset links */}
-                <Section>
-                  <SmtpConfigPanel />
-                </Section>
-
-                {/* Branding */}
-                <Section>
-                  <h3 className="font-medium">Branding</h3>
-                  <p className="mb-3 text-sm text-neutral-500">
-                    Akzentfarbe, Firmenlogo und App-Name für die gesamte
-                    Oberfläche.
-                  </p>
-                  <label className="mb-1 block text-xs text-neutral-500">
-                    Akzentfarbe
-                  </label>
-                  <div className="mb-4 flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={normalizeHex(accentColor)}
-                      onChange={(e) => setAccentColor(e.target.value)}
-                      title="Akzentfarbe wählen"
-                      className="h-9 w-12 cursor-pointer rounded-lg border border-border-light bg-transparent dark:border-border-dark"
-                    />
-                    <input
-                      value={accentColor}
-                      onChange={(e) => setAccentColor(e.target.value)}
-                      placeholder={DEFAULT_ACCENT}
-                      className="w-28 input-base font-mono"
-                    />
-                    <button
-                      onClick={() => setAccentColor(DEFAULT_ACCENT)}
-                      className="rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
-                    >
-                      Zurücksetzen (Indigo)
-                    </button>
-                    <span
-                      className="ml-auto h-6 w-6 rounded-full ring-1 ring-black/10"
-                      style={{ backgroundColor: normalizeHex(accentColor) }}
-                    />
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1 block text-xs text-neutral-500">
-                        App-Name (Platzhalter, wenn kein Logo)
-                      </label>
-                      <input
-                        value={appName}
-                        onChange={(e) => setAppName(e.target.value)}
-                        placeholder="OpenChatbox"
-                        className="w-full input-base"
+                      <span
+                        className="ml-auto h-6 w-6 rounded-full ring-1 ring-black/10"
+                        style={{ backgroundColor: normalizeHex(accentColor) }}
                       />
                     </div>
-                    <div>
-                      <label className="mb-1 block text-xs text-neutral-500">
-                        Logo-Bild-URL (optional)
-                      </label>
-                      <input
-                        value={logoUrl}
-                        onChange={(e) => setLogoUrl(e.target.value)}
-                        placeholder="https://…/logo.png"
-                        className="w-full input-base font-mono"
-                      />
-                    </div>
-                  </div>
+                  </Section>
 
-                  <div className="mt-3">
+                  <Section>
+                    <SectionTitle
+                      title="Name & Logo"
+                      hint="Erscheint in der Seitenleiste und auf der Anmeldeseite."
+                    />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs text-neutral-500">
+                          App-Name (Platzhalter, wenn kein Logo)
+                        </label>
+                        <input
+                          value={appName}
+                          onChange={(e) => setAppName(e.target.value)}
+                          placeholder="OpenChatbox"
+                          className="w-full input-base"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-neutral-500">
+                          Logo-Bild-URL (optional)
+                        </label>
+                        <input
+                          value={logoUrl}
+                          onChange={(e) => setLogoUrl(e.target.value)}
+                          placeholder="https://…/logo.png"
+                          className="w-full input-base font-mono"
+                        />
+                      </div>
+                    </div>
+                  </Section>
+
+                  <Section>
+                    <SectionTitle
+                      title="Öffentliche Adresse"
+                      hint="Basis für absolute Links in E-Mails und SSO-Rücksprüngen."
+                    />
                     <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
                       Öffentliche App-URL (HTTPS)
                       <InfoTip text="Die von außen erreichbare Adresse dieser Instanz, z. B. https://chat.firma.de. Wird für absolute Links in E-Mails (z. B. Passwort-Reset) verwendet. Ohne diese Angabe rät die App die Adresse aus der Anfrage — hinter einem Reverse-Proxy / bei Bind auf 0.0.0.0 ergibt das eine unbrauchbare URL." />
@@ -634,29 +923,16 @@ export default function SettingsModal() {
                       placeholder="https://chat.firma.de"
                       className="w-full input-base font-mono"
                     />
-                  </div>
-                </Section>
+                  </Section>
+                </>
+              )}
 
-                  </>
-                )}
-              </>
-            )}
-
-            {activeTab === "providers" && isAdmin && (
-              <>
-                {/* Providers (global, server-side; loads full config incl keys) */}
+              {activeTab === "admin-performance" && isAdmin && (
                 <Section>
-                  <ProvidersPanel />
-                </Section>
-
-                {/* Performance / VRAM */}
-                <Section>
-                  <h3 className="font-medium">Performance & VRAM</h3>
-                  <p className="mb-2 text-sm text-neutral-500">
-                    Steuert, wie schnell Ollama Modelle aus dem VRAM entlädt
-                    (GPU im Multi-User-Betrieb teilen). Alleinnutzung? Einfach
-                    aus lassen.
-                  </p>
+                  <SectionTitle
+                    title="VRAM-Verwaltung"
+                    hint="Steuert, wie schnell Ollama Modelle aus dem VRAM entlädt (GPU im Multi-User-Betrieb teilen). Alleinnutzung? Einfach aus lassen."
+                  />
                   <label className="flex cursor-pointer items-center gap-2 text-sm">
                     <input
                       type="checkbox"
@@ -712,71 +988,14 @@ export default function SettingsModal() {
                     <code>OLLAMA_MAX_LOADED_MODELS=1</code>.
                   </p>
                 </Section>
+              )}
 
-                {/* Ollama pull + model aliases/favorites */}
+              {activeTab === "about" && (
                 <Section>
-                  <AdminPanel />
+                  <AboutPanel />
                 </Section>
-
-                {/* Image generation backend */}
-                <Section>
-                  <ImageGenPanel />
-                </Section>
-              </>
-            )}
-
-            {activeTab === "defaults" && isAdmin && (
-              <Section>
-                <DefaultModelsPanel />
-              </Section>
-            )}
-
-            {activeTab === "search" && (
-              <>
-                <Section>
-                  <h3 className="font-medium">Internetsuche</h3>
-                  <p className="mb-2 text-sm text-neutral-500">
-                    Erlaubt dem Modell, für aktuelle Fragen das Web zu durchsuchen.
-                    Die Suchanfrage formuliert das Modell „Suchbegriff-Konstruktion"
-                    (siehe Standardmodelle); die Treffer werden dem Antwortmodell
-                    als Kontext übergeben.
-                  </p>
-                  <label className="flex cursor-pointer items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={webSearchEnabled}
-                      onChange={() => toggleWebSearch()}
-                      className="h-4 w-4 accent-[rgb(var(--accent))]"
-                    />
-                    Internetsuche aktivieren
-                  </label>
-                </Section>
-
-                {isAdmin && (
-                  <Section>
-                    <SearchProvidersPanel />
-                  </Section>
-                )}
-              </>
-            )}
-
-            {activeTab === "knowledge" && (
-              <Section>
-                <KnowledgeBasePanel />
-              </Section>
-            )}
-
-            {activeTab === "plugins" && isAdmin && (
-              <Section>
-                <PluginsPanel />
-              </Section>
-            )}
-
-            {activeTab === "info" && (
-              <Section>
-                <AboutPanel />
-              </Section>
-            )}
+              )}
+            </div>
           </div>
         </div>
 

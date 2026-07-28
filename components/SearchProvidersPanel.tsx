@@ -65,7 +65,7 @@ export default function SearchProvidersPanel() {
     <div>
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-medium">Such-Anbieter</h3>
+          <h4 className="font-medium">Suchanbieter</h4>
           <p className="text-sm text-neutral-500">
             API-Keys werden serverseitig gespeichert. Verwendet wird der erste
             aktivierte Anbieter mit Key.

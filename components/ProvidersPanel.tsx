@@ -84,7 +84,7 @@ export default function ProvidersPanel() {
   return (
     <div>
       <div className="mb-3">
-        <h3 className="font-medium">Provider & API-Endpunkte</h3>
+        <h4 className="font-medium">Anbieter & Endpunkte</h4>
         <p className="text-sm text-neutral-500">
           Ollama (lokal) oder OpenAI-kompatible/Anthropic-APIs. Global,
           serverseitig gespeichert (Keys verlassen den Server nicht).

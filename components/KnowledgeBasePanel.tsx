@@ -145,7 +145,7 @@ export default function KnowledgeBasePanel() {
   return (
     <div>
       <div className="mb-3">
-        <h3 className="font-medium">Wissensdatenbank</h3>
+        <h4 className="font-medium">Kategorien & Dokumente</h4>
         <p className="text-sm text-neutral-500">
           Eigene Kategorien + Dokumente (PDF, TXT, DOCX, MD, CSV, PPTX, XLSX). Bei aktivierter Nutzung
           durchsucht der Chat vorab die Datenbank und belegt Antworten mit Quellen.

@@ -33,7 +33,7 @@ export default function AboutPanel() {
           <Sparkles size={22} strokeWidth={1.5} />
         </div>
         <div className="min-w-0">
-          <h3 className="text-lg font-semibold">Über {appName || "OpenChatbox"}</h3>
+          <h4 className="text-lg font-semibold">{appName || "OpenChatbox"}</h4>
           <p className="mt-0.5 flex items-center gap-1.5 text-sm text-neutral-500">
             <Tag size={13} className="shrink-0" />
             Version <span className="font-mono text-neutral-700 dark:text-neutral-300">v{APP_VERSION}</span>

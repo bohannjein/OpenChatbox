@@ -362,7 +362,7 @@ export default function PluginsPanel() {
 
   return (
     <div>
-      <h3 className="font-medium">System-Dienste / Plugins</h3>
+      <h4 className="font-medium">Dienste</h4>
       <p className="mb-3 text-sm text-neutral-500">
         Globale Ein/Aus-Schalter für serverseitige Hintergrund-Dienste. Wirkt für
         alle Nutzer.

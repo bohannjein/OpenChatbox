@@ -164,7 +164,7 @@ export default function UserManagement() {
     <div>
       <div className="mb-2 flex items-center gap-2">
         <Users size={16} className="text-accent" />
-        <h3 className="font-medium">Benutzerverwaltung</h3>
+        <h4 className="font-medium">Benutzer</h4>
       </div>
       <p className="mb-3 text-sm text-neutral-500">
         Rollen vergeben, Konten sperren, Passwörter zurücksetzen oder löschen.

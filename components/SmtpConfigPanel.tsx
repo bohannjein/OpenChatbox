@@ -95,7 +95,7 @@ export default function SmtpConfigPanel() {
     <div>
       <div className="mb-2 flex items-center gap-2">
         <Mail size={16} className="text-accent" />
-        <h3 className="font-medium">E-Mail-Server (SMTP)</h3>
+        <h4 className="font-medium">E-Mail-Versand</h4>
         <InfoTip text="Postausgangsserver, über den die App E-Mails verschickt — aktuell für „Passwort vergessen“-Links. Ohne konfiguriertes SMTP ist der Self-Service-Reset inaktiv." />
       </div>
       <p className="mb-3 text-sm text-neutral-500">

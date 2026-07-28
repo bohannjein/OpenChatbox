@@ -105,7 +105,7 @@ export default function AccountPanel() {
     <section>
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <h3 className="font-medium">Mein Konto</h3>
+          <h4 className="font-medium">Profil</h4>
           <p className="text-sm text-neutral-500">
             {authUser.username}
             {authUser.role === "admin" && " · Admin"} · Anmeldung per{" "}

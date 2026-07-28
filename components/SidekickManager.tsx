@@ -42,7 +42,7 @@ export default function SidekickManager() {
     <section>
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <h3 className="font-medium">Sidekicks verwalten</h3>
+          <h4 className="font-medium">Sidekicks</h4>
           <p className="text-sm text-neutral-500">
             Spezialisierte Profile mit eigenem Modell + System-Prompt. Erscheinen
             in der Sidebar unter „Meine Sidekicks". Max. {MAX_SIDEKICKS}.
