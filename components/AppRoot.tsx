@@ -260,7 +260,9 @@ export default function AppRoot() {
 
       <main
         className={clsx(
-          "relative flex min-w-0 flex-1 flex-col transition-[margin] duration-200",
+          // Colour + inset ring are transitioned too, so toggling incognito
+          // fades to black instead of snapping.
+          "relative flex min-w-0 flex-1 flex-col transition-[margin,background-color,box-shadow,color] duration-[400ms] ease-expo motion-reduce:transition-[margin]",
           isTemp
             ? "incognito"
             : "bg-main-light dark:bg-main-dark"

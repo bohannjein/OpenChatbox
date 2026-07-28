@@ -7,8 +7,6 @@ import {
   Code2,
   Download,
   ArrowUpRight,
-  FolderOpen,
-  X,
 } from "lucide-react";
 import { download } from "@/lib/share";
 import type { ChatFile } from "@/lib/types";
@@ -22,14 +20,14 @@ const iconFor = (k: ChatFile["kind"]) =>
     ? FileIcon
     : FileText;
 
+/** "Dateien" tab of the chat info panel — the files of a single chat. The
+ *  surrounding panel owns the header, so this renders the list only. */
 export default function ArchivePanel({
   files,
   onJump,
-  onClose,
 }: {
   files: ChatFile[];
   onJump: (messageId: string) => void;
-  onClose: () => void;
 }) {
   const doDownload = (f: ChatFile) => {
     if (f.dataUrl) {
@@ -43,23 +41,7 @@ export default function ArchivePanel({
   };
 
   return (
-    <div className="flex h-full w-full flex-col border-l border-border-light bg-main-light dark:border-border-dark dark:bg-main-dark">
-      <header className="flex items-center gap-2 border-b border-border-light px-4 py-2 dark:border-border-dark">
-        <FolderOpen size={16} className="text-accent" />
-        <span className="text-sm font-medium">Archiv</span>
-        <span className="rounded-full bg-neutral-200 px-1.5 text-xs text-neutral-600 dark:bg-white/10 dark:text-neutral-300">
-          {files.length}
-        </span>
-        <button
-          onClick={onClose}
-          title="Schließen"
-          className="ml-auto rounded-lg p-1.5 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/10"
-        >
-          <X size={18} />
-        </button>
-      </header>
-
-      <div className="flex-1 overflow-y-auto p-2">
+    <div className="p-2">
         {files.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-neutral-500">
             Noch keine Dateien in diesem Chat.
@@ -113,7 +95,6 @@ export default function ArchivePanel({
               );
             })
         )}
-      </div>
     </div>
   );
 }

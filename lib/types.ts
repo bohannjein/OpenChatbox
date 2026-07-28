@@ -44,6 +44,8 @@ export interface Message {
   toolEvents?: ToolEvent[];
   /** assistant only: clickable BookStack sources cited in the answer. */
   sources?: SourceLink[];
+  /** starred by the user — collected under "Markiert" in the chat info panel. */
+  starred?: boolean;
 }
 
 /** Live status of a BookStack tool call, shown as an animated chat badge. */
@@ -101,6 +103,9 @@ export interface Chat {
   draft?: string;
   /** archive of files uploaded to / generated in this chat. */
   files?: ChatFile[];
+  /** free-text notes scoped to this chat (the chat info panel's "Notizen" tab).
+   *  Distinct from the cross-chat personal notes behind /api/notes. */
+  notes?: string;
   createdAt: number;
   updatedAt: number;
 }

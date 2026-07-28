@@ -8,6 +8,7 @@ import {
   RefreshCw,
   ThumbsUp,
   ThumbsDown,
+  Star,
   Volume2,
   Square,
   Pencil,
@@ -66,6 +67,7 @@ export default function ChatMessage({
 }) {
   const setActiveVariant = useStore((s) => s.setActiveVariant);
   const setFeedback = useStore((s) => s.setFeedback);
+  const toggleStar = useStore((s) => s.toggleStar);
   const chatFiles = useStore((s) => s.chats.find((c) => c.id === chatId)?.files);
   const chatLayout = useStore((s) => s.chatLayout);
   const showAvatar = useStore((s) => s.chatShowAvatar);
@@ -294,6 +296,20 @@ export default function ChatMessage({
                   title="Bearbeiten"
                 >
                   <Pencil size={15} />
+                </IconBtn>
+                <IconBtn
+                  onClick={() => toggleStar(chatId, message.id)}
+                  title={
+                    message.starred
+                      ? "Markierung entfernen"
+                      : "Markieren (erscheint unter „Markiert“)"
+                  }
+                  active={message.starred}
+                >
+                  <Star
+                    size={15}
+                    fill={message.starred ? "currentColor" : "none"}
+                  />
                 </IconBtn>
               </div>
               {meta}
@@ -548,6 +564,20 @@ export default function ChatMessage({
                 active={message.feedback === "down"}
               >
                 <ThumbsDown size={15} />
+              </IconBtn>
+              <IconBtn
+                onClick={() => toggleStar(chatId, message.id)}
+                title={
+                  message.starred
+                    ? "Markierung entfernen"
+                    : "Markieren (erscheint unter „Markiert“)"
+                }
+                active={message.starred}
+              >
+                <Star
+                  size={15}
+                  fill={message.starred ? "currentColor" : "none"}
+                />
               </IconBtn>
             </div>
           )}

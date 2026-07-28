@@ -187,6 +187,8 @@ interface State {
   params: GenParams;
   /** global incognito switch: new chats are temporary while on. */
   incognito: boolean;
+  /** cross-chat personal notes panel (opened from the sidebar footer). */
+  globalNotesOpen: boolean;
   theme: Theme;
   /** Hidden "Dracula" theme — revealed via the theme-toggle easter egg. */
   draculaUnlocked: boolean;
@@ -306,7 +308,10 @@ interface State {
   clearAllChats: () => void;
   setDraft: (id: string, draft: string) => void;
   setIncognito: (v: boolean) => void;
+  setGlobalNotesOpen: (v: boolean) => void;
   addChatFiles: (chatId: string, files: ChatFile[]) => void;
+  setChatNotes: (chatId: string, notes: string) => void;
+  toggleStar: (chatId: string, msgId: string) => void;
 
   addMessage: (
     chatId: string,
@@ -448,6 +453,7 @@ export const useStore = create<State>()(
       customInstructions: "",
       params: defaultParams(),
       incognito: false,
+      globalNotesOpen: false,
       theme: "dark",
       draculaUnlocked: false,
       whatsNewSeen: "",
@@ -713,6 +719,8 @@ export const useStore = create<State>()(
 
       setIncognito: (incognito) => set({ incognito }),
 
+      setGlobalNotesOpen: (globalNotesOpen) => set({ globalNotesOpen }),
+
       addChatFiles: (chatId, files) =>
         set((s) => ({
           chats: s.chats.map((c) =>
@@ -720,6 +728,21 @@ export const useStore = create<State>()(
               ? { ...c, files: [...(c.files ?? []), ...files] }
               : c
           ),
+        })),
+
+      setChatNotes: (chatId, notes) =>
+        set((s) => ({
+          chats: s.chats.map((c) =>
+            c.id === chatId ? { ...c, notes, updatedAt: now() } : c
+          ),
+        })),
+
+      toggleStar: (chatId, msgId) =>
+        set((s) => ({
+          chats: patchMessage(s.chats, chatId, msgId, (m) => ({
+            ...m,
+            starred: !m.starred,
+          })),
         })),
 
       renameChat: (id, title) =>

@@ -14,9 +14,8 @@ import {
   Languages,
   Mail,
   Sparkles,
-  FolderOpen,
+  PanelRight,
   Trash2,
-  StickyNote,
   Square,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -31,8 +30,9 @@ import {
   langToExt,
 } from "@/lib/providers";
 import CodePanel from "./CodePanel";
-import ArchivePanel from "./ArchivePanel";
+import ChatInfoPanel from "./ChatInfoPanel";
 import NotesPanel from "./NotesPanel";
+import ShatterOverlay from "./ShatterOverlay";
 import { CodePanelContext } from "./codePanelContext";
 import { SidekickAvatar } from "./SidekickIcon";
 import type { ChatFile, Message, Role } from "@/lib/types";
@@ -155,6 +155,8 @@ export default function ChatWindow() {
   const guestMode = useStore((s) => s.guestMode);
   const incognito = useStore((s) => s.incognito);
   const setIncognito = useStore((s) => s.setIncognito);
+  const globalNotesOpen = useStore((s) => s.globalNotesOpen);
+  const setGlobalNotesOpen = useStore((s) => s.setGlobalNotesOpen);
   const aliases = useStore((s) => s.aliases);
   const codeSplitEnabled = useStore((s) => s.codeSplitEnabled);
   const codeSplitThreshold = useStore((s) => s.codeSplitThreshold);
@@ -180,9 +182,10 @@ export default function ChatWindow() {
   const fileSeq = useRef(0);
   const [panelWidth, setPanelWidth] = useState(codeSplitWidth);
   const [resizing, setResizing] = useState(false);
-  const [archiveOpen, setArchiveOpen] = useState(false);
-  const [notesOpen, setNotesOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [ghostMenu, setGhostMenu] = useState(false);
+  // Running the incognito-delete gesture; the chat is removed when it ends.
+  const [shattering, setShattering] = useState(false);
   const ghostRef = useRef<HTMLDivElement>(null);
   // Last rendered side-panel node — retained during the slide-out so the
   // closing panel keeps its content while it animates off-screen.
@@ -230,9 +233,9 @@ export default function ChatWindow() {
   // Always land in the input: on opening a chat, after the AI finished, and
   // after closing a side panel — so you can just start typing.
   useEffect(() => {
-    if (streamingId || groupRunning || archiveOpen || notesOpen) return;
+    if (streamingId || groupRunning || infoOpen || globalNotesOpen) return;
     inputRef.current?.focus();
-  }, [activeChatId, streamingId, groupRunning, archiveOpen, notesOpen]);
+  }, [activeChatId, streamingId, groupRunning, infoOpen, globalNotesOpen]);
 
   // Auto-open / continue the code splitscreen for the latest answer's code.
   useEffect(() => {
@@ -296,7 +299,7 @@ export default function ChatWindow() {
   };
 
   const jumpToMessage = (messageId: string) => {
-    setArchiveOpen(false);
+    setInfoOpen(false);
     requestAnimationFrame(() =>
       document
         .getElementById(`msg-${messageId}`)
@@ -1205,6 +1208,9 @@ export default function ChatWindow() {
     ? sidekicks.find((x) => x.id === chat.sidekickId)
     : undefined;
   const chatFiles = chat?.files ?? [];
+  // Header badge: everything collected under the chat info panel.
+  const infoCount =
+    chatFiles.length + messages.filter((m) => m.starred).length;
 
   // Random, name-aware greeting per chat.
   const greeting = useMemo(() => {
@@ -1308,9 +1314,7 @@ export default function ChatWindow() {
                   <MenuItem
                     onClick={() => {
                       setGhostMenu(false);
-                      setIncognito(false);
-                      deleteChat(chat.id);
-                      newChat(false); // fresh normal chat (stays on "/")
+                      setShattering(true); // delete runs when the gesture ends
                     }}
                   >
                     <Trash2 size={15} /> Chat jetzt löschen
@@ -1326,38 +1330,24 @@ export default function ChatWindow() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
-                setArchiveOpen((v) => !v);
-                setNotesOpen(false);
+                setInfoOpen((v) => !v);
+                setGlobalNotesOpen(false);
               }}
-              title="Dateimanager öffnen (Dateien dieses Chats)"
+              disabled={!chat}
+              title="Zu diesem Chat — Dateien, Markiertes, Notizen"
               className={clsx(
-                "relative rounded-lg p-2 transition-colors duration-150",
-                archiveOpen
+                "relative rounded-lg p-2 transition-colors duration-150 disabled:pointer-events-none disabled:opacity-40",
+                infoOpen
                   ? "bg-accent/15 text-accent"
                   : "text-zinc-400 hover:bg-neutral-200 hover:text-neutral-900 dark:hover:bg-white/5 dark:hover:text-zinc-100"
               )}
             >
-              <FolderOpen size={18} strokeWidth={1.5} />
-              {chatFiles.length > 0 && (
+              <PanelRight size={18} strokeWidth={1.5} />
+              {infoCount > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium text-white">
-                  {chatFiles.length}
+                  {infoCount}
                 </span>
               )}
-            </button>
-            <button
-              onClick={() => {
-                setNotesOpen((v) => !v);
-                setArchiveOpen(false);
-              }}
-              title="Notizen & Dokumente"
-              className={clsx(
-                "rounded-lg p-2 transition-colors duration-150",
-                notesOpen
-                  ? "bg-accent/15 text-accent"
-                  : "text-zinc-400 hover:bg-neutral-200 hover:text-neutral-900 dark:hover:bg-white/5 dark:hover:text-zinc-100"
-              )}
-            >
-              <StickyNote size={18} strokeWidth={1.5} />
             </button>
           </div>
 
@@ -1538,14 +1528,14 @@ export default function ChatWindow() {
       </div>
       </CodePanelContext.Provider>
 
-      {/* Right splitscreen — slides in/out. Notes/archive take precedence, else
-          code. Always mounted so the width + translateX transition runs in BOTH
-          directions; the last content is retained during the slide-out. */}
+      {/* Right splitscreen — slides in/out. Notes/chat-info take precedence,
+          else code. Always mounted so the width + translateX transition runs in
+          BOTH directions; the last content is retained during the slide-out. */}
       {(() => {
-        const kind = notesOpen
+        const kind = globalNotesOpen
           ? "notes"
-          : archiveOpen
-          ? "archive"
+          : infoOpen && chat
+          ? "info"
           : codePanel
           ? "code"
           : null;
@@ -1553,12 +1543,12 @@ export default function ChatWindow() {
         if (open) {
           panelNodeRef.current =
             kind === "notes" ? (
-              <NotesPanel onClose={() => setNotesOpen(false)} />
-            ) : kind === "archive" ? (
-              <ArchivePanel
-                files={chatFiles}
+              <NotesPanel onClose={() => setGlobalNotesOpen(false)} />
+            ) : kind === "info" ? (
+              <ChatInfoPanel
+                chat={chat!}
                 onJump={jumpToMessage}
-                onClose={() => setArchiveOpen(false)}
+                onClose={() => setInfoOpen(false)}
               />
             ) : (
               <CodePanel
@@ -1601,6 +1591,18 @@ export default function ChatWindow() {
           </div>
         );
       })()}
+
+      {shattering && chat && (
+        <ShatterOverlay
+          onDone={() => {
+            const doomed = chat.id;
+            setShattering(false);
+            setIncognito(false);
+            deleteChat(doomed);
+            newChat(false); // fresh normal chat (stays on "/")
+          }}
+        />
+      )}
     </div>
   );
 }

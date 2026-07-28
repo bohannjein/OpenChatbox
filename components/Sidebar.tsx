@@ -25,6 +25,7 @@ import {
   FolderPlus,
   ChevronRight,
   MoreVertical,
+  StickyNote,
 } from "lucide-react";
 import { useStore, inWorkspace } from "@/lib/store";
 import { hasUnseenWhatsNew } from "@/lib/version";
@@ -68,6 +69,8 @@ export default function Sidebar() {
   const showWhatsNewDot = hasUnseenWhatsNew(whatsNewSeen);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const setSettingsTab = useStore((s) => s.setSettingsTab);
+  const globalNotesOpen = useStore((s) => s.globalNotesOpen);
+  const setGlobalNotesOpen = useStore((s) => s.setGlobalNotesOpen);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
 
   const setSearchOpen = useStore((s) => s.setSearchOpen);
@@ -733,6 +736,18 @@ export default function Sidebar() {
           </button>
           {/* Actions */}
           <div className="flex shrink-0 items-center gap-0.5">
+            <button
+              onClick={() => setGlobalNotesOpen(!globalNotesOpen)}
+              title="Meine Notizen (chatübergreifend)"
+              className={clsx(
+                "rounded-lg p-1.5 transition-colors",
+                globalNotesOpen
+                  ? "text-accent"
+                  : "text-zinc-500 hover:text-neutral-900 dark:hover:text-white"
+              )}
+            >
+              <StickyNote size={17} strokeWidth={1.5} />
+            </button>
             <button
               onClick={() => setSettingsOpen(true)}
               title={showWhatsNewDot ? "Einstellungen — neue Updates" : "Einstellungen"}
