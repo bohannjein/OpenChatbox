@@ -26,6 +26,7 @@ export default function SmtpConfigPanel() {
   const [secure, setSecure] = useState(false);
   const [user, setUser] = useState("");
   const [from, setFrom] = useState("");
+  const [appUrl, setAppUrl] = useState("");
   const [password, setPassword] = useState("");
   const [hasPassword, setHasPassword] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -36,6 +37,7 @@ export default function SmtpConfigPanel() {
     fetch("/api/admin/smtp", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
+        if (d?.appUrl !== undefined) setAppUrl(d.appUrl);
         const s: SmtpView | undefined = d?.smtp;
         if (!s) return;
         setEnabled(s.enabled);
@@ -51,7 +53,7 @@ export default function SmtpConfigPanel() {
 
   const save = async () => {
     setTestResult(null);
-    const body: Record<string, unknown> = { enabled, host, port, secure, user, from };
+    const body: Record<string, unknown> = { enabled, host, port, secure, user, from, appUrl };
     if (password) body.password = password; // empty keeps the stored one
     const r = await fetch("/api/admin/smtp", {
       method: "POST",
@@ -192,6 +194,19 @@ export default function SmtpConfigPanel() {
             onChange={(e) => setFrom(e.target.value)}
             placeholder="OpenChatbox <noreply@firma.de>"
             className="w-full input-base py-1.5 text-sm"
+          />
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
+            Öffentliche App-URL (für Links in E-Mails)
+            <InfoTip text="Die von außen erreichbare Adresse dieser Instanz, z. B. https://chat.firma.de. Wird für den Link in der Passwort-Reset-Mail verwendet. Ohne diese Angabe rät die App die Adresse aus der Anfrage — hinter einem Reverse-Proxy / bei Bind auf 0.0.0.0 ergibt das eine unbrauchbare URL wie 0.0.0.0:3000." />
+          </label>
+          <input
+            value={appUrl}
+            onChange={(e) => setAppUrl(e.target.value)}
+            placeholder="https://chat.firma.de"
+            className="w-full input-base py-1.5 font-mono text-sm"
           />
         </div>
       </div>

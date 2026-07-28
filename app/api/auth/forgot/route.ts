@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { findByUsernameOrEmail } from "@/lib/server/users";
 import { makeResetTicket, passwordFingerprint } from "@/lib/server/session";
 import { sendPasswordResetEmail } from "@/lib/server/mailer";
-import { isPasswordResetEnabled } from "@/lib/server/config";
+import { isPasswordResetEnabled, getPublicBaseUrl } from "@/lib/server/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +27,10 @@ export async function POST(req: NextRequest) {
 
   const fp = passwordFingerprint(user.passHash);
   const token = makeResetTicket(user, fp);
-  const link = `${req.nextUrl.origin}/reset?token=${encodeURIComponent(token)}`;
+  // Use the configured public base URL (or env), falling back to the request
+  // origin only when nothing is set — so links work behind a proxy / 0.0.0.0.
+  const base = getPublicBaseUrl(req.nextUrl.origin);
+  const link = `${base}/reset?token=${encodeURIComponent(token)}`;
   // Fire-and-forget; never reveal delivery success/failure to the caller.
   await sendPasswordResetEmail(user.email, link, user.firstName || user.displayName);
   return generic;

@@ -164,6 +164,10 @@ export interface AuthMethodsConfig {
 export interface ServerConfig {
   /** display name of this instance (shown in the UI) */
   appName: string;
+  /** public base URL of this instance (e.g. https://chat.firma.de) used to build
+   *  absolute links in outbound email — the request origin is unreliable behind
+   *  a reverse proxy / when the server binds 0.0.0.0. No trailing slash. */
+  appUrl?: string;
   /** admin-global branding shown to every user */
   logoUrl?: string;
   accentColor?: string;
@@ -279,6 +283,23 @@ export function getSelfRegistration(): { enabled: boolean; domains: string[] } {
       .map((d) => d.trim().toLowerCase().replace(/^@/, ""))
       .filter(Boolean),
   };
+}
+
+/**
+ * Public base URL for absolute links in outbound email. Priority: admin-set
+ * `appUrl` → env (APP_URL / NEXT_PUBLIC_APP_URL / AUTH_URL) → the request origin
+ * as a last resort (unreliable behind a proxy / with a 0.0.0.0 bind). No
+ * trailing slash. Returns "" only when nothing is available.
+ */
+export function getPublicBaseUrl(reqOrigin?: string): string {
+  const strip = (u: string) => u.trim().replace(/\/+$/, "");
+  const cfg = strip(getConfig().appUrl ?? "");
+  if (cfg) return cfg;
+  const env = strip(
+    process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.AUTH_URL || ""
+  );
+  if (env) return env;
+  return strip(reqOrigin ?? "");
 }
 
 /** Guest access policy. */
