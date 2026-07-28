@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { decodeJwtPayload, profileFromClaims } from "@/lib/server/oidc";
 import { upsertSsoUser } from "@/lib/server/users";
-import { getAuthMethods, resolveOidc } from "@/lib/server/config";
+import { getAuthMethods, resolveOidc, getPublicBaseUrl } from "@/lib/server/config";
 import {
   makeSession,
   SESSION_COOKIE,
@@ -24,7 +24,8 @@ export async function GET(req: NextRequest) {
   if (!code || !state || state !== cookieState)
     return NextResponse.redirect(`${origin}/login?error=sso_state`);
 
-  const redirectUri = `${origin}/api/auth/oidc/callback`;
+  // Must byte-for-byte match the redirect_uri sent by /start (public HTTPS URL).
+  const redirectUri = `${getPublicBaseUrl(origin)}/api/auth/oidc/callback`;
   let idToken: string | undefined;
   try {
     const body = new URLSearchParams({

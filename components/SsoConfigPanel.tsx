@@ -36,11 +36,22 @@ export default function SsoConfigPanel() {
   const [redirectUri, setRedirectUri] = useState("");
 
   useEffect(() => {
+    // Prefer the configured public (HTTPS) app URL — that's what the redirect_uri
+    // sent to the provider actually uses. Fall back to the browser origin.
+    let origin = "";
     try {
-      setRedirectUri(`${window.location.origin}/api/auth/oidc/callback`);
+      origin = window.location.origin;
+      setRedirectUri(`${origin}/api/auth/oidc/callback`);
     } catch {
       /* ignore */
     }
+    fetch("/api/config", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const base = (d?.appUrl || origin || "").replace(/\/+$/, "");
+        if (base) setRedirectUri(`${base}/api/auth/oidc/callback`);
+      })
+      .catch(() => {});
     fetch("/api/admin/oidc", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -142,7 +153,7 @@ export default function SsoConfigPanel() {
         <div>
           <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
             Redirect-URI (beim Anbieter eintragen)
-            <InfoTip text="Diese Rücksprung-Adresse musst du in der App-Registrierung des Anbieters als „Redirect URI“ hinterlegen, sonst weist er die Anmeldung ab." />
+            <InfoTip text="Diese Rücksprung-Adresse musst du in der App-Registrierung des Anbieters als „Redirect URI“ hinterlegen, sonst weist er die Anmeldung ab. Sie leitet sich aus der öffentlichen App-URL (Branding-Einstellungen) ab — setze diese auf deine HTTPS-Adresse, damit hier keine http-/0.0.0.0-URL erscheint." />
           </label>
           <div className="flex items-center gap-2">
             <input
