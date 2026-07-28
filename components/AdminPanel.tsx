@@ -112,8 +112,8 @@ export default function AdminPanel() {
   if (ollamaProviders.length === 0) {
     return (
       <p className="text-sm text-neutral-500">
-        Kein Ollama-Provider konfiguriert. Füge unter „Allgemein" einen
-        Ollama-Provider hinzu, um Modelle zu verwalten.
+        Kein Ollama-Anbieter konfiguriert. Trage oben unter „Anbieter &
+        Endpunkte" einen Ollama-Anbieter ein, um Modelle zu verwalten.
       </p>
     );
   }

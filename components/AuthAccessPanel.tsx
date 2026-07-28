@@ -155,12 +155,13 @@ export default function AuthAccessPanel() {
             />
             „Passwort vergessen?“ im Login anzeigen (Self-Service-Reset)
           </label>
-          <InfoTip text="Zeigt auf der Anmeldeseite einen „Passwort vergessen?“-Link. Nutzer bekommen dann per E-Mail einen Link, um ihr Passwort selbst zurückzusetzen. Setzt einen konfigurierten E-Mail-Server (SMTP) und eine hinterlegte E-Mail-Adresse beim Nutzer voraus." />
+          <InfoTip text="Zeigt auf der Anmeldeseite einen „Passwort vergessen?“-Link. Nutzer bekommen dann per E-Mail einen Link, um ihr Passwort selbst zurückzusetzen. Setzt einen konfigurierten E-Mail-Versand und eine hinterlegte E-Mail-Adresse beim Nutzer voraus." />
         </div>
         {pwResetEnabled && !smtpConfigured && (
           <p className="mt-1 pl-6 text-xs text-amber-600 dark:text-amber-500">
-            Noch kein E-Mail-Server konfiguriert — der Link erscheint erst, wenn du
-            unten unter „E-Mail-Server (SMTP)“ die Zugangsdaten hinterlegst.
+            Noch kein E-Mail-Versand konfiguriert — der Link erscheint auf der
+            Anmeldeseite erst, wenn unter „Anmeldung &amp; E-Mail“ →
+            „E-Mail-Versand“ die Zugangsdaten hinterlegt sind.
           </p>
         )}
       </div>

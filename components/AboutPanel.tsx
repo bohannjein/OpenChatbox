@@ -12,7 +12,7 @@ import {
 } from "@/lib/version";
 
 /**
- * "Über OpenChatbox / Info" tab: current version, repository link, and the
+ * "Über OpenChatbox" tab: current version, repository link, and the
  * "Was gibt's Neues?" changelog. Merely rendering this panel (i.e. the user
  * opened the Info tab) marks the latest changelog as seen — which clears the
  * notification dot everywhere and is persisted to the server profile.

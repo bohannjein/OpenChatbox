@@ -67,8 +67,8 @@ export default function DefaultModelsPanel() {
 
       {!loading && options.length === 0 && (
         <p className="mb-3 rounded-lg border border-border-light bg-neutral-50 px-3 py-2 text-sm text-neutral-500 dark:border-border-dark dark:bg-white/5">
-          Keine Modelle gefunden. Prüfe unter „Modellanbieter & Modelle", ob ein
-          Ollama-Anbieter erreichbar ist.
+          Keine Modelle gefunden. Prüfe oben unter „Anbieter &amp; Endpunkte", ob
+          ein Anbieter erreichbar ist.
         </p>
       )}
 
