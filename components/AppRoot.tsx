@@ -50,7 +50,9 @@ export default function AppRoot() {
   const prevPath = useRef<string | null>(null);
   const hydratedRef = useRef(false);
   const isAuthRoute =
-    pathname.startsWith("/login") || pathname.startsWith("/share");
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/reset") ||
+    pathname.startsWith("/share");
   const isSetupRoute = pathname.startsWith("/setup");
   const isJoinRoute = pathname.startsWith("/join-workspace");
 
