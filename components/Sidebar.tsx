@@ -36,9 +36,11 @@ import AsciiSpinner from "./AsciiSpinner";
 import Modal from "./Modal";
 import { useT } from "@/lib/i18n";
 
-// Soft top/bottom fade so chat titles melt into the edges instead of hard-cutting.
+// Soft bottom fade so chat titles melt into the edge instead of hard-cutting.
+// The top stays opaque — the first chats sit right under the "new chat" button
+// and must read at full contrast.
 const LIST_FADE =
-  "linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%)";
+  "linear-gradient(to bottom, black 0%, black 95%, transparent 100%)";
 
 export default function Sidebar() {
   const router = useRouter();
