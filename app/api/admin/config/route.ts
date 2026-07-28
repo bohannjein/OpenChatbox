@@ -1,0 +1,77 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getAdmin } from "@/lib/server/adminAuth";
+import { getConfig, setConfig, type ServerConfig } from "@/lib/server/config";
+import { oidcConfig } from "@/lib/server/oidc";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+/** Full instance config INCLUDING secrets (provider apiKeys) — admin only. */
+export async function GET(req: NextRequest) {
+  if (!getAdmin(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // `ssoConfigured` tells the panel whether the OIDC env is present, so it can
+  // show the SSO toggle as inert-until-configured instead of silently doing
+  // nothing when enabled without env.
+  return NextResponse.json({ config: getConfig(), ssoConfigured: !!oidcConfig() });
+}
+
+/** Patch the admin-global master config. Whitelisted keys only. */
+export async function POST(req: NextRequest) {
+  if (!getAdmin(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+
+  const patch: Partial<ServerConfig> = {};
+  if (typeof body.appName === "string") patch.appName = body.appName.slice(0, 80);
+  if (typeof body.logoUrl === "string") patch.logoUrl = body.logoUrl.slice(0, 500_000);
+  if (typeof body.accentColor === "string") patch.accentColor = body.accentColor.slice(0, 32);
+  if (Array.isArray(body.providers)) patch.providers = body.providers as ServerConfig["providers"];
+  if (body.routerModels && typeof body.routerModels === "object")
+    patch.routerModels = body.routerModels as ServerConfig["routerModels"];
+  if (body.search && typeof body.search === "object")
+    patch.search = body.search as ServerConfig["search"];
+  if (typeof body.embeddingModel === "string")
+    patch.embeddingModel = body.embeddingModel.slice(0, 100);
+  if (body.imageGen && typeof body.imageGen === "object")
+    patch.imageGen = body.imageGen as ServerConfig["imageGen"];
+  if (body.primaryProvider && typeof body.primaryProvider === "object")
+    patch.primaryProvider = body.primaryProvider as ServerConfig["primaryProvider"];
+  if (Array.isArray(body.properNouns))
+    patch.properNouns = (body.properNouns as unknown[])
+      .filter((n): n is string => typeof n === "string")
+      .map((n) => n.trim().slice(0, 100))
+      .filter(Boolean)
+      .slice(0, 500);
+  if (body.selfRegistration && typeof body.selfRegistration === "object") {
+    const sr = body.selfRegistration as { enabled?: unknown; domains?: unknown };
+    patch.selfRegistration = {
+      enabled: !!sr.enabled,
+      domains: Array.isArray(sr.domains)
+        ? (sr.domains as unknown[])
+            .filter((d): d is string => typeof d === "string")
+            .map((d) => d.trim().toLowerCase().replace(/^@/, "").slice(0, 100))
+            .filter(Boolean)
+            .slice(0, 50)
+        : [],
+    };
+  }
+  if (body.guest && typeof body.guest === "object") {
+    const g = body.guest as { enabled?: unknown; model?: unknown };
+    patch.guest = {
+      enabled: !!g.enabled,
+      model: typeof g.model === "string" ? g.model.trim().slice(0, 200) || null : null,
+    };
+  }
+  if (body.authMethods && typeof body.authMethods === "object") {
+    const a = body.authMethods as {
+      password?: { enabled?: unknown };
+      sso?: { enabled?: unknown };
+    };
+    patch.authMethods = {
+      password: { enabled: a.password?.enabled !== false },
+      sso: { enabled: a.sso?.enabled !== false },
+    };
+  }
+
+  const next = setConfig(patch);
+  return NextResponse.json({ config: next });
+}
