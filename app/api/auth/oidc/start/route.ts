@@ -8,14 +8,15 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const cfg = resolveOidc();
   const origin = req.nextUrl.origin;
+  // Public base for browser redirects + the registered redirect_uri — NOT the
+  // request origin, which can be http:// or an internal 0.0.0.0 bind.
+  const base = getPublicBaseUrl(origin);
   // SSO must be both env-configured and enabled by the admin.
   if (!cfg || !getAuthMethods().sso.enabled)
-    return NextResponse.redirect(`${origin}/login?error=sso_not_configured`);
+    return NextResponse.redirect(`${base}/login?error=sso_not_configured`);
 
   const state = crypto.randomBytes(16).toString("hex");
-  // The redirect_uri must be the public (HTTPS) URL registered at the provider —
-  // NOT the request origin, which can be http:// or an internal 0.0.0.0 bind.
-  const redirectUri = `${getPublicBaseUrl(origin)}/api/auth/oidc/callback`;
+  const redirectUri = `${base}/api/auth/oidc/callback`;
   const url =
     `${cfg.authorizeUrl}?client_id=${encodeURIComponent(cfg.clientId)}` +
     `&response_type=code&response_mode=query` +
