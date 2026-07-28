@@ -19,6 +19,8 @@ export default function AuthAccessPanel() {
   const [passwordEnabled, setPasswordEnabled] = useState(true);
   const [ssoEnabled, setSsoEnabled] = useState(true);
   const [ssoConfigured, setSsoConfigured] = useState(false);
+  const [pwResetEnabled, setPwResetEnabled] = useState(true);
+  const [smtpConfigured, setSmtpConfigured] = useState(false);
   const [selfReg, setSelfReg] = useState(false);
   const [domains, setDomains] = useState("");
   const [guestEnabled, setGuestEnabled] = useState(false);
@@ -35,6 +37,8 @@ export default function AuthAccessPanel() {
         setPasswordEnabled(c.authMethods?.password?.enabled ?? true);
         setSsoEnabled(c.authMethods?.sso?.enabled ?? true);
         setSsoConfigured(!!d?.ssoConfigured);
+        setPwResetEnabled(c.passwordReset?.enabled ?? true);
+        setSmtpConfigured(!!d?.smtpConfigured);
         setSelfReg(!!c.selfRegistration?.enabled);
         setDomains((c.selfRegistration?.domains ?? []).join("\n"));
         setGuestEnabled(!!c.guest?.enabled);
@@ -68,6 +72,7 @@ export default function AuthAccessPanel() {
           password: { enabled: passwordEnabled },
           sso: { enabled: ssoEnabled },
         },
+        passwordReset: { enabled: pwResetEnabled },
         selfRegistration: { enabled: selfReg, domains: domainList },
         guest: { enabled: guestEnabled, model: guestModel || null },
       }),
@@ -134,6 +139,28 @@ export default function AuthAccessPanel() {
           <p className="mt-2 text-xs text-red-600 dark:text-red-400">
             Achtung: Keine Anmeldeart aktiv. Nur der Administrator kann sich noch
             (per Passwort) anmelden.
+          </p>
+        )}
+      </div>
+
+      {/* Self-service password reset */}
+      <div className="mb-4 rounded-lg border border-border-light p-3 dark:border-border-dark">
+        <div className="flex items-center gap-1.5">
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={pwResetEnabled}
+              onChange={(e) => setPwResetEnabled(e.target.checked)}
+              className="h-4 w-4 accent-[rgb(var(--accent))]"
+            />
+            „Passwort vergessen?“ im Login anzeigen (Self-Service-Reset)
+          </label>
+          <InfoTip text="Zeigt auf der Anmeldeseite einen „Passwort vergessen?“-Link. Nutzer bekommen dann per E-Mail einen Link, um ihr Passwort selbst zurückzusetzen. Setzt einen konfigurierten E-Mail-Server (SMTP) und eine hinterlegte E-Mail-Adresse beim Nutzer voraus." />
+        </div>
+        {pwResetEnabled && !smtpConfigured && (
+          <p className="mt-1 pl-6 text-xs text-amber-600 dark:text-amber-500">
+            Noch kein E-Mail-Server konfiguriert — der Link erscheint erst, wenn du
+            unten unter „E-Mail-Server (SMTP)“ die Zugangsdaten hinterlegst.
           </p>
         )}
       </div>

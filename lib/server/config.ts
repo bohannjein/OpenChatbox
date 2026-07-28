@@ -198,6 +198,9 @@ export interface ServerConfig {
   guest?: GuestConfig;
   /** which sign-in methods are offered (password / SSO) */
   authMethods?: AuthMethodsConfig;
+  /** self-service password reset via email — the login "forgot password" link.
+   *  Only effective when SMTP is also configured. */
+  passwordReset?: { enabled: boolean };
   /** Company/person proper-noun dictionary for fuzzy search correction. Each
    *  entry is a canonical name (single- or multi-word) that mistyped queries are
    *  corrected TO (Levenshtein) before the search runs. */
@@ -374,9 +377,12 @@ export function getSmtpConfig(): SmtpResolved | null {
   return { host, port, secure: !!s.secure, user, password, from };
 }
 
-/** Whether password-reset email is available (SMTP fully configured). */
+/**
+ * Whether self-service password reset is active: the admin toggle is on (default
+ * on) AND SMTP is fully configured (a link is useless without a way to send it).
+ */
 export function isPasswordResetEnabled(): boolean {
-  return !!getSmtpConfig();
+  return (getConfig().passwordReset?.enabled ?? true) && !!getSmtpConfig();
 }
 
 /**
@@ -474,7 +480,8 @@ export function publicConfig(c: ServerConfig = getConfig()) {
       enabled: !!resolveOidc() && (c.authMethods?.sso?.enabled ?? true),
       configured: !!resolveOidc(),
     },
-    // Whether the login page should show a "forgot password" link (SMTP set up).
-    passwordReset: { enabled: !!getSmtpConfig() },
+    // Whether the login page shows a "forgot password" link (admin toggle on
+    // AND SMTP configured).
+    passwordReset: { enabled: isPasswordResetEnabled() },
   };
 }

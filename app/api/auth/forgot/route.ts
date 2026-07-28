@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { findByUsernameOrEmail } from "@/lib/server/users";
 import { makeResetTicket, passwordFingerprint } from "@/lib/server/session";
 import { sendPasswordResetEmail } from "@/lib/server/mailer";
+import { isPasswordResetEnabled } from "@/lib/server/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +17,8 @@ export async function POST(req: NextRequest) {
   const { identifier } = await req.json().catch(() => ({}));
   const id = String(identifier ?? "").trim();
   const generic = NextResponse.json({ ok: true });
-  if (!id) return generic;
+  // Feature off (admin toggle) or SMTP not configured → silently no-op.
+  if (!id || !isPasswordResetEnabled()) return generic;
 
   const user = findByUsernameOrEmail(id);
   // Only local password accounts with a stored email can reset via email.

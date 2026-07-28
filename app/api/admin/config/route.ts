@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdmin } from "@/lib/server/adminAuth";
-import { getConfig, setConfig, resolveOidc, type ServerConfig } from "@/lib/server/config";
+import {
+  getConfig,
+  setConfig,
+  resolveOidc,
+  getSmtpConfig,
+  type ServerConfig,
+} from "@/lib/server/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +17,11 @@ export async function GET(req: NextRequest) {
   // `ssoConfigured` tells the panel whether the OIDC env is present, so it can
   // show the SSO toggle as inert-until-configured instead of silently doing
   // nothing when enabled without env.
-  return NextResponse.json({ config: getConfig(), ssoConfigured: !!resolveOidc() });
+  return NextResponse.json({
+    config: getConfig(),
+    ssoConfigured: !!resolveOidc(),
+    smtpConfigured: !!getSmtpConfig(),
+  });
 }
 
 /** Patch the admin-global master config. Whitelisted keys only. */
@@ -69,6 +79,10 @@ export async function POST(req: NextRequest) {
       password: { enabled: a.password?.enabled !== false },
       sso: { enabled: a.sso?.enabled !== false },
     };
+  }
+  if (body.passwordReset && typeof body.passwordReset === "object") {
+    const pr = body.passwordReset as { enabled?: unknown };
+    patch.passwordReset = { enabled: !!pr.enabled };
   }
 
   const next = setConfig(patch);
