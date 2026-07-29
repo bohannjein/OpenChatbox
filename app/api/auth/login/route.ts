@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   // admin is always exempt — the guaranteed recovery account.
   if (!getAuthMethods().password.enabled && !isBuiltinAdmin(user))
     return NextResponse.json(
-      { error: "Passwort-Anmeldung ist deaktiviert. Bitte über Firmen-Login anmelden." },
+      { error: "Passwort-Anmeldung ist deaktiviert. Bitte mit dem Microsoft-Geschäftskonto anmelden." },
       { status: 403 }
     );
 

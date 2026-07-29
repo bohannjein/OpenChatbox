@@ -186,13 +186,15 @@ export interface SsoProfile {
   username: string;
   email?: string;
   displayName?: string;
+  firstName?: string;
+  lastName?: string;
   role?: User["role"];
 }
 
 /**
  * Find a linked SSO user or create one on first login, and sync the profile
- * (email, display name, role) from the identity provider each time — the IdP is
- * the source of truth for SSO accounts. The built-in admin is never touched.
+ * (name, email, role) from the identity provider each time — the IdP is the
+ * source of truth for SSO accounts. The built-in admin is never touched.
  */
 export function upsertSsoUser(profile: SsoProfile, provider: string): User {
   const existing = findByUsername(profile.username);
@@ -201,6 +203,12 @@ export function upsertSsoUser(profile: SsoProfile, provider: string): User {
     if (profile.email && profile.email !== existing.email) patch.email = profile.email;
     if (profile.displayName && profile.displayName !== existing.displayName)
       patch.displayName = profile.displayName;
+    // The given/family name drives how the app addresses the person, so keep it
+    // in sync too — a rename in the directory should show up here.
+    if (profile.firstName && profile.firstName !== existing.firstName)
+      patch.firstName = profile.firstName;
+    if (profile.lastName && profile.lastName !== existing.lastName)
+      patch.lastName = profile.lastName;
     // Sync role from the IdP, but never demote the permanent built-in admin.
     if (profile.role && profile.role !== existing.role && !isBuiltinAdmin(existing))
       patch.role = profile.role;
@@ -210,10 +218,100 @@ export function upsertSsoUser(profile: SsoProfile, provider: string): User {
     }
     return existing;
   }
-  const user = createUser(profile.username, "", { provider, role: profile.role });
-  if (profile.email || profile.displayName)
-    updateUser(user.id, { email: profile.email, displayName: profile.displayName });
-  return { ...user, email: profile.email, displayName: profile.displayName };
+  return createUser(profile.username, "", {
+    provider,
+    role: profile.role,
+    email: profile.email,
+    displayName: profile.displayName,
+    firstName: profile.firstName,
+    lastName: profile.lastName,
+  });
+}
+
+/** Username rules: no whitespace, no colon (the model-key separator), 3..80. */
+export function validateUsername(name: string): string | null {
+  const v = name.trim();
+  if (v.length < 3) return "Benutzername muss mindestens 3 Zeichen haben.";
+  if (v.length > 80) return "Benutzername ist zu lang (max. 80 Zeichen).";
+  if (/\s/.test(v)) return "Benutzername darf keine Leerzeichen enthalten.";
+  return null;
+}
+
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+/** Fields an admin (or, for a subset, the user) may change on an account. */
+export interface ProfilePatch {
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+  email?: string;
+}
+
+/**
+ * Apply a profile patch. Returns null on success or a German error message.
+ *
+ * Only keys present in `patch` are touched, so a form can send just what it
+ * edits. An empty string clears an optional field; `username` cannot be cleared,
+ * must stay unique, and is refused for the built-in admin (it is the guaranteed
+ * recovery account and its name is referenced in the docs).
+ */
+export function setUserProfile(id: string, patch: ProfilePatch): string | null {
+  const users = load();
+  const u = users.find((x) => x.id === id);
+  if (!u) return "Benutzer nicht gefunden.";
+
+  const next: Partial<User> = {};
+
+  if (patch.username !== undefined) {
+    const name = patch.username.trim();
+    if (name.toLowerCase() !== u.username.toLowerCase()) {
+      if (isBuiltinAdmin(u)) return "Der Built-in-Administrator kann nicht umbenannt werden.";
+      const err = validateUsername(name);
+      if (err) return err;
+      if (users.some((x) => x.id !== id && x.username.toLowerCase() === name.toLowerCase()))
+        return "Benutzername bereits vergeben.";
+      next.username = name;
+    }
+  }
+
+  if (patch.email !== undefined) {
+    const mail = patch.email.trim().slice(0, 200);
+    if (mail && !EMAIL_RE.test(mail)) return "E-Mail-Adresse ist ungültig.";
+    next.email = mail || undefined;
+  }
+
+  const clean = (v: string) => v.trim().replace(/\s+/g, " ").slice(0, 100);
+  for (const k of ["firstName", "lastName"] as const) {
+    if (patch[k] === undefined) continue;
+    next[k] = clean(patch[k]!) || undefined;
+  }
+
+  // The display name is derived unless someone typed one. An EMPTY value means
+  // "derive it" (that is what the edit dialog's hint promises), not "clear it" —
+  // an account with no display name at all would fall back to the login id.
+  const first = next.firstName !== undefined ? next.firstName : u.firstName;
+  const last = next.lastName !== undefined ? next.lastName : u.lastName;
+  const derived = [first, last].filter(Boolean).join(" ") || undefined;
+  if (patch.displayName !== undefined) {
+    next.displayName = clean(patch.displayName) || derived;
+  } else if (next.firstName !== undefined || next.lastName !== undefined) {
+    // A name changed and nobody ever typed a custom display name → keep it in
+    // sync. A hand-written one is left alone.
+    const derivedBefore = [u.firstName, u.lastName].filter(Boolean).join(" ");
+    if (!u.displayName || u.displayName === derivedBefore) next.displayName = derived;
+  }
+
+  if (Object.keys(next).length) updateUser(id, next);
+  return null;
+}
+
+/** Admin: turn off a user's 2FA (recovery when they lost their authenticator). */
+export function clearTwoFactor(id: string): boolean {
+  const u = findById(id);
+  if (!u) return false;
+  updateUser(id, { twoFactor: { enabled: false } });
+  return true;
 }
 
 /** Public view (no secrets). */

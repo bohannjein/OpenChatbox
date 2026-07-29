@@ -137,6 +137,17 @@ export interface OidcStoredConfig {
   /** explicit endpoints (required for "ad"/generic OIDC; optional for entra). */
   authorizeUrl?: string;
   tokenUrl?: string;
+  /** Text on the sign-in button. Defaults to the Microsoft wording; an instance
+   *  behind Keycloak/ADFS can say something else. */
+  buttonLabel?: string;
+}
+
+/** Default wording for the SSO button — Entra ID is the common case. */
+export const DEFAULT_SSO_LABEL = "Mit Microsoft-Geschäftskonto anmelden";
+
+/** The label the login page should show on the SSO button. */
+export function getSsoLabel(): string {
+  return getConfig().oidc?.buttonLabel?.trim() || DEFAULT_SSO_LABEL;
 }
 
 /** Self-registration policy. When disabled, only admins create accounts. */
@@ -144,6 +155,26 @@ export interface SelfRegistrationConfig {
   enabled: boolean;
   /** optional allow-list of email domains ("firma.de"); empty = any domain. */
   domains?: string[];
+}
+
+/**
+ * Check an address against the configured email-domain allow-list. Used by
+ * self-registration AND by a user editing their own address, so both accept
+ * exactly the same set — an admin who restricts sign-up to @firma.de does not
+ * expect an existing account to be able to move to a private address.
+ *
+ * An empty list means "any domain" (the list is opt-in). Returns null when the
+ * address is acceptable, or a ready-to-show German error message.
+ */
+export function checkEmailDomain(address: string): string | null {
+  const { domains } = getSelfRegistration();
+  if (!domains.length) return null;
+  const at = address.lastIndexOf("@");
+  const domain = at >= 0 ? address.slice(at + 1).trim().toLowerCase() : "";
+  if (domain && domains.includes(domain)) return null;
+  return `Nur E-Mail-Adressen mit einer erlaubten Domain sind zulässig (${domains
+    .map((d) => "@" + d)
+    .join(", ")}).`;
 }
 
 /** Guest access: unauthenticated visitors chat with a single, admin-pinned model. */
@@ -627,6 +658,7 @@ export function publicConfig(c: ServerConfig = getConfig()) {
     sso: {
       enabled: !!resolveOidc() && (c.authMethods?.sso?.enabled ?? true),
       configured: !!resolveOidc(),
+      label: c.oidc?.buttonLabel?.trim() || DEFAULT_SSO_LABEL,
     },
     // Whether the login page shows a "forgot password" link (admin toggle on
     // AND SMTP configured).

@@ -72,6 +72,7 @@ import ParticipantsManager from "./ParticipantsManager";
 import ChatMessage from "./ChatMessage";
 import ChatInput, { type ChatInputHandle } from "./ChatInput";
 import BrandFooter from "./BrandFooter";
+import { firstNameOf } from "@/lib/personName";
 import clsx from "clsx";
 
 // Heuristik: ist der neue Codeblock ein Update des bisherigen (weiterarbeiten
@@ -408,6 +409,15 @@ export default function ChatWindow() {
     parts.push(
       `[System-Info: Aktuelles Datum: ${datum}, Uhrzeit: ${uhrzeit} Uhr]`
     );
+
+    // Address the person by their stored first name. Only when one is actually
+    // known — guessing from a login id like "a.muster" would produce a wrong
+    // form of address, which is worse than none.
+    const first = authUser?.firstName?.trim() || "";
+    if (first)
+      parts.push(
+        `[System-Info: Der Nutzer heißt ${first}. Sprich ihn gelegentlich mit dem Vornamen an, aber nicht in jeder Nachricht.]`
+      );
     return parts.join("\n\n");
   };
 
@@ -1216,9 +1226,11 @@ export default function ChatWindow() {
   const infoCount =
     chatFiles.length + messages.filter((m) => m.starred).length;
 
-  // Random, name-aware greeting per chat.
+  // Random, name-aware greeting per chat. Uses the stored first name (falling
+  // back through display name to the login id) so people are addressed the way
+  // they'd expect, not by a raw account name like "a.muster@firma.de".
   const greeting = useMemo(() => {
-    const name = authUser?.username || "";
+    const name = firstNameOf(authUser);
     const suffix = name ? `, ${name}` : "";
     const h = new Date().getHours();
     const daypart = h < 11 ? "Morgen" : h < 18 ? "Tag" : "Abend";
@@ -1231,7 +1243,7 @@ export default function ChatWindow() {
     ];
     return options[Math.floor(Math.random() * options.length)];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeChatId, authUser?.username]);
+  }, [activeChatId, authUser?.firstName, authUser?.displayName, authUser?.username]);
 
   return (
     <div className="flex h-full overflow-hidden">

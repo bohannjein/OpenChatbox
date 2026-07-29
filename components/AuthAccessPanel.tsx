@@ -112,7 +112,7 @@ export default function AuthAccessPanel() {
         </div>
         {!passwordEnabled && (
           <p className="mt-1 pl-6 text-xs text-neutral-500">
-            Nutzer melden sich nur per Firmen-Login an. Der Administrator kann sich
+            Nutzer melden sich nur mit dem Microsoft-Geschäftskonto an. Der Administrator kann sich
             weiterhin per Passwort anmelden (Wiederherstellung).
           </p>
         )}
@@ -125,14 +125,14 @@ export default function AuthAccessPanel() {
               onChange={(e) => setSsoEnabled(e.target.checked)}
               className="h-4 w-4 accent-[rgb(var(--accent))]"
             />
-            Firmen-Login (SSO / Microsoft Entra ID) erlauben
+            Anmeldung mit Microsoft-Geschäftskonto (Entra ID / SSO) erlauben
           </label>
-          <InfoTip text="Zeigt den „Mit Firmen-Account anmelden“-Button. Die Zugangsdaten (Entra ID oder AD/OIDC) richtest du im Abschnitt „Firmen-Login (SSO)“ weiter unten ein." />
+          <InfoTip text="Zeigt den Anmelde-Button für das Microsoft-Geschäftskonto. Die Zugangsdaten (Entra ID oder ein anderer OIDC-Server wie ADFS/Keycloak) richtest du im Abschnitt „Microsoft-Anmeldung (SSO)“ weiter unten ein; dort lässt sich auch die Beschriftung ändern." />
         </div>
         {ssoEnabled && !ssoConfigured && (
           <p className="mt-1 pl-6 text-xs text-amber-600 dark:text-amber-500">
             SSO ist noch nicht konfiguriert — der Button bleibt inaktiv, bis du die
-            Zugangsdaten unter „Firmen-Login (SSO)“ hinterlegst.
+            Zugangsdaten unter „Microsoft-Anmeldung (SSO)“ hinterlegst.
           </p>
         )}
         {!passwordEnabled && !ssoEnabled && (

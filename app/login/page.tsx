@@ -14,7 +14,11 @@ interface AccessCfg {
   authMethods: { password: boolean; sso: boolean };
   passwordReset: boolean;
   sso: boolean;
+  /** Button wording — admin-configurable, defaults to the Microsoft variant. */
+  ssoLabel: string;
 }
+
+const SSO_LABEL_FALLBACK = "Mit Microsoft-Geschäftskonto anmelden";
 
 /**
  * Only allow same-origin internal targets for post-auth navigation. Rejects
@@ -40,8 +44,8 @@ const enterApp = (target: string) => {
 };
 
 const SSO_ERRORS: Record<string, string> = {
-  sso_not_configured: "Firmen-Login ist nicht konfiguriert.",
-  sso: "Firmen-Login fehlgeschlagen.",
+  sso_not_configured: "Die Microsoft-Anmeldung ist nicht konfiguriert.",
+  sso: "Die Microsoft-Anmeldung ist fehlgeschlagen.",
   sso_state: "Sicherheitsprüfung fehlgeschlagen. Bitte erneut versuchen.",
   sso_token: "Token-Austausch fehlgeschlagen.",
   sso_claims: "Kein Benutzername vom Identity-Provider erhalten.",
@@ -98,7 +102,7 @@ export default function LoginPage() {
           guest?: AccessCfg["guest"];
           authMethods?: { password?: boolean; sso?: boolean };
           passwordReset?: { enabled?: boolean };
-          sso?: { enabled?: boolean };
+          sso?: { enabled?: boolean; label?: string };
         };
         setBrand(resolveBranding(c));
         setCfg({
@@ -110,6 +114,7 @@ export default function LoginPage() {
           },
           passwordReset: !!c?.passwordReset?.enabled,
           sso: !!c?.sso?.enabled,
+          ssoLabel: c?.sso?.label?.trim() || SSO_LABEL_FALLBACK,
         });
         if (cameFromApp && !e && c?.guest?.enabled && c?.guest?.model) {
           const g = await fetch("/api/auth/guest", { method: "POST" });
@@ -218,6 +223,7 @@ export default function LoginPage() {
   const selfRegEnabled = !!cfg?.selfRegistration.enabled;
   const domains = cfg?.selfRegistration.domains ?? [];
   const ssoEnabled = !!cfg?.sso;
+  const ssoLabel = cfg?.ssoLabel || SSO_LABEL_FALLBACK;
   const passwordEnabled = !!cfg?.authMethods.password;
   // Show the username/password fields when password sign-in is on, or when the
   // built-in-admin recovery fallback has been revealed.
@@ -250,7 +256,7 @@ export default function LoginPage() {
               : mode === "forgot"
               ? "Passwort zurücksetzen"
               : !showCreds
-              ? "Mit Firmen-Account anmelden"
+              ? ssoLabel
               : mode === "login"
               ? "Anmelden"
               : "Konto erstellen"}
@@ -400,7 +406,7 @@ export default function LoginPage() {
                   href="/api/auth/oidc/start"
                   className="flex w-full items-center justify-center gap-2 rounded-lg border border-border-dark py-2 text-sm font-medium transition hover:bg-white/5"
                 >
-                  <Building2 size={16} /> Mit Firmen-Account anmelden
+                  <Building2 size={16} /> {ssoLabel}
                 </a>
               </>
             )}

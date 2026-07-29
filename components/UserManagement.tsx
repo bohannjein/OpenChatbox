@@ -10,12 +10,14 @@ import {
   Loader2,
   UserPlus,
   Search,
-  Mail,
   Activity,
+  Pencil,
+  ShieldCheck,
 } from "lucide-react";
 import clsx from "clsx";
 import { providerLabel } from "@/lib/authProvider";
 import InfoTip from "./InfoTip";
+import Modal from "./Modal";
 
 type U = {
   id: string;
@@ -24,6 +26,7 @@ type U = {
   provider: string;
   blocked: boolean;
   builtin: boolean;
+  twoFactorEnabled: boolean;
   kbCategories: string[];
   firstName?: string;
   lastName?: string;
@@ -101,6 +104,15 @@ export default function UserManagement() {
     password: "",
     role: "user",
   });
+
+  /** The account currently open in the edit dialog (a working copy). */
+  const [edit, setEdit] = useState<
+    | (Pick<U, "id" | "username" | "email" | "firstName" | "lastName" | "displayName"> & {
+        builtin: boolean;
+        provider: string;
+      })
+    | null
+  >(null);
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [lastSeen, setLastSeen] = useState<Record<string, number>>({});
@@ -228,12 +240,41 @@ export default function UserManagement() {
   const del = (u: U) => {
     if (window.confirm(`Benutzer "${u.username}" wirklich löschen?`)) act(u.id, "delete");
   };
-  const editEmail = (u: U) => {
-    const mail = window.prompt(
-      `E-Mail für "${u.username}" (für Passwort-Reset; leer = entfernen):`,
-      u.email ?? ""
-    );
-    if (mail !== null) act(u.id, "setEmail", mail.trim());
+
+  /**
+   * Save the edit dialog. Uses `updateProfile`, which reports a specific reason
+   * (name taken, malformed address) instead of the generic "not possible" the
+   * single-field actions return.
+   */
+  const saveEdit = async () => {
+    if (!edit) return;
+    setBusy("edit");
+    setErr(null);
+    try {
+      const r = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "updateProfile",
+          userId: edit.id,
+          profile: {
+            username: edit.username,
+            firstName: edit.firstName,
+            lastName: edit.lastName,
+            displayName: edit.displayName,
+            email: edit.email,
+          },
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Fehler");
+      setUsers(d.users);
+      setEdit(null);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
   };
 
   // Full name for display; falls back to username when no name is stored.
@@ -433,16 +474,45 @@ export default function UserManagement() {
               </select>
 
               <button
-                onClick={() => editEmail(u)}
+                onClick={() =>
+                  setEdit({
+                    id: u.id,
+                    username: u.username,
+                    email: u.email ?? "",
+                    firstName: u.firstName ?? "",
+                    lastName: u.lastName ?? "",
+                    displayName: u.displayName ?? "",
+                    builtin: u.builtin,
+                    provider: u.provider,
+                  })
+                }
                 disabled={busy !== null}
-                title={u.email ? `E-Mail: ${u.email}` : "E-Mail hinterlegen (für Passwort-Reset)"}
+                title="Name, Benutzername und E-Mail bearbeiten"
                 className={clsx(
                   "rounded-lg p-1.5 transition hover:bg-neutral-200 dark:hover:bg-white/10",
                   u.email ? "text-accent" : "text-neutral-500 hover:text-accent"
                 )}
               >
-                <Mail size={15} />
+                <Pencil size={15} />
               </button>
+
+              {u.twoFactorEnabled && (
+                <button
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        `2FA für "${u.username}" abschalten? Nötig, wenn der Authenticator verloren ist.`
+                      )
+                    )
+                      act(u.id, "clearTwoFactor");
+                  }}
+                  disabled={busy !== null}
+                  title="2FA aktiv — zum Zurücksetzen klicken"
+                  className="rounded-lg p-1.5 text-accent transition hover:bg-neutral-200 dark:hover:bg-white/10"
+                >
+                  <ShieldCheck size={15} />
+                </button>
+              )}
 
               <button
                 onClick={() => resetPw(u)}
@@ -508,6 +578,94 @@ export default function UserManagement() {
             </div>
           ))}
         </div>
+      )}
+
+      {edit && (
+        <Modal onClose={() => setEdit(null)}>
+          <h4 className="font-medium">Konto bearbeiten</h4>
+          <p className="mt-0.5 text-sm text-neutral-500">
+            Der Vorname bestimmt, wie die App den Nutzer anspricht.
+          </p>
+          {edit.provider !== "local" && (
+            <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-600 dark:text-amber-500">
+              Konto aus dem Firmenverzeichnis: Änderungen hier werden bei der nächsten
+              Anmeldung von dort überschrieben.
+            </p>
+          )}
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs text-neutral-500">Vorname</label>
+              <input
+                autoFocus
+                value={edit.firstName}
+                onChange={(e) => setEdit({ ...edit, firstName: e.target.value })}
+                className="w-full input-base"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-neutral-500">Nachname</label>
+              <input
+                value={edit.lastName}
+                onChange={(e) => setEdit({ ...edit, lastName: e.target.value })}
+                className="w-full input-base"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
+                Anzeigename
+                <InfoTip text="Optional. Leer lassen — dann wird er aus Vor- und Nachnamen gebildet und bleibt automatisch aktuell." />
+              </label>
+              <input
+                value={edit.displayName}
+                onChange={(e) => setEdit({ ...edit, displayName: e.target.value })}
+                placeholder={[edit.firstName, edit.lastName].filter(Boolean).join(" ")}
+                className="w-full input-base"
+              />
+            </div>
+            <div>
+              <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
+                Benutzername
+                {edit.builtin && (
+                  <InfoTip text="Der Built-in-Administrator kann nicht umbenannt werden — er ist der garantierte Wiederherstellungszugang." />
+                )}
+              </label>
+              <input
+                value={edit.username}
+                disabled={edit.builtin}
+                onChange={(e) => setEdit({ ...edit, username: e.target.value })}
+                className="w-full input-base font-mono text-xs disabled:opacity-50"
+              />
+            </div>
+            <div>
+              <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
+                E-Mail
+                <InfoTip text="Wird für den Passwort-Reset per E-Mail benötigt. Leer = entfernen." />
+              </label>
+              <input
+                value={edit.email}
+                onChange={(e) => setEdit({ ...edit, email: e.target.value })}
+                placeholder="name@firma.de"
+                className="w-full input-base font-mono text-xs"
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              onClick={() => setEdit(null)}
+              className="rounded-lg border border-border-light px-3 py-1.5 text-sm dark:border-border-dark"
+            >
+              Abbrechen
+            </button>
+            <button
+              onClick={saveEdit}
+              disabled={busy !== null}
+              className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
+            >
+              {busy === "edit" && <Loader2 size={14} className="animate-spin" />}
+              Speichern
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );

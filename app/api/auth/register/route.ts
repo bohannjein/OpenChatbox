@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createUser, publicUser } from "@/lib/server/users";
-import { getSelfRegistration, getAuthMethods } from "@/lib/server/config";
+import { getSelfRegistration, getAuthMethods, checkEmailDomain } from "@/lib/server/config";
 import {
   makeSession,
   SESSION_COOKIE,
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
   // Gate 1 — the admin must have self-registration enabled. When off, accounts
   // are created only by admins via the user management (this endpoint refuses).
-  const { enabled, domains } = getSelfRegistration();
+  const { enabled } = getSelfRegistration();
   if (!enabled)
     return NextResponse.json(
       { error: "Selbstregistrierung ist deaktiviert. Bitte wende dich an einen Administrator." },
@@ -37,20 +37,10 @@ export async function POST(req: NextRequest) {
     );
 
   // Gate 2 — optional email-domain allow-list. The username is treated as the
-  // email; its domain must be on the list.
-  if (domains.length) {
-    const at = name.lastIndexOf("@");
-    const domain = at >= 0 ? name.slice(at + 1).toLowerCase() : "";
-    if (!domain || !domains.includes(domain))
-      return NextResponse.json(
-        {
-          error: `Registrierung nur mit einer erlaubten E-Mail-Domain möglich (${domains
-            .map((d) => "@" + d)
-            .join(", ")}).`,
-        },
-        { status: 403 }
-      );
-  }
+  // email; its domain must be on the list. Same check as self-service email
+  // changes (lib/server/config checkEmailDomain).
+  const domainError = checkEmailDomain(name);
+  if (domainError) return NextResponse.json({ error: domainError }, { status: 403 });
 
   try {
     const user = createUser(name, String(password));

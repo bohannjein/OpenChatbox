@@ -33,6 +33,7 @@ import { useClickOutside } from "@/lib/useClickOutside";
 import type { Chat, Folder } from "@/lib/types";
 import { SidekickAvatar } from "./SidekickIcon";
 import BrandMark from "./BrandMark";
+import { fullNameOf, initialOf } from "@/lib/personName";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import AsciiSpinner from "./AsciiSpinner";
 import Modal from "./Modal";
@@ -694,13 +695,13 @@ export default function Sidebar() {
           >
             <div className="relative shrink-0">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
-                {(authUser?.username ?? "?").trim().charAt(0).toUpperCase()}
+                {initialOf(authUser)}
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-white dark:ring-zinc-900" />
             </div>
             <div className="min-w-0 leading-tight">
               <div className="truncate text-sm font-medium">
-                {authUser?.username ?? "Nutzer"}
+                {fullNameOf(authUser) || "Nutzer"}
               </div>
               <div className="truncate font-mono text-xs text-zinc-500">
                 {authUser?.role

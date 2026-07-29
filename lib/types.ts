@@ -177,6 +177,9 @@ export interface AuthUser {
   username: string;
   email?: string;
   displayName?: string;
+  /** Given/family name — drives how the app addresses the person (lib/personName). */
+  firstName?: string;
+  lastName?: string;
   role: string;
   provider: string;
   twoFactorEnabled: boolean;

@@ -59,7 +59,23 @@ export interface EntraProfile {
   username: string;
   email?: string;
   displayName?: string;
+  firstName?: string;
+  lastName?: string;
   role: "admin" | "poweruser" | "user";
+}
+
+/** Split a directory display name into given/family name as a fallback. */
+function splitName(display: string): { firstName?: string; lastName?: string } {
+  const v = display.trim().replace(/\s+/g, " ");
+  if (!v) return {};
+  // "Muster, Anna" — the AD/Exchange convention puts the family name first.
+  if (v.includes(",")) {
+    const [family, given] = v.split(",").map((s) => s.trim());
+    return { firstName: given || undefined, lastName: family || undefined };
+  }
+  const parts = v.split(" ");
+  if (parts.length === 1) return { firstName: parts[0] };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
 }
 
 /**
@@ -67,6 +83,11 @@ export interface EntraProfile {
  * (`roles`) claim: an entry containing "admin" → admin, "power" → poweruser,
  * else the default "user". Assign app roles in the Entra app registration
  * (or override role names via ENTRA_ADMIN_ROLE / ENTRA_POWERUSER_ROLE).
+ *
+ * given_name/family_name are standard OIDC profile claims (Entra sends them when
+ * the `profile` scope is requested, which /start does). They drive how the app
+ * addresses the person, so a directory that only returns `name` is split as a
+ * fallback rather than leaving the greeting nameless.
  */
 export function profileFromClaims(claims: Record<string, unknown>): EntraProfile {
   const email =
@@ -82,6 +103,15 @@ export function profileFromClaims(claims: Record<string, unknown>): EntraProfile
     "";
   const displayName = (claims.name as string) || undefined;
 
+  const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+  const fromClaims = {
+    firstName: str(claims.given_name),
+    lastName: str(claims.family_name),
+  };
+  const fallback = displayName ? splitName(displayName) : {};
+  const firstName = fromClaims.firstName ?? fallback.firstName;
+  const lastName = fromClaims.lastName ?? fallback.lastName;
+
   const roles = (Array.isArray(claims.roles) ? claims.roles : [])
     .map((r) => String(r).toLowerCase());
   const adminRole = (process.env.ENTRA_ADMIN_ROLE || "admin").toLowerCase();
@@ -90,5 +120,5 @@ export function profileFromClaims(claims: Record<string, unknown>): EntraProfile
   if (roles.some((r) => r.includes(adminRole))) role = "admin";
   else if (roles.some((r) => r.includes(powerRole) || r.includes("power"))) role = "poweruser";
 
-  return { username, email, displayName, role };
+  return { username, email, displayName, firstName, lastName, role };
 }

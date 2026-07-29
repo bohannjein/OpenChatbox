@@ -13,6 +13,7 @@ interface OidcView {
   tenantId: string;
   authorizeUrl: string;
   tokenUrl: string;
+  buttonLabel: string;
   hasSecret: boolean;
 }
 
@@ -30,6 +31,7 @@ export default function SsoConfigPanel() {
   const [tenantId, setTenantId] = useState("");
   const [authorizeUrl, setAuthorizeUrl] = useState("");
   const [tokenUrl, setTokenUrl] = useState("");
+  const [buttonLabel, setButtonLabel] = useState("");
   const [source, setSource] = useState<"config" | "env" | null>(null);
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -64,6 +66,7 @@ export default function SsoConfigPanel() {
         setTenantId(o.tenantId);
         setAuthorizeUrl(o.authorizeUrl);
         setTokenUrl(o.tokenUrl);
+        setButtonLabel(o.buttonLabel ?? "");
         setHasSecret(o.hasSecret);
       })
       .catch(() => {});
@@ -77,6 +80,7 @@ export default function SsoConfigPanel() {
       tenantId,
       authorizeUrl,
       tokenUrl,
+      buttonLabel,
     };
     if (clientSecret) body.clientSecret = clientSecret;
     const r = await fetch("/api/admin/oidc", {
@@ -109,7 +113,7 @@ export default function SsoConfigPanel() {
       <div className="mb-2 flex items-center gap-2">
         <Building2 size={16} className="text-accent" />
         <h4 className="font-medium">Single Sign-On</h4>
-        <InfoTip text="Single Sign-On: Nutzer melden sich mit ihrem Firmen-Konto an (Microsoft Entra ID oder ein AD/OIDC-Server wie ADFS/Keycloak) statt mit lokalem Passwort." />
+        <InfoTip text="Single Sign-On: Nutzer melden sich mit ihrem Microsoft-Geschäftskonto an (Entra ID) oder über einen anderen OIDC-Server wie ADFS/Keycloak — statt mit einem lokalen Passwort." />
       </div>
       <p className="mb-3 text-sm text-neutral-500">
         Anmeldung über Microsoft Entra ID oder einen AD/OIDC-Server konfigurieren.
@@ -129,7 +133,7 @@ export default function SsoConfigPanel() {
         />
         <span className="flex items-center gap-1.5">
           SSO aktivieren
-          <InfoTip text="Muss aktiv sein, damit der „Mit Firmen-Account anmelden“-Button erscheint. Zusätzlich muss die Anmeldeart SSO unter „Registrierung & Zugang“ erlaubt sein." />
+          <InfoTip text="Muss aktiv sein, damit der Anmelde-Button erscheint. Zusätzlich muss die Anmeldeart SSO unter „Registrierung & Zugang“ erlaubt sein." />
         </span>
       </label>
 
@@ -240,6 +244,20 @@ export default function SsoConfigPanel() {
             </div>
           </div>
         )}
+
+        <div>
+          <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
+            Beschriftung des Anmelde-Buttons
+            <InfoTip text="Text auf der Schaltfläche auf der Anmeldeseite. Leer lassen für „Mit Microsoft-Geschäftskonto anmelden“ — bei einem anderen Anbieter (ADFS, Keycloak) hier passend umbenennen." />
+          </label>
+          <input
+            value={buttonLabel}
+            onChange={(e) => setButtonLabel(e.target.value)}
+            placeholder="Mit Microsoft-Geschäftskonto anmelden"
+            maxLength={60}
+            className="w-full input-base py-1.5 text-sm"
+          />
+        </div>
       </div>
 
       <div className="mt-4 flex items-center justify-end gap-2">

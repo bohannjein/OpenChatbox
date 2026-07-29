@@ -9,6 +9,10 @@ import {
   createUser,
   setUserKbCategories,
   setUserEmail,
+  setUserProfile,
+  clearTwoFactor,
+  validateUsername,
+  type ProfilePatch,
 } from "@/lib/server/users";
 
 export const runtime = "nodejs";
@@ -19,7 +23,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ users: listUsers() });
 }
 
-/** Admin user actions: delete | block | unblock | setRole | resetPassword. */
+/**
+ * Admin user actions: create | updateProfile | delete | block | unblock |
+ * setRole | resetPassword | setKbCategories | setEmail | clearTwoFactor.
+ */
 export async function POST(req: NextRequest) {
   if (!getAdmin(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const body = await req.json().catch(() => ({}));
@@ -43,6 +50,8 @@ export async function POST(req: NextRequest) {
         { error: "Vor- und Nachname erforderlich." },
         { status: 400 }
       );
+    const nameError = validateUsername(username);
+    if (nameError) return NextResponse.json({ error: nameError }, { status: 400 });
     try {
       createUser(username, password, { role, firstName, lastName, email });
       return NextResponse.json({ ok: true, users: listUsers() });
@@ -55,6 +64,19 @@ export async function POST(req: NextRequest) {
   }
 
   if (!userId) return NextResponse.json({ error: "userId fehlt" }, { status: 400 });
+
+  // Edit the account's attributes in one go (the admin form sends the whole set).
+  // Unlike the single-field actions below, this reports WHY it failed — a taken
+  // username or a malformed address needs a specific message, not "not possible".
+  if (action === "updateProfile") {
+    const p = (body.profile ?? {}) as Record<string, unknown>;
+    const patch: ProfilePatch = {};
+    for (const k of ["username", "firstName", "lastName", "displayName", "email"] as const)
+      if (typeof p[k] === "string") patch[k] = p[k] as string;
+    const error = setUserProfile(userId, patch);
+    if (error) return NextResponse.json({ error }, { status: 400 });
+    return NextResponse.json({ ok: true, users: listUsers() });
+  }
 
   let ok = false;
   switch (action) {
@@ -81,6 +103,11 @@ export async function POST(req: NextRequest) {
       break;
     case "setEmail":
       ok = setUserEmail(userId, String(value ?? ""));
+      break;
+    case "clearTwoFactor":
+      // Recovery: the user lost their authenticator and can't sign in to turn
+      // 2FA off themselves.
+      ok = clearTwoFactor(userId);
       break;
     default:
       return NextResponse.json({ error: "Unbekannte Aktion" }, { status: 400 });

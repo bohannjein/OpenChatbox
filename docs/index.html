@@ -442,9 +442,23 @@ Passwörter zurücksetzen, löschen. Rollen:</p>
   </tbody>
 </table>
 </div>
+<p>Über das Stift-Symbol öffnet sich ein Dialog für <strong>alle Attribute</strong> eines Kontos:
+Vorname, Nachname, Anzeigename, Benutzername und E-Mail. Der <strong>Vorname bestimmt, wie die App
+die Person anspricht</strong> — in der Begrüßung, in der Seitenleiste und gegenüber dem Modell. Der
+Anzeigename darf leer bleiben; er wird dann aus Vor- und Nachnamen gebildet und bleibt automatisch
+aktuell (ein handgesetzter Anzeigename wird nie überschrieben). Ein Umbenennen prüft die
+Eindeutigkeit; der Built-in-Administrator lässt sich nicht umbenennen, weil er der garantierte
+Wiederherstellungszugang ist. Ist bei einem Konto 2FA aktiv, erscheint ein Schild-Symbol, über das
+sie zurückgesetzt werden kann — der Weg, wenn jemand seinen Authenticator verloren hat.</p>
 <p>Im selben Bereich liegen <strong>Selbstregistrierung</strong> (optional auf E-Mail-Domänen
 begrenzt) und der <strong>Gastzugang</strong>. Gäste bekommen eine abgespeckte Oberfläche, ein fest
 vorgegebenes Modell, keine Werkzeuge und rein flüchtige Chats.</p>
+<p><strong>Selbstverwaltung:</strong> unter <em>Profil &amp; Sicherheit</em> ändern Nutzer ihren
+Benutzernamen und ihre E-Mail-Adresse selbst. Die Adresse muss dabei auf eine <strong>freigegebene
+Domäne</strong> enden — dieselbe Liste, die die Selbstregistrierung begrenzt; ohne Liste ist jede
+Domäne erlaubt. Vor- und Nachname bleiben bei der Administration. Konten aus dem Firmenverzeichnis
+sind hier schreibgeschützt, weil der Identity-Provider diese Felder bei der nächsten Anmeldung
+ohnehin wieder setzt.</p>
 
 <h3 id="sso">Single Sign-On</h3>
 <p><strong>Einstellungen → Anmeldung &amp; E-Mail → Single Sign-On.</strong> Eigener OIDC-Ablauf,
@@ -453,6 +467,14 @@ kein NextAuth. Beim Identitätsanbieter muss als Umleitungsziel eingetragen sein
 <p>Der Wert muss <strong>zeichengenau</strong> mit dem übereinstimmen, was die App sendet — siehe
 <a href="#appurl">Öffentliche App-URL</a>. Ist eine Mandanten-ID gesetzt, wird die Anmeldung zusätzlich
 auf diesen Mandanten beschränkt. Rollen werden aus dem <code>roles</code>-Anspruch übernommen.</p>
+<p>Aus dem Token werden außerdem <code>given_name</code> und <code>family_name</code> übernommen —
+daraus ergibt sich, wie die App die Person anspricht. Liefert das Verzeichnis nur <code>name</code>,
+wird dieser aufgeteilt („Muster, Anna“ ebenso wie „Anna Muster“). Bei jeder Anmeldung werden Name,
+E-Mail und Rolle neu übernommen: für Verzeichniskonten ist der Identity-Provider die Wahrheit, und
+lokale Änderungen an diesen Feldern werden überschrieben.</p>
+<p>Die Beschriftung der Schaltfläche ist frei wählbar (Feld <em>Beschriftung des Anmelde-Buttons</em>).
+Voreinstellung ist <strong>„Mit Microsoft-Geschäftskonto anmelden“</strong>; bei ADFS oder Keycloak
+lässt sie sich passend umbenennen.</p>
 
 <h3 id="mail">E-Mail-Versand</h3>
 <p><strong>Einstellungen → Anmeldung &amp; E-Mail → E-Mail-Versand.</strong> Nötig für den

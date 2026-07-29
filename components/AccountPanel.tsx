@@ -1,15 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, ShieldCheck, ShieldOff, KeyRound, Loader2 } from "lucide-react";
+import {
+  LogOut,
+  ShieldCheck,
+  ShieldOff,
+  KeyRound,
+  Loader2,
+  UserCog,
+} from "lucide-react";
 import { useStore } from "@/lib/store";
 import { providerLabel } from "@/lib/authProvider";
+import { fullNameOf } from "@/lib/personName";
+import InfoTip from "./InfoTip";
 
 export default function AccountPanel() {
   const router = useRouter();
   const authUser = useStore((s) => s.authUser);
   const setAuthUser = useStore((s) => s.setAuthUser);
+
+  // Self-service identity. Names stay with the admin (or the directory) — only
+  // the login name and the address are the user's own to change.
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [idMsg, setIdMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [idBusy, setIdBusy] = useState(false);
+  const [domains, setDomains] = useState<string[]>([]);
+
+  useEffect(() => {
+    setUsername(authUser?.username ?? "");
+    setEmail(authUser?.email ?? "");
+  }, [authUser?.username, authUser?.email]);
+
+  // The allowed email domains are the same list that gates self-registration.
+  useEffect(() => {
+    fetch("/api/config", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setDomains(d?.selfRegistration?.domains ?? []))
+      .catch(() => {});
+  }, []);
 
   const [cur, setCur] = useState("");
   const [next, setNext] = useState("");
@@ -35,6 +65,26 @@ export default function AccountPanel() {
       /* ignore */
     }
     router.push("/login");
+  };
+
+  const saveIdentity = async () => {
+    setIdBusy(true);
+    setIdMsg(null);
+    try {
+      const r = await fetch("/api/account/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, email }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || "Speichern fehlgeschlagen.");
+      setIdMsg({ ok: true, text: "Gespeichert ✓" });
+      await refresh();
+    } catch (e) {
+      setIdMsg({ ok: false, text: e instanceof Error ? e.message : "Fehler" });
+    } finally {
+      setIdBusy(false);
+    }
   };
 
   const changePassword = async () => {
@@ -105,7 +155,7 @@ export default function AccountPanel() {
     <section>
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <h4 className="font-medium">Profil</h4>
+          <h4 className="font-medium">{fullNameOf(authUser) || authUser.username}</h4>
           <p className="text-sm text-neutral-500">
             {authUser.username}
             {authUser.role === "admin" && " · Admin"} · Anmeldung per{" "}
@@ -118,6 +168,71 @@ export default function AccountPanel() {
         >
           <LogOut size={15} /> Abmelden
         </button>
+      </div>
+
+      {/* Login name + address */}
+      <div className="mb-4 rounded-xl border border-border-light p-3 dark:border-border-dark">
+        <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+          <UserCog size={15} /> Benutzername &amp; E-Mail
+          {domains.length > 0 && (
+            <InfoTip
+              text={`Die E-Mail-Adresse muss auf eine freigegebene Domain enden (${domains
+                .map((d) => "@" + d)
+                .join(", ")}). Dieselbe Vorgabe gilt für die Selbstregistrierung.`}
+            />
+          )}
+        </div>
+        {authUser.provider !== "local" ? (
+          <p className="text-sm text-neutral-500">
+            Dieses Konto wird vom Firmenverzeichnis verwaltet. Benutzername, Name und
+            E-Mail werden bei jeder Anmeldung von dort übernommen.
+          </p>
+        ) : (
+          <>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs text-neutral-500">Benutzername</label>
+                <input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full input-base"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-neutral-500">
+                  E-Mail{domains.length ? ` (${domains.map((d) => "@" + d).join(", ")})` : ""}
+                </label>
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={domains.length ? `name@${domains[0]}` : "name@firma.de"}
+                  className="w-full input-base"
+                />
+              </div>
+            </div>
+            <p className="mt-1.5 text-xs text-neutral-500">
+              Vor- und Nachname pflegt die Administration — melde eine Änderung dort.
+            </p>
+            <div className="mt-2 flex items-center gap-3">
+              <button
+                onClick={saveIdentity}
+                disabled={
+                  idBusy ||
+                  (username === (authUser.username ?? "") && email === (authUser.email ?? ""))
+                }
+                className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-40"
+              >
+                {idBusy && <Loader2 size={14} className="animate-spin" />}
+                Speichern
+              </button>
+              {idMsg && (
+                <span className={idMsg.ok ? "text-sm text-accent" : "text-sm text-red-500"}>
+                  {idMsg.text}
+                </span>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Password */}

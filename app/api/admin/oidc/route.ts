@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdmin } from "@/lib/server/adminAuth";
-import { getConfig, setConfig, oidcSource, type OidcStoredConfig } from "@/lib/server/config";
+import {
+  getConfig,
+  setConfig,
+  oidcSource,
+  DEFAULT_SSO_LABEL,
+  type OidcStoredConfig,
+} from "@/lib/server/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +19,7 @@ function publicView(o: OidcStoredConfig | undefined) {
     tenantId: o?.tenantId ?? "",
     authorizeUrl: o?.authorizeUrl ?? "",
     tokenUrl: o?.tokenUrl ?? "",
+    buttonLabel: o?.buttonLabel?.trim() || DEFAULT_SSO_LABEL,
     hasSecret: !!(o?.clientSecretEnc && o.clientSecretEnc.length),
   };
 }
@@ -45,6 +52,8 @@ export async function POST(req: NextRequest) {
     tenantId: str(body.tenantId, prev.tenantId ?? ""),
     authorizeUrl: str(body.authorizeUrl, prev.authorizeUrl ?? ""),
     tokenUrl: str(body.tokenUrl, prev.tokenUrl ?? ""),
+    // Empty falls back to the Microsoft default at read time (getSsoLabel).
+    buttonLabel: str(body.buttonLabel, prev.buttonLabel ?? "").slice(0, 60) || undefined,
     clientSecretEnc:
       typeof body.clientSecret === "string" && body.clientSecret.trim()
         ? encryptSecret(body.clientSecret.trim())

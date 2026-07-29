@@ -667,6 +667,97 @@ await bookstackTests();
   );
 }
 
+// ── person names, profile editing, SSO name claims ───────────────────────
+{
+  const { firstNameOf, fullNameOf, initialOf } = await import("../lib/personName");
+  eq("name: stored first name wins", firstNameOf({ firstName: "Anna", displayName: "X Y" }), "Anna");
+  eq("name: display name split", firstNameOf({ displayName: "Anna Muster" }), "Anna");
+  eq("name: 'Muster, Anna' → Anna", firstNameOf({ displayName: "Muster, Anna" }), "Anna");
+  eq("name: email login id stripped", firstNameOf({ username: "a.muster@firma.de" }), "a.muster");
+  eq("name: nothing usable → empty", firstNameOf({}), "");
+  eq("name: full name from parts", fullNameOf({ firstName: "Anna", lastName: "Muster" }), "Anna Muster");
+  eq("name: full name falls back to login", fullNameOf({ username: "amuster" }), "amuster");
+  eq("name: initial uppercase", initialOf({ firstName: "anna" }), "A");
+
+  // Entra claims → profile. given_name/family_name preferred, `name` split as
+  // a fallback, so the greeting is never nameless for a directory account.
+  const { profileFromClaims } = await import("../lib/server/oidc");
+  const full = profileFromClaims({
+    preferred_username: "anna.muster@firma.de",
+    name: "Anna Muster",
+    given_name: "Anna",
+    family_name: "Muster",
+  });
+  eq("sso: given/family name taken", [full.firstName, full.lastName], ["Anna", "Muster"]);
+  const split = profileFromClaims({ preferred_username: "x@y.de", name: "Muster, Anna" });
+  eq("sso: display name split as fallback", [split.firstName, split.lastName], ["Anna", "Muster"]);
+  const bare = profileFromClaims({ preferred_username: "x@y.de" });
+  eq("sso: no name claims → undefined", [bare.firstName, bare.lastName], [undefined, undefined]);
+
+  // Profile editing rules.
+  const users = await import("../lib/server/users");
+  const a = users.createUser("anna", "geheim123", { firstName: "Anna", lastName: "Muster" });
+  const b = users.createUser("bert", "geheim123", { firstName: "Bert" });
+  eq("profile: displayName derived on create", a.displayName, "Anna Muster");
+
+  eq("profile: rename works", users.setUserProfile(a.id, { username: "anna.neu" }), null);
+  eq("profile: renamed", users.findById(a.id)?.username, "anna.neu");
+  ok(
+    "profile: duplicate username refused",
+    users.setUserProfile(a.id, { username: "BERT" })?.includes("bereits vergeben") === true
+  );
+  ok(
+    "profile: whitespace username refused",
+    users.setUserProfile(a.id, { username: "an na" })?.includes("Leerzeichen") === true
+  );
+  ok(
+    "profile: bad email refused",
+    users.setUserProfile(a.id, { email: "keine-mail" })?.includes("ungültig") === true
+  );
+  eq("profile: email cleared with empty string", users.setUserProfile(a.id, { email: "" }), null);
+  eq("profile: email now unset", users.findById(a.id)?.email, undefined);
+
+  // A derived display name follows a name change; a hand-set one does not.
+  users.setUserProfile(a.id, { firstName: "Anne" });
+  eq("profile: derived displayName re-derived", users.findById(a.id)?.displayName, "Anne Muster");
+  users.setUserProfile(a.id, { displayName: "Dr. Anne Muster" });
+  users.setUserProfile(a.id, { firstName: "Annette" });
+  eq(
+    "profile: custom displayName kept",
+    users.findById(a.id)?.displayName,
+    "Dr. Anne Muster"
+  );
+  // An empty display-name field means "derive it again", not "clear it" — that's
+  // what the edit dialog's hint promises.
+  users.setUserProfile(a.id, { displayName: "" });
+  eq(
+    "profile: empty displayName re-derives",
+    users.findById(a.id)?.displayName,
+    "Annette Muster"
+  );
+
+  // The built-in admin is the guaranteed recovery account.
+  const admin = users.findByUsername("administrator")!;
+  ok(
+    "profile: built-in admin cannot be renamed",
+    users.setUserProfile(admin.id, { username: "root" })?.includes("nicht umbenannt") === true
+  );
+  eq("profile: built-in admin may get a name", users.setUserProfile(admin.id, { firstName: "IT" }), null);
+
+  // 2FA reset (admin recovery when the authenticator is gone).
+  users.updateUser(b.id, { twoFactor: { enabled: true, secret: "S" } });
+  ok("profile: 2FA cleared", users.clearTwoFactor(b.id) && !users.findById(b.id)?.twoFactor.enabled);
+
+  // Email-domain allow-list: shared by self-registration and self-service.
+  const { setConfig, checkEmailDomain } = await import("../lib/server/config");
+  setConfig({ selfRegistration: { enabled: true, domains: ["firma.de"] } });
+  eq("domains: allowed passes", checkEmailDomain("anna@firma.de"), null);
+  ok("domains: foreign domain refused", !!checkEmailDomain("anna@gmail.com"));
+  ok("domains: no domain refused", !!checkEmailDomain("anna"));
+  setConfig({ selfRegistration: { enabled: true, domains: [] } });
+  eq("domains: empty list allows any", checkEmailDomain("anna@gmail.com"), null);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 // Set the code instead of process.exit(): the providerStream tests leave undici
 // keep-alive sockets in the pool, and exiting while those handles are closing
