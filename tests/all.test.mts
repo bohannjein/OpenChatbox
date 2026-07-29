@@ -535,6 +535,138 @@ await bookstackTests();
   }
 }
 
+// ── assistants: keys, limits, CORS, model pinning ────────────────────────
+{
+  // paths.ts bound DATA_DIR when the kb test imported it, so setting the env var
+  // again would have no effect — write into the temp dir that is actually in use.
+  const { DATA_DIR: dir } = await import("../lib/server/paths");
+  const A = await import("../lib/server/assistants");
+  const { rateLimit, resetRateLimits } = await import("../lib/server/rateLimit");
+
+  const a = A.upsertAssistant({
+    name: "  Support  ",
+    modelKey: "p1::llama3",
+    enabled: true,
+    kbCategoryIds: ["cat-a", 42, "cat-b"],
+    bookstack: { enabled: true, bookIds: [3, "4", -1, 0] },
+    allowedOrigins: ["https://intranet.firma.de/pfad", "nicht-eine-url", "javascript:x"],
+    limits: { perMinute: 3, maxHistory: 999 },
+  });
+  eq("assistant: name trimmed", a.name, "Support");
+  eq("assistant: non-string categories dropped", a.kbCategoryIds, ["cat-a", "cat-b"]);
+  eq("assistant: bookIds coerced + filtered", a.bookstack.bookIds, [3, 4]);
+  eq("assistant: origin normalized to scheme+host", a.allowedOrigins, [
+    "https://intranet.firma.de",
+  ]);
+  eq("assistant: maxHistory clamped", a.limits.maxHistory, 40);
+  eq("assistant: unset limit falls back to default", a.limits.perDay, A.DEFAULT_LIMITS.perDay);
+
+  // Keys: plaintext exists exactly once, and only the hash is persisted.
+  const made = A.createKey(a.id, "secret", "Backend");
+  ok("assistant: key minted", !!made && made.key.startsWith("ocb_sk_"), String(made?.key));
+  const secret = made!.key;
+  const stored = JSON.parse(fs.readFileSync(path.join(dir, "assistants.json"), "utf8"));
+  ok(
+    "assistant: plaintext key never stored",
+    !JSON.stringify(stored).includes(secret),
+    "key found in assistants.json"
+  );
+  eq("assistant: key hashed", stored.assistants[0].keys[0].hash, A.hashKey(secret));
+  ok("assistant: findByKey resolves", A.findByKey(secret)?.assistant.id === a.id);
+  ok("assistant: findByKey rejects garbage", A.findByKey("ocb_sk_nope") === null);
+  ok("assistant: findByKey rejects non-prefixed", A.findByKey(secret.slice(7)) === null);
+
+  const keyId = stored.assistants[0].keys[0].id;
+  A.revokeKey(a.id, keyId);
+  ok("assistant: revoked key rejected", A.findByKey(secret) === null);
+
+  // A disabled assistant's keys stop working without revoking anything.
+  const made2 = A.createKey(a.id, "public")!;
+  ok("assistant: fresh key works", A.findByKey(made2.key) !== null);
+  A.upsertAssistant({ id: a.id, enabled: false });
+  ok("assistant: disabled assistant rejects its keys", A.findByKey(made2.key) === null);
+  A.upsertAssistant({ id: a.id, enabled: true });
+
+  // Usage counters only — no message content anywhere in the store.
+  A.bumpUsage(a.id, { requests: 1, inChars: 12, outChars: 34 });
+  const after = A.getAssistant(a.id)!;
+  eq("assistant: usage counted", [after.usage.requests, after.usage.outChars], [1, 34]);
+  ok(
+    "assistant: store holds no message content",
+    !JSON.stringify(A.listAssistants()).includes("Hallo"),
+    "content leaked"
+  );
+
+  // Sliding window: the configured number passes, the next one is refused.
+  resetRateLimits();
+  const results = [1, 2, 3, 4].map(() => rateLimit(`t:${a.id}`, 3, 60_000).ok);
+  eq("rateLimit: allows up to the limit then blocks", results, [true, true, true, false]);
+  ok("rateLimit: reports a retry delay", rateLimit(`t:${a.id}`, 3, 60_000).retryAfter > 0);
+  resetRateLimits();
+  ok("rateLimit: separate buckets are independent", rateLimit(`t:other`, 1, 60_000).ok);
+
+  // CORS: only an origin some enabled assistant lists is echoed back.
+  const { corsHeaders } = await import("../lib/server/apiCors");
+  eq(
+    "cors: listed origin echoed",
+    corsHeaders("https://intranet.firma.de")["Access-Control-Allow-Origin"],
+    "https://intranet.firma.de"
+  );
+  eq(
+    "cors: foreign origin not echoed",
+    corsHeaders("https://evil.example")["Access-Control-Allow-Origin"],
+    undefined
+  );
+  eq("cors: always varies on Origin", corsHeaders("")["Vary"], "Origin");
+
+  // The pinned model wins: an unresolvable provider must fail rather than fall
+  // back to anything the caller named.
+  const { runAssistantChat, AssistantError } = await import("../lib/server/assistantChat");
+  try {
+    await runAssistantChat(A.getAssistant(a.id)!, [
+      { role: "user", content: "Hallo" },
+    ]);
+    ok("assistant: unknown provider refused", false, "no throw");
+  } catch (e) {
+    ok(
+      "assistant: unknown provider refused",
+      e instanceof AssistantError && e.status === 503,
+      String(e)
+    );
+  }
+  try {
+    await runAssistantChat(A.getAssistant(a.id)!, [
+      { role: "user", content: "x".repeat(A.DEFAULT_LIMITS.maxInputChars + 1) },
+    ]);
+    ok("assistant: oversized input refused", false, "no throw");
+  } catch (e) {
+    ok(
+      "assistant: oversized input refused",
+      e instanceof AssistantError && e.status === 413,
+      String(e)
+    );
+  }
+
+  // Presence is memory-only and keyed per device.
+  const { touchUser, activeSessions, resetPresence } = await import("../lib/server/presence");
+  resetPresence();
+  const mkReq = (ua: string, ip: string) =>
+    new Request("http://x/", { headers: { "user-agent": ua, "x-forwarded-for": `${ip}, 10.0.0.1` } });
+  const u = { id: "u1", username: "anna", role: "user" } as never;
+  touchUser(u, mkReq("Firefox", "1.2.3.4"));
+  touchUser(u, mkReq("Firefox", "1.2.3.4"));
+  touchUser(u, mkReq("Chrome", "1.2.3.4"));
+  const act = activeSessions();
+  eq("presence: one session per browser", act.length, 2);
+  eq("presence: repeat hits counted", act.find((s) => s.ua === "Firefox")?.hits, 2);
+  eq("presence: first forwarded ip used", act[0].ip, "1.2.3.4");
+  ok(
+    "presence: nothing written to data/",
+    !fs.existsSync(path.join(dir, "presence.json")),
+    "presence.json exists"
+  );
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 // Set the code instead of process.exit(): the providerStream tests leave undici
 // keep-alive sockets in the pool, and exiting while those handles are closing

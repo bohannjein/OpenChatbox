@@ -14,6 +14,10 @@ const PUBLIC = [
   // the login screen where no session exists yet.
   /^\/api\/brand\//,
   /^\/manifest\.webmanifest/,
+  // Public assistant API + embed widget: called from foreign sites with an API
+  // key, never with a session cookie. Authorization happens in lib/server/apiAuth.
+  /^\/api\/v1\//,
+  /^\/embed\.js/,
   /^\/share/,
   /^\/_next\//,
   /^\/favicon/,

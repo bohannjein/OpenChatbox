@@ -33,6 +33,7 @@ import { resizeImageToDataUrl } from "@/lib/imageResize";
 import { uid } from "@/lib/uid";
 import { Section, SectionTitle } from "./Section";
 import BrandingPanel from "./BrandingPanel";
+import AssistantsPanel from "./AssistantsPanel";
 import AdminPanel from "./AdminPanel";
 import PluginsPanel from "./PluginsPanel";
 import UserManagement from "./UserManagement";
@@ -64,6 +65,7 @@ type TabId =
   | "admin-models"
   | "admin-imagegen"
   | "admin-integrations"
+  | "admin-assistants"
   | "admin-branding"
   | "admin-performance"
   | "about";
@@ -166,6 +168,12 @@ const GROUPS: { title: string; adminOnly?: boolean; tabs: Tab[] }[] = [
         label: "Integrationen",
         Icon: Blocks,
         desc: "Externe Dienste und serverseitige Hintergrund-Dienste.",
+      },
+      {
+        id: "admin-assistants",
+        label: "Assistenten & API",
+        Icon: Bot,
+        desc: "Die KI auf anderen Seiten einbetten — festes Modell, freigegebenes Wissen, Schlüssel.",
       },
       {
         id: "admin-branding",
@@ -813,6 +821,12 @@ export default function SettingsModal() {
                     <PluginsPanel />
                   </Section>
                 </>
+              )}
+
+              {activeTab === "admin-assistants" && isAdmin && (
+                <Section>
+                  <AssistantsPanel />
+                </Section>
               )}
 
               {activeTab === "admin-branding" && isAdmin && <BrandingPanel />}
