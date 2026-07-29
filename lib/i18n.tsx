@@ -21,8 +21,8 @@ const STRINGS = {
   "workspace.switch": { de: "Workspace wechseln", en: "Switch workspace" },
   "workspace.new": { de: "Neuer Workspace", en: "New workspace" },
   "input.placeholder": {
-    de: "Stelle deine Frage, lade Dokumente hoch oder starte einen Prompt…",
-    en: "Ask a question, upload documents, or start a prompt…",
+    de: "Stelle eine Frage…",
+    en: "Ask anything…",
   },
   "input.hint": {
     de: "Enter zum Senden · Shift+Enter für Zeilenumbruch · „/“ für Vorlagen · 📎 für Dateien",
