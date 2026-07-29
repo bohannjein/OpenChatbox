@@ -1,9 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Users, Trash2, Lock, Unlock, KeyRound, Loader2, UserPlus, Search, Mail } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Users,
+  Trash2,
+  Lock,
+  Unlock,
+  KeyRound,
+  Loader2,
+  UserPlus,
+  Search,
+  Mail,
+  Activity,
+} from "lucide-react";
 import clsx from "clsx";
 import { providerLabel } from "@/lib/authProvider";
+import InfoTip from "./InfoTip";
 
 type U = {
   id: string;
@@ -21,7 +33,58 @@ type U = {
 
 type Cat = { id: string; name: string };
 
+/** One active device/browser, from lib/server/presence (memory only). */
+type Session = {
+  key: string;
+  uid: string;
+  name: string;
+  role: string;
+  kind: "user" | "guest" | "assistant";
+  ip: string;
+  ua: string;
+  firstSeen: number;
+  lastSeen: number;
+  hits: number;
+};
+
 const ROLES = ["user", "poweruser", "admin"];
+
+const KIND_LABEL: Record<Session["kind"], string> = {
+  user: "Konto",
+  guest: "Gast",
+  assistant: "Assistent",
+};
+
+/** "vor 2 Min" — good enough for a presence table, no dependency needed. */
+function since(ts: number, now: number): string {
+  const s = Math.max(0, Math.floor((now - ts) / 1000));
+  if (s < 15) return "jetzt";
+  if (s < 60) return `vor ${s} s`;
+  if (s < 3600) return `vor ${Math.floor(s / 60)} Min`;
+  if (s < 86400) return `vor ${Math.floor(s / 3600)} Std`;
+  return `vor ${Math.floor(s / 86400)} Tg`;
+}
+
+/** Shorten a user-agent to the part a human reads: browser + platform. */
+function browserOf(ua: string): string {
+  if (!ua) return "unbekannt";
+  const name =
+    /Edg\//.test(ua) ? "Edge"
+    : /OPR\//.test(ua) ? "Opera"
+    : /Chrome\//.test(ua) ? "Chrome"
+    : /Safari\//.test(ua) && /Version\//.test(ua) ? "Safari"
+    : /Firefox\//.test(ua) ? "Firefox"
+    : /curl\//i.test(ua) ? "curl"
+    : "anderer";
+  const os =
+    /Windows/.test(ua) ? "Windows"
+    : /Android/.test(ua) ? "Android"
+    : /iPhone|iPad/.test(ua) ? "iOS"
+    : /Mac OS X/.test(ua) ? "macOS"
+    : /Linux/.test(ua) ? "Linux"
+    : "";
+  return os ? `${name} · ${os}` : name;
+}
 
 /** Admin panel to manage all users: role, block/unblock, reset password, delete. */
 export default function UserManagement() {
@@ -38,6 +101,35 @@ export default function UserManagement() {
     password: "",
     role: "user",
   });
+
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [lastSeen, setLastSeen] = useState<Record<string, number>>({});
+  const [now, setNow] = useState(() => Date.now());
+  const [activeWindow, setActiveWindow] = useState(120_000);
+
+  // Presence is in-memory on the server and refreshed by the clients' own 20 s
+  // live-sync, so polling every 15 s here is enough to look live.
+  const loadPresence = useCallback(async () => {
+    const d = await fetch("/api/admin/presence", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+    if (!d) return;
+    setSessions(d.sessions ?? []);
+    setLastSeen(d.lastSeen ?? {});
+    setActiveWindow(d.windowMs ?? 120_000);
+    setNow(d.now ?? Date.now());
+  }, []);
+
+  useEffect(() => {
+    loadPresence();
+    const t = setInterval(loadPresence, 15_000);
+    // Keep the relative times moving between polls.
+    const tick = setInterval(() => setNow(Date.now()), 5_000);
+    return () => {
+      clearInterval(t);
+      clearInterval(tick);
+    };
+  }, [loadPresence]);
 
   const load = async () => {
     try {
@@ -160,9 +252,44 @@ export default function UserManagement() {
     );
   }, [users, query]);
 
+  const online = (uid: string) => (lastSeen[uid] ?? 0) > now - activeWindow;
+
   return (
     <div>
+      {/* ── Active sessions ─────────────────────────────────────────────── */}
       <div className="mb-2 flex items-center gap-2">
+        <Activity size={16} className="text-accent" />
+        <h4 className="font-medium">Aktive Sitzungen</h4>
+        <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] text-accent">
+          {sessions.length}
+        </span>
+        <InfoTip text="Wer in den letzten zwei Minuten eine Anfrage gestellt hat. Diese Angaben liegen ausschließlich im Arbeitsspeicher dieses Servers, werden nicht in data/ geschrieben und sind nach einem Neustart weg. Eine Zeile je Gerät bzw. Browser." />
+      </div>
+      {sessions.length === 0 ? (
+        <p className="mb-4 text-sm text-neutral-400">
+          Gerade niemand aktiv. Angemeldete Clients melden sich alle 20 Sekunden.
+        </p>
+      ) : (
+        <div className="mb-4 max-h-52 space-y-1 overflow-y-auto pr-1">
+          {sessions.map((s) => (
+            <div
+              key={s.key}
+              className="flex items-center gap-2 rounded-lg border border-border-light px-2.5 py-1.5 text-xs dark:border-border-dark"
+            >
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+              <span className="min-w-0 truncate font-medium">{s.name}</span>
+              <span className="shrink-0 rounded bg-neutral-200 px-1 text-[10px] text-neutral-600 dark:bg-white/10 dark:text-neutral-300">
+                {KIND_LABEL[s.kind]}
+              </span>
+              <span className="min-w-0 truncate text-neutral-400">{browserOf(s.ua)}</span>
+              <span className="ml-auto shrink-0 font-mono text-neutral-400">{s.ip}</span>
+              <span className="shrink-0 text-neutral-500">{since(s.lastSeen, now)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mb-2 flex items-center gap-2 border-t border-border-light pt-4 dark:border-border-dark">
         <Users size={16} className="text-accent" />
         <h4 className="font-medium">Benutzer</h4>
       </div>
@@ -258,6 +385,19 @@ export default function UserManagement() {
                   u.blocked && "opacity-60"
                 )}
               >
+              <span
+                title={
+                  online(u.id)
+                    ? "gerade aktiv"
+                    : lastSeen[u.id]
+                    ? `zuletzt ${since(lastSeen[u.id], now)}`
+                    : "seit dem letzten Neustart nicht gesehen"
+                }
+                className={clsx(
+                  "h-1.5 w-1.5 shrink-0 rounded-full",
+                  online(u.id) ? "bg-emerald-500" : "bg-neutral-300 dark:bg-neutral-600"
+                )}
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 truncate text-sm font-medium">
                   {fullName(u) || u.username}
@@ -272,6 +412,9 @@ export default function UserManagement() {
                   {fullName(u) ? `${u.username} · ` : ""}
                   {providerLabel(u.provider)}
                   {u.email ? ` · ${u.email}` : ""}
+                  {lastSeen[u.id] && !online(u.id)
+                    ? ` · zuletzt ${since(lastSeen[u.id], now)}`
+                    : ""}
                 </div>
               </div>
 

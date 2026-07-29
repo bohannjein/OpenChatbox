@@ -170,6 +170,7 @@
         <li><a href="#mail">E-Mail-Versand</a></li>
         <li><a href="#modelle-admin">Modelle</a></li>
         <li><a href="#wissen-admin">Wissensdatenbank</a></li>
+        <li><a href="#assistenten">Assistenten &amp; API</a></li>
         <li><a href="#marke">Marke (Custom Branding)</a></li>
         <li><a href="#leistung">Leistung / VRAM</a></li>
       </ol>
@@ -486,6 +487,69 @@ Benutzerverwaltung. Die Prüfung geschieht serverseitig, bevor irgendein Inhalt 
 gelangt; ohne Zuweisung greift „alles verboten“.</p>
 <p>Die Suche läuft gebündelt: lokale Vektorsuche (bereits nach Berechtigung gefiltert) und
 BookStack werden parallel abgefragt, zusammengeführt, entdoppelt und mit Quellenangabe versehen.</p>
+
+<h3 id="assistenten">Assistenten &amp; API (Einbetten auf anderen Seiten)</h3>
+<p><strong>Einstellungen → Administration → Assistenten &amp; API.</strong> Ein <em>Assistent</em> ist ein
+Zugang für fremde Webseiten: festes Modell, eigener System-Prompt und genau die Wissensbereiche, die
+freigegeben wurden. Ein Assistent ist <strong>kein Benutzerkonto</strong> — er hat keinen Eintrag in
+<code>users.json</code>, keine Rolle und kein Sitzungscookie. Damit weisen alle Routen, die ein Konto
+verlangen, seinen Schlüssel automatisch ab: Chats, Profile und die Verwaltung bleiben verschlossen.</p>
+
+<p>Der Aufrufer wählt <strong>nichts</strong> aus. Ein im Request mitgeschicktes <code>model</code>
+wird ignoriert; es gilt das im Assistenten hinterlegte Modell. Ebenso liegen System-Prompt,
+Wissensumfang und Limits ausschließlich serverseitig.</p>
+
+<h4>Schlüssel</h4>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Art</th><th>Präfix</th><th>Gehört nach</th><th>Schutz</th></tr></thead>
+  <tbody>
+    <tr><td>Geheim</td><td><code>ocb_sk_</code></td><td>in ein fremdes Backend</td><td>Nur dieser Server kennt ihn; keine Herkunftsprüfung nötig.</td></tr>
+    <tr><td>Widget</td><td><code>ocb_pk_</code></td><td>in eine Webseite</td><td>Steht im Seitenquelltext und ist damit lesbar. Geschützt allein durch die Herkunfts-Liste und das Limit.</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Schlüssel werden nur als SHA-256-Hash gespeichert. Der Klartext erscheint genau einmal beim
+Anlegen — danach nie wieder, auch nicht für Administratoren. Verloren heißt: neuen erzeugen und den
+alten widerrufen.</p>
+
+<h4>Server-zu-Server</h4>
+<p>Der Endpunkt ist OpenAI-kompatibel, bestehende SDKs funktionieren unverändert:</p>
+<pre><code>curl -N https://chat.firma.de/api/v1/chat/completions \
+  -H "Authorization: Bearer ocb_sk_…" \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"Wie beantrage ich Urlaub?"}],"stream":true}'</code></pre>
+<p>Antwort ist <code>text/event-stream</code> mit <code>chat.completion.chunk</code>-Objekten und
+abschließendem <code>data: [DONE]</code>. Mit <code>"stream": false</code> kommt ein einzelnes
+<code>chat.completion</code>-Objekt. Zwei Abweichungen von OpenAI: Denkschritte reichen wir als
+<code>delta.reasoning_content</code> durch, und bei aktivierter Quellenanzeige trägt der letzte Chunk
+ein zusätzliches <code>x_sources</code>-Feld.</p>
+
+<h4>Widget in eine Seite</h4>
+<pre><code>&lt;script src="https://chat.firma.de/embed.js" data-key="ocb_pk_…" defer&gt;&lt;/script&gt;</code></pre>
+<p>Erzeugt eine Chat-Blase unten rechts (<code>data-position="left"</code> für links). Das Widget
+läuft vollständig in einem Shadow DOM, sodass sich Seiten-CSS und Widget-CSS nicht in die Quere
+kommen, und setzt Modellausgaben ausschließlich als Text ein — niemals als HTML.</p>
+<div class="warn">
+  <p>Die Herkunft muss im Assistenten eingetragen sein, exakt als <code>https://intranet.firma.de</code>
+  (Schema und Host, ohne Pfad). Ohne passenden Eintrag lehnt der Server ab, und der Browser bekommt
+  keine CORS-Freigabe. Ein <code>*</code> gibt es nicht.</p>
+</div>
+
+<h4>Grenzen und Zähler</h4>
+<p>Je Assistent gelten Anfragen pro Minute, pro Tag und pro Tag und IP, dazu eine maximale
+Anfragelänge und eine Verlaufstiefe. Bei Überschreitung antwortet der Server mit
+<code>429</code> und <code>Retry-After</code>. Die Zählung liegt im Arbeitsspeicher: nach einem
+Neustart beginnt das Minutenfenster neu, und bei mehreren Replicas zählt jede für sich.</p>
+<p>Gespeichert werden <strong>ausschließlich Zähler</strong> (Anfragen, Zeichen, Abweisungen, letzte
+Nutzung) in <code>assistants.json</code> — keine Gesprächsinhalte. Es gibt daher auch keine
+Aufbewahrungsfrist und kein Löschkonzept für Gesprächsdaten.</p>
+
+<h4>Was ein Assistent bewusst nicht kann</h4>
+<p>Kein Auto-Router, keine OCR-Kette, keine Bild- oder Dokumenterzeugung, keine Datei-Uploads, kein
+Gedächtnis und keine Wiki-Schreibwerkzeuge. Ein eingebetteter Assistent beantwortet Fragen aus dem
+freigegebenen Wissen; jede weitere Fähigkeit wäre ein zusätzlicher Weg, im Namen anonymer Besucher
+Geld auszugeben oder Daten abfließen zu lassen.</p>
 
 <h3 id="marke">Marke (Custom Branding)</h3>
 <p><strong>Einstellungen → Administration → Marke.</strong> Alles Firmenspezifische an einer Stelle:

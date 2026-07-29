@@ -117,6 +117,33 @@ To roll a brand out without clicking:
 All three only seed fields that aren't configured yet, so a later change in the
 UI wins and survives restarts.
 
+### Embedding the assistant elsewhere
+
+Settings → Administration → Assistenten & API defines *assistants*: a pinned
+model, an own system prompt, and exactly the knowledge-base categories and wiki
+books you release. An assistant is not a user account — it has no entry in
+`users.json`, no role and no session cookie — so its key is rejected by every
+route that requires an account. The caller picks nothing: a `model` sent in the
+request is ignored.
+
+Two key kinds per assistant, both stored as SHA-256 only (the plaintext is shown
+once, at creation):
+
+```bash
+# server-to-server, OpenAI-compatible SSE — existing SDKs work unchanged
+curl -N https://chat.example.com/api/v1/chat/completions \
+  -H "Authorization: Bearer ocb_sk_…" -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"…"}],"stream":true}'
+```
+
+```html
+<!-- browser widget; the origin must be listed on the assistant -->
+<script src="https://chat.example.com/embed.js" data-key="ocb_pk_…" defer></script>
+```
+
+Per-assistant limits (per minute, per day, per day and IP) answer `429` with
+`Retry-After`. Only counters are persisted — never message content.
+
 ### Model backends
 
 Configured under Settings → Providers:
