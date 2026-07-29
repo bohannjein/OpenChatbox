@@ -1,7 +1,12 @@
 import { NextRequest } from "next/server";
 import type { ChatRequest } from "@/lib/types";
-import { getProviderById, getBookstackConfig, getGuestConfig } from "@/lib/server/config";
-import { verify, SESSION_COOKIE } from "@/lib/server/session";
+import {
+  getProviderById,
+  getBookstackConfig,
+  getGuestConfig,
+  isKnownProviderBaseUrl,
+} from "@/lib/server/config";
+import { getUserOrGuest } from "@/lib/server/adminAuth";
 import { parseModelKey } from "@/lib/providers";
 import { runToolChat } from "@/lib/server/toolChat";
 import { stripPrefix, mimeOf, NDJSON_HEADERS } from "@/lib/server/http";
@@ -28,12 +33,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Guest-session guard: a guest cookie passes the middleware but has no stored
-  // user. Guests may ONLY use the admin-pinned guest model — hard-override the
+  // Authenticate. The middleware only checks that SOME session cookie exists
+  // (middleware.ts) — the signature is verified here. Two kinds of caller are
+  // allowed: a stored user with a real session, or a guest ticket.
+  const caller = getUserOrGuest(req);
+  if (!caller) return Response.json({ error: "Nicht angemeldet." }, { status: 401 });
+  const { user, isGuest } = caller;
+
+  // Guests may ONLY use the admin-pinned guest model — hard-override the
   // provider + model (ignoring anything the client asked for) and disable tools,
   // so an unauthenticated visitor can't spend budget on other/bigger models.
-  const sess = verify(req.cookies.get(SESSION_COOKIE)?.value);
-  const isGuest = sess?.purpose === "guest";
   let guestModel: string | undefined;
   if (isGuest) {
     const g = getGuestConfig();
@@ -60,6 +69,12 @@ export async function POST(req: NextRequest) {
   if (!baseUrl || !model || !messages)
     return Response.json(
       { error: "baseUrl, model und messages erforderlich." },
+      { status: 400 }
+    );
+  // Don't let a client-named endpoint turn this route into a fetch proxy.
+  if (!resolved && user?.role !== "admin" && !isKnownProviderBaseUrl(baseUrl))
+    return Response.json(
+      { error: "Unbekannter Anbieter. Bitte einen registrierten Anbieter wählen." },
       { status: 400 }
     );
 

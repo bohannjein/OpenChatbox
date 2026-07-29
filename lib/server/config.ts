@@ -284,6 +284,28 @@ export function getProviders(): Provider[] {
   return getConfig().providers ?? [];
 }
 
+/**
+ * True if `url` is an endpoint the admin actually registered (provider registry
+ * or the primary provider from setup).
+ *
+ * Several routes accept a client-supplied `baseUrl` as a fallback when no
+ * `providerId` resolves — necessary on a fresh instance, where the client still
+ * holds the provider the setup wizard seeded and `config.providers` is empty.
+ * Without this check that fallback makes the server fetch any URL a logged-in
+ * user names (SSRF). Admins may still point anywhere; they configure the
+ * endpoints in the first place.
+ */
+export function isKnownProviderBaseUrl(url: string): boolean {
+  const norm = (u: string) => u.trim().replace(/\/+$/, "").toLowerCase();
+  const target = norm(url);
+  if (!target) return false;
+  const c = getConfig();
+  return [...(c.providers ?? []).map((p) => p.baseUrl), c.primaryProvider?.baseUrl ?? ""]
+    .map(norm)
+    .filter(Boolean)
+    .includes(target);
+}
+
 /** Self-registration policy with defaults + normalized domains (no leading @). */
 export function getSelfRegistration(): { enabled: boolean; domains: string[] } {
   const c = getConfig().selfRegistration;

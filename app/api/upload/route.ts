@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { kindOf, type Attachment, type AttachmentKind } from "@/lib/files";
 import { isOfficeFile, parseOffice } from "@/lib/server/officeParse";
 import { getPlugins } from "@/lib/server/config";
+import { getUserOrGuest } from "@/lib/server/adminAuth";
 import { MAX_BYTES } from "@/lib/server/http";
 import { randomUUID } from "crypto";
 
@@ -17,6 +18,11 @@ const TEXT_KINDS = new Set<AttachmentKind>(["text"]);
  * response.json() with "invalid json").
  */
 export async function POST(req: NextRequest) {
+  // Guests may attach files too (the parse is stateless, nothing is stored) —
+  // but an unauthenticated caller must not get a free document parser.
+  if (!getUserOrGuest(req))
+    return NextResponse.json({ error: "Nicht angemeldet." }, { status: 401 });
+
   const ct = req.headers.get("content-type") || "";
   if (!ct.includes("multipart/form-data"))
     return NextResponse.json(

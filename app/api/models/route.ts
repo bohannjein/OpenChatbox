@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ProviderRequest } from "@/lib/types";
-import { getProviderById } from "@/lib/server/config";
+import { getProviderById, isKnownProviderBaseUrl } from "@/lib/server/config";
+import { getUser } from "@/lib/server/adminAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const user = getUser(req);
+  if (!user) return NextResponse.json({ error: "Nicht angemeldet." }, { status: 401 });
+
   let body: ProviderRequest;
   try {
     body = await req.json();
@@ -21,6 +25,9 @@ export async function POST(req: NextRequest) {
   const baseUrl = (resolved?.baseUrl ?? body.baseUrl ?? "").replace(/\/+$/, "");
   if (!baseUrl)
     return NextResponse.json({ error: "baseUrl fehlt" }, { status: 400 });
+  // Same fetch-proxy guard as /api/chat.
+  if (!resolved && user.role !== "admin" && !isKnownProviderBaseUrl(baseUrl))
+    return NextResponse.json({ error: "Unbekannter Anbieter." }, { status: 400 });
 
   try {
     if (type === "ollama") {

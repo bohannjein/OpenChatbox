@@ -19,3 +19,17 @@ export function getUser(req: NextRequest): User | null {
   if (!payload || payload.purpose !== "session") return null;
   return findById(payload.uid) ?? null;
 }
+
+/**
+ * Callers allowed on the chat path: a stored user, or a guest ticket. Returns
+ * null when neither — the middleware only checks that some cookie exists, so
+ * routes reachable by guests still have to verify the signature themselves.
+ */
+export function getUserOrGuest(
+  req: NextRequest
+): { user: User; isGuest: false } | { user: null; isGuest: true } | null {
+  const payload = verify(req.cookies.get(SESSION_COOKIE)?.value);
+  if (payload?.purpose === "guest") return { user: null, isGuest: true };
+  const user = getUser(req);
+  return user ? { user, isGuest: false } : null;
+}

@@ -1,11 +1,16 @@
 import { NextRequest } from "next/server";
 import { NDJSON_HEADERS } from "@/lib/server/http";
+import { getUser } from "@/lib/server/adminAuth";
+import { isKnownProviderBaseUrl } from "@/lib/server/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Proxy Ollama /api/pull, forwarding its NDJSON progress stream verbatim. */
 export async function POST(req: NextRequest) {
+  const user = getUser(req);
+  if (!user) return new Response("Nicht angemeldet.", { status: 401 });
+
   let body: { baseUrl?: string; model?: string };
   try {
     body = await req.json();
@@ -17,6 +22,8 @@ export async function POST(req: NextRequest) {
   const model = (body.model || "").trim();
   if (!baseUrl || !model)
     return new Response("baseUrl und model erforderlich", { status: 400 });
+  if (user.role !== "admin" && !isKnownProviderBaseUrl(baseUrl))
+    return new Response("Unbekannter Anbieter.", { status: 400 });
 
   let upstream: Response;
   try {
