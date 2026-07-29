@@ -7,9 +7,9 @@ import ChatWindow from "@/components/ChatWindow";
 import SettingsModal from "@/components/SettingsModal";
 import SearchModal from "@/components/SearchModal";
 import FileManager from "@/components/FileManager";
-import { useStore } from "@/lib/store";
+import { useStore, useBrand } from "@/lib/store";
 import { loadServerState, startProfileSync, startLiveSync } from "@/lib/serverSync";
-import { hexToRgbChannels, darkenChannels } from "@/lib/branding";
+import { brandTokens } from "@/lib/branding";
 import { detectBrowserLang } from "@/lib/i18n";
 import clsx from "clsx";
 
@@ -27,8 +27,7 @@ export default function AppRoot() {
   const pathname = usePathname();
 
   const theme = useStore((s) => s.theme);
-  const accentColor = useStore((s) => s.accentColor);
-  const logoUrl = useStore((s) => s.logoUrl);
+  const brand = useBrand();
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
   const chats = useStore((s) => s.chats);
@@ -169,18 +168,17 @@ export default function AppRoot() {
     root.classList.toggle("dracula", theme === "dracula");
   }, [theme]);
 
-  // Apply the chosen accent color as CSS custom properties. Dracula pins its
-  // signature purple accent instead of the user's brand accent.
+  // Keep the accent CSS variables in sync with the brand. The correct value is
+  // already server-rendered into <head> (app/layout.tsx), so this only matters
+  // when the admin changes it live or Dracula pins its signature purple.
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "dracula") {
-      root.style.setProperty("--accent", "189 147 249"); // #bd93f9
-      root.style.setProperty("--accent-hover", "165 122 224");
-    } else {
-      root.style.setProperty("--accent", hexToRgbChannels(accentColor));
-      root.style.setProperty("--accent-hover", darkenChannels(accentColor));
-    }
-  }, [accentColor, theme]);
+    const tokens =
+      theme === "dracula"
+        ? { "--accent": "189 147 249", "--accent-hover": "165 122 224" } // #bd93f9
+        : brandTokens(brand.accentColor);
+    for (const [k, v] of Object.entries(tokens)) root.style.setProperty(k, v);
+  }, [brand.accentColor, theme]);
 
   // Guests are pinned to the single admin-configured guest model (and never in
   // Auto mode) — the model switcher is locked in the UI; this enforces it in state.
@@ -190,25 +188,6 @@ export default function AppRoot() {
       setAutoRouter(false);
     }
   }, [guestMode, guestModelKey, selectModel, setAutoRouter]);
-
-  // Dynamic favicon: custom logo when set, else a default chat-bubble icon.
-  useEffect(() => {
-    if (isAuthRoute) return;
-    const DEFAULT_ICON =
-      "data:image/svg+xml," +
-      encodeURIComponent(
-        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="rgb(${hexToRgbChannels(
-          accentColor
-        )})"/><path d="M8 11a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-7l-4 3v-3a3 3 0 0 1-2-3z" fill="#fff"/></svg>`
-      );
-    let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
-    if (!link) {
-      link = document.createElement("link");
-      link.rel = "icon";
-      document.head.appendChild(link);
-    }
-    link.href = logoUrl && logoUrl.trim() ? logoUrl : DEFAULT_ICON;
-  }, [logoUrl, accentColor, isAuthRoute]);
 
   // Drive the active chat from the URL.
   useEffect(() => {

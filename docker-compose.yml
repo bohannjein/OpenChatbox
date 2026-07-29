@@ -21,6 +21,16 @@ services:
       # (X-Forwarded-Proto) by default — leave empty for HTTP access on a LAN.
       # Set "true" behind HTTPS, "false" to force plain-HTTP cookies.
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-}
+      # Optional branding seed — only fills fields not yet configured, so the
+      # Marke tab stays the authority afterwards. See .env.example.
+      OPENCHATBOX_BRAND_NAME: ${OPENCHATBOX_BRAND_NAME:-}
+      OPENCHATBOX_BRAND_TAGLINE: ${OPENCHATBOX_BRAND_TAGLINE:-}
+      OPENCHATBOX_BRAND_ACCENT: ${OPENCHATBOX_BRAND_ACCENT:-}
+      OPENCHATBOX_BRAND_LOGO_URL: ${OPENCHATBOX_BRAND_LOGO_URL:-}
+      OPENCHATBOX_BRAND_IMPRINT_URL: ${OPENCHATBOX_BRAND_IMPRINT_URL:-}
+      OPENCHATBOX_BRAND_PRIVACY_URL: ${OPENCHATBOX_BRAND_PRIVACY_URL:-}
+      OPENCHATBOX_BRAND_SUPPORT_EMAIL: ${OPENCHATBOX_BRAND_SUPPORT_EMAIL:-}
+      OPENCHATBOX_BRAND_SUPPORT_URL: ${OPENCHATBOX_BRAND_SUPPORT_URL:-}
       # Optional SSO (Microsoft Entra / OIDC) — see .env.example.
       ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
       ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-}

@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Building2, Loader2, ShieldCheck, LogIn, UserPlus } from "lucide-react";
+import { Building2, Loader2, LogIn, UserPlus } from "lucide-react";
+import BrandMark from "@/components/BrandMark";
+import BrandFooter from "@/components/BrandFooter";
+import { DEFAULT_BRANDING, resolveBranding, type BrandingConfig } from "@/lib/branding";
 
 type Mode = "login" | "register" | "forgot";
 
@@ -55,6 +58,9 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [from, setFrom] = useState("/");
   const [cfg, setCfg] = useState<AccessCfg | null>(null);
+  // Branding is served to anonymous callers by /api/config, so the sign-in page
+  // shows the company's mark instead of the product default.
+  const [brand, setBrand] = useState<BrandingConfig>(DEFAULT_BRANDING);
   // Hold the form back until we've decided login-form vs. guest auto-entry.
   const [ready, setReady] = useState(false);
   // Reveal the password form even when password sign-in is off — the built-in
@@ -87,12 +93,14 @@ export default function LoginPage() {
           return;
         }
         const c = (await fetch("/api/config", { cache: "no-store" }).then((r) => r.json())) as {
+          branding?: Partial<BrandingConfig>;
           selfRegistration?: AccessCfg["selfRegistration"];
           guest?: AccessCfg["guest"];
           authMethods?: { password?: boolean; sso?: boolean };
           passwordReset?: { enabled?: boolean };
           sso?: { enabled?: boolean };
         };
+        setBrand(resolveBranding(c));
         setCfg({
           selfRegistration: c?.selfRegistration ?? { enabled: false, domains: [] },
           guest: c?.guest ?? { enabled: false, model: null },
@@ -229,13 +237,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-main-dark px-4 text-neutral-100">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-main-dark px-4 py-8 text-neutral-100">
       <div className="w-full max-w-sm rounded-2xl border border-border-dark bg-sidebar-dark p-6 shadow-2xl">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-white">
-            <ShieldCheck size={26} />
-          </div>
-          <h1 className="text-xl font-bold">OpenChatbox</h1>
+          <BrandMark brand={brand} size="lg" layout="col" className="mb-3" />
+          {brand.tagline && (
+            <p className="mt-1 text-sm text-neutral-500">{brand.tagline}</p>
+          )}
           <p className="mt-1 text-sm text-neutral-400">
             {ticket
               ? "Bestätige mit deinem Authenticator-Code"
@@ -440,6 +448,9 @@ export default function LoginPage() {
           </div>
         )}
       </div>
+
+      {/* Imprint / privacy / support — required by many companies, admin-configured */}
+      <BrandFooter brand={brand} />
     </div>
   );
 }

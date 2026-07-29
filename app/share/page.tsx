@@ -4,11 +4,15 @@ import { useEffect, useState } from "react";
 import { Bot, User, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import Markdown from "@/components/Markdown";
+import BrandMark from "@/components/BrandMark";
 import { decodeSharedChat, type SharedChat } from "@/lib/share";
+import { usePublicBrand } from "@/lib/usePublicBrand";
 
 export default function SharePage() {
+  const brand = usePublicBrand();
   const [chat, setChat] = useState<SharedChat | null>(null);
   const [ready, setReady] = useState(false);
+  const [dark, setDark] = useState(true);
 
   useEffect(() => {
     // theme
@@ -25,6 +29,7 @@ export default function SharePage() {
       if (t === "dark" || t === "dracula")
         document.documentElement.classList.add("dark");
       if (t === "dracula") document.documentElement.classList.add("dracula");
+      setDark(t !== "light");
     } catch {
       /* ignore */
     }
@@ -49,6 +54,8 @@ export default function SharePage() {
         <span className="ml-auto rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-600 dark:bg-white/10 dark:text-neutral-300">
           Nur-Lese-Ansicht
         </span>
+        {/* A shared link is often opened by people outside the app — brand it. */}
+        <BrandMark brand={brand} size="sm" dark={dark} className="hidden sm:flex" />
       </header>
 
       {!chat ? (

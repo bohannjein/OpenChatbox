@@ -2,6 +2,13 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { uid } from "./uid";
 import { LATEST_WHATS_NEW } from "./version";
+import {
+  DEFAULT_BRANDING,
+  LEGACY_BRAND_KEYS,
+  resolveBranding,
+  type BrandingConfig,
+  type BrandingSource,
+} from "./branding";
 import type {
   AuthUser,
   Chat,
@@ -27,6 +34,10 @@ import type {
 export type Theme = "light" | "dark" | "dracula";
 
 const now = () => Date.now();
+
+/** True if a config payload carries any branding at all (nested or legacy flat). */
+const hasBranding = (c: GlobalConfigPayload): boolean =>
+  !!c.branding || LEGACY_BRAND_KEYS.some((k) => typeof c[k] === "string" && c[k]!.trim());
 
 /** The always-present personal workspace every user starts with. Legacy chats
  *  and sidekicks (no workspaceId) are treated as belonging here. */
@@ -203,12 +214,9 @@ interface State {
   lang: "de" | "en" | null;
   /** chat whose title is being generated → shows the ASCII loader (transient). */
   titlePendingId: string | null;
-  // branding
-  accentColor: string;
-  logoUrl: string;
-  appName: string;
-  /** public base URL of this instance (https), used for links in email etc. */
-  appUrl: string;
+  /** Admin-global company branding (name, logo, accent, legal, support). One
+   *  object so nothing can drift; see lib/branding.ts. */
+  brand: BrandingConfig;
   // model management
   favorites: string[]; // model keys pinned to top
   aliases: Record<string, string>; // model key → friendly display name
@@ -366,11 +374,8 @@ interface State {
   setCustomInstructions: (v: string) => void;
   setParams: (patch: Partial<GenParams>) => void;
 
-  // branding
-  setAccentColor: (id: string) => void;
-  setLogoUrl: (url: string) => void;
-  setAppName: (name: string) => void;
-  setAppUrl: (url: string) => void;
+  /** Merge a branding patch into the local brand (admin panel / hydration). */
+  setBrand: (patch: Partial<BrandingConfig>) => void;
 
   // model management
   toggleFavorite: (key: string) => void;
@@ -459,10 +464,7 @@ export const useStore = create<State>()(
       whatsNewSeen: "",
       lang: null,
       titlePendingId: null,
-      accentColor: "#4f46e5",
-      logoUrl: "",
-      appName: "OpenChatbox",
-      appUrl: "",
+      brand: DEFAULT_BRANDING,
       favorites: [],
       aliases: {},
       chatLayout: "classic",
@@ -516,10 +518,12 @@ export const useStore = create<State>()(
           routerModels: c.routerModels
             ? { ...s.routerModels, ...c.routerModels }
             : s.routerModels,
-          appName: c.appName ?? s.appName,
-          logoUrl: c.logoUrl ?? s.logoUrl,
-          accentColor: c.accentColor || s.accentColor,
-          appUrl: c.appUrl ?? s.appUrl,
+          // Only replace the brand when the payload actually carries branding —
+          // resolveBranding always returns a complete object, so applying it
+          // unconditionally would overwrite the no-flash cache with defaults.
+          // When it does carry branding it wins outright, which is what makes
+          // "reset to default accent" work.
+          brand: hasBranding(c) ? resolveBranding(c) : s.brand,
           plugins: c.plugins ?? s.plugins,
           searchAvailable: c.search?.enabled ?? s.searchAvailable,
           imageGenAvailable: c.imageGen?.enabled ?? s.imageGenAvailable,
@@ -996,10 +1000,7 @@ export const useStore = create<State>()(
         set({ customInstructions }),
       setParams: (patch) => set((s) => ({ params: { ...s.params, ...patch } })),
 
-      setAccentColor: (accentColor) => set({ accentColor }),
-      setLogoUrl: (logoUrl) => set({ logoUrl }),
-      setAppName: (appName) => set({ appName }),
-      setAppUrl: (appUrl) => set({ appUrl }),
+      setBrand: (patch) => set((s) => ({ brand: { ...s.brand, ...patch } })),
 
       toggleFavorite: (key) =>
         set((s) => ({
@@ -1186,7 +1187,7 @@ export const useStore = create<State>()(
     }),
     {
       name: "openchatbox-store",
-      version: 8,
+      version: 9,
       // localStorage-backed, but tolerant of quota errors (see safeStorage).
       storage: createJSONStorage(() => safeStorage),
       // Server is the source of truth for chats, per-user prefs + admin-global
@@ -1204,10 +1205,7 @@ export const useStore = create<State>()(
         theme: s.theme,
         draculaUnlocked: s.draculaUnlocked,
         lang: s.lang,
-        accentColor: s.accentColor,
-        appName: s.appName,
-        logoUrl: s.logoUrl,
-        appUrl: s.appUrl,
+        brand: s.brand,
       }),
       migrate: (persisted, version) => {
         const s = persisted as Partial<State>;
@@ -1275,11 +1273,20 @@ export const useStore = create<State>()(
             };
           }
         }
+        if (version < 9 && !s.brand) {
+          // Brand layer: fold the four flat cached fields into one object. The
+          // server re-hydrates it right after load anyway — this only keeps the
+          // first paint flash-free for users upgrading.
+          s.brand = resolveBranding(s as BrandingSource);
+        }
         return s as State;
       },
     }
   )
 );
+
+/** Admin-global company branding. One stable object → safe as a selector result. */
+export const useBrand = () => useStore((s) => s.brand);
 
 function deriveTitle(text: string): string {
   const t = text.trim().replace(/\s+/g, " ");

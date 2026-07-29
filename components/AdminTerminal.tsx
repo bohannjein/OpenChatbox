@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { TerminalSquare, CornerDownLeft, Square, Trash2 } from "lucide-react";
 import clsx from "clsx";
+import { useBrand } from "@/lib/store";
 
 type Line = { kind: "in" | "out" | "err"; text: string };
 
@@ -14,8 +15,9 @@ const QUICK = ["ollama list", "ollama ps", "ollama version", "status", "help"];
  * HTTP API) and `status`/`help` are accepted; there is no shell on the server.
  */
 export default function AdminTerminal({ baseUrl }: { baseUrl?: string }) {
+  const brand = useBrand();
   const [lines, setLines] = useState<Line[]>([
-    { kind: "out", text: 'OpenChatbox Admin-Terminal — tippe "help".' },
+    { kind: "out", text: `${brand.appName} Admin-Terminal — tippe "help".` },
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);

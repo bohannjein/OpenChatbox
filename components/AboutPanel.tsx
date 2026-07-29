@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import { Github, ExternalLink, Sparkles, Tag } from "lucide-react";
-import { useStore } from "@/lib/store";
+import { useStore, useBrand } from "@/lib/store";
+import BrandFooter from "./BrandFooter";
 import {
   APP_VERSION,
   REPO_NAME,
@@ -12,13 +13,13 @@ import {
 } from "@/lib/version";
 
 /**
- * "Über OpenChatbox" tab: current version, repository link, and the
+ * "Über <Instanz>" tab: current version, repository link, and the
  * "Was gibt's Neues?" changelog. Merely rendering this panel (i.e. the user
  * opened the Info tab) marks the latest changelog as seen — which clears the
  * notification dot everywhere and is persisted to the server profile.
  */
 export default function AboutPanel() {
-  const appName = useStore((s) => s.appName);
+  const brand = useBrand();
   const markWhatsNewSeen = useStore((s) => s.markWhatsNewSeen);
 
   useEffect(() => {
@@ -33,7 +34,10 @@ export default function AboutPanel() {
           <Sparkles size={22} strokeWidth={1.5} />
         </div>
         <div className="min-w-0">
-          <h4 className="text-lg font-semibold">{appName || "OpenChatbox"}</h4>
+          <h4 className="text-lg font-semibold">{brand.appName}</h4>
+          {brand.tagline && (
+            <p className="mt-0.5 text-sm text-neutral-500">{brand.tagline}</p>
+          )}
           <p className="mt-0.5 flex items-center gap-1.5 text-sm text-neutral-500">
             <Tag size={13} className="shrink-0" />
             Version <span className="font-mono text-neutral-700 dark:text-neutral-300">v{APP_VERSION}</span>
@@ -107,6 +111,9 @@ export default function AboutPanel() {
           ))}
         </div>
       </div>
+
+      {/* Legal + support, as configured by the admin (renders nothing if unset) */}
+      <BrandFooter className="justify-start border-t border-border-light pt-4 dark:border-border-dark" />
     </div>
   );
 }

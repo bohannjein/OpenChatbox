@@ -71,6 +71,7 @@ import ParamsPopover from "./ParamsPopover";
 import ParticipantsManager from "./ParticipantsManager";
 import ChatMessage from "./ChatMessage";
 import ChatInput, { type ChatInputHandle } from "./ChatInput";
+import BrandFooter from "./BrandFooter";
 import clsx from "clsx";
 
 // Heuristik: ist der neue Codeblock ein Update des bisherigen (weiterarbeiten
@@ -1524,9 +1525,10 @@ export default function ChatWindow() {
         </>
       )}
 
-      {/* Dezenter rechtlicher Hinweis — ganz unten im Chat-Fenster. */}
-      <footer className="shrink-0 px-4 pb-2 text-center text-[11px] leading-tight text-neutral-400 dark:text-neutral-500 print:hidden">
-        {t("chat.disclaimer")}
+      {/* Dezenter rechtlicher Hinweis + admin-konfigurierte Rechts-Links. */}
+      <footer className="shrink-0 space-y-0.5 px-4 pb-2 text-center text-[11px] leading-tight text-neutral-400 dark:text-neutral-500 print:hidden">
+        <div>{t("chat.disclaimer")}</div>
+        <BrandFooter className="text-[11px]" />
       </footer>
       </div>
       </CodePanelContext.Provider>

@@ -301,5 +301,78 @@ await bookstackTests();
   ok("authMethods: sso not configured in test env", def.sso.configured === false);
 }
 
+// ── branding: sanitize / resolve / publicConfig / no hardcoded product name ──
+{
+  const { sanitizeBranding, resolveBranding, DEFAULT_ACCENT, DEFAULT_APP_NAME } = await import(
+    "../lib/branding"
+  );
+  const { publicConfig } = await import("../lib/server/config");
+
+  // sanitizeBranding is the only guard in front of config.json — it must drop,
+  // not store, anything that isn't a plain color / http(s) URL / image data URL.
+  const bad = sanitizeBranding({
+    appName: "   ",
+    accentColor: "javascript:alert(1)",
+    imprintUrl: "javascript:alert(1)",
+    privacyUrl: "file:///etc/passwd",
+    supportEmail: "not-an-email",
+    supportUrl: "  ",
+    logoUrl: "data:text/html;base64,PHNjcmlwdD4=",
+    faviconUrl: "data:image/png;base64,AAA",
+    appUrl: "https://chat.firma.de/",
+  });
+  eq("branding: empty name → default", bad.appName, DEFAULT_APP_NAME);
+  eq("branding: bad hex → default accent", bad.accentColor, DEFAULT_ACCENT);
+  eq("branding: javascript: imprint dropped", bad.imprintUrl, "");
+  eq("branding: file: privacy dropped", bad.privacyUrl, "");
+  eq("branding: invalid email dropped", bad.supportEmail, "");
+  eq("branding: text/html data URL dropped", bad.logoUrl, "");
+  eq("branding: image data URL kept", bad.faviconUrl, "data:image/png;base64,AAA");
+  eq("branding: appUrl trailing slash stripped", bad.appUrl, "https://chat.firma.de");
+
+  const big = sanitizeBranding({ logoUrl: "data:image/png;base64," + "A".repeat(500_001) });
+  eq("branding: oversized asset dropped", big.logoUrl, "");
+
+  const okBrand = sanitizeBranding({ accentColor: "#AABBCC", appName: "  Musterfirma  Chat " });
+  eq("branding: hex normalized to lowercase", okBrand.accentColor, "#aabbcc");
+  eq("branding: name trimmed + collapsed", okBrand.appName, "Musterfirma Chat");
+
+  // A config.json written before the brand layer only has the flat fields.
+  const legacy = resolveBranding({ appName: "Alt AG", accentColor: "#123456", logoUrl: "" });
+  eq("branding: legacy flat appName read", legacy.appName, "Alt AG");
+  eq("branding: legacy flat accent read", legacy.accentColor, "#123456");
+  // Nested wins over the flat mirror.
+  const both = resolveBranding({ appName: "Alt AG", branding: { appName: "Neu GmbH" } });
+  eq("branding: nested beats legacy", both.appName, "Neu GmbH");
+
+  const pub = publicConfig({ appName: "x", branding: sanitizeBranding({ appName: "Firma" }) });
+  eq("branding: publicConfig exposes branding", pub.branding.appName, "Firma");
+  eq("branding: publicConfig mirrors appName", pub.appName, "Firma");
+
+  // Guard: the product name must not creep back into the UI as a literal. Every
+  // surface reads getBranding()/useBrand(); these files are the only places the
+  // fallback name may appear.
+  const ALLOWED = new Set([
+    path.join("lib", "branding.ts"), // DEFAULT_APP_NAME itself
+    path.join("lib", "version.ts"), // repository name/URL
+    path.join("lib", "store.ts"), // localStorage persist key
+    path.join("app", "layout.tsx"), // pre-hydration script reads that key
+    path.join("app", "share", "page.tsx"), // same key, read directly
+  ]);
+  const walk = (dir: string, hits: string[] = []): string[] => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) walk(p, hits);
+      else if (/\.tsx?$/.test(e.name)) {
+        const rel = path.relative(process.cwd(), p);
+        if (!ALLOWED.has(rel) && fs.readFileSync(p, "utf8").includes("OpenChatbox")) hits.push(rel);
+      }
+    }
+    return hits;
+  };
+  const leaks = [...walk("app"), ...walk("components"), ...walk("lib")];
+  ok("branding: no hardcoded product name in UI code", leaks.length === 0, leaks.join(", "));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

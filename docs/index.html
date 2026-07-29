@@ -170,6 +170,7 @@
         <li><a href="#mail">E-Mail-Versand</a></li>
         <li><a href="#modelle-admin">Modelle</a></li>
         <li><a href="#wissen-admin">Wissensdatenbank</a></li>
+        <li><a href="#marke">Marke (Custom Branding)</a></li>
         <li><a href="#leistung">Leistung / VRAM</a></li>
       </ol>
     </li>
@@ -417,9 +418,9 @@ Nicht-Administratoren vollständig unsichtbar.</p>
     <tr><td>Modelle</td><td>Anbieter, Modelle laden, Anzeigenamen, Standardmodelle</td></tr>
     <tr><td>Bildgenerierung</td><td>Backend für die Bilderzeugung</td></tr>
     <tr><td>Integrationen</td><td>Suchanbieter, Dienste</td></tr>
-    <tr><td>Marke</td><td>Akzentfarbe, Name, Logo, öffentliche Adresse</td></tr>
+    <tr><td>Marke</td><td>Name, Unterzeile, Logo (dunkel/hell), Favicon, Akzentfarbe, Impressum/Datenschutz/Support, öffentliche Adresse, Export/Import</td></tr>
     <tr><td>Leistung</td><td>VRAM-Verwaltung</td></tr>
-    <tr><td>System</td><td>Über OpenChatbox</td><td>Version und Änderungsverlauf</td></tr>
+    <tr><td>System</td><td>Über &lt;Instanzname&gt;</td><td>Version und Änderungsverlauf</td></tr>
   </tbody>
 </table>
 </div>
@@ -485,6 +486,29 @@ Benutzerverwaltung. Die Prüfung geschieht serverseitig, bevor irgendein Inhalt 
 gelangt; ohne Zuweisung greift „alles verboten“.</p>
 <p>Die Suche läuft gebündelt: lokale Vektorsuche (bereits nach Berechtigung gefiltert) und
 BookStack werden parallel abgefragt, zusammengeführt, entdoppelt und mit Quellenangabe versehen.</p>
+
+<h3 id="marke">Marke (Custom Branding)</h3>
+<p><strong>Einstellungen → Administration → Marke.</strong> Alles Firmenspezifische an einer Stelle:
+Name, Unterzeile, Logo (mit eigener Variante für helle Oberflächen), Favicon, Akzentfarbe,
+Impressum-, Datenschutz- und Support-Verweise sowie die öffentliche Adresse.</p>
+<p>Der Tab arbeitet mit einem <strong>Entwurf</strong>: die Vorschau oben zeigt Seitenleiste,
+Anmeldemaske und Browser-Tab sofort, andere Nutzer sehen die Änderung erst nach
+<em>Speichern</em> (und dann binnen einer Synchronisationsrunde, ≤ 20 s). Logos werden beim Upload
+verkleinert und in <code>config.json</code> abgelegt — Transparenz bleibt erhalten, SVG wird
+unverändert übernommen. „Aus Logo ableiten“ schlägt die Akzentfarbe aus dem Logo vor.</p>
+<p>Wo die Marke wirkt: Seitenleiste, Anmelde-, Reset-, Freigabe- und Einrichtungsseite,
+Browser-Tab und Favicon, Web-App-Manifest, Absender und Layout der Passwort-Reset-E-Mail sowie
+der Aussteller (Issuer), den Authenticator-Apps bei der Zwei-Faktor-Einrichtung anzeigen.</p>
+<p>Für den Rollout auf mehrere Instanzen gibt es drei Wege, die jeweils nur noch nicht gesetzte
+Felder füllen (die Oberfläche behält also immer das letzte Wort):</p>
+<ul>
+  <li><strong>Export/Import</strong> — „Marke exportieren“ erzeugt <code>brand-&lt;name&gt;.json</code>, „Importieren“ liest sie in den Entwurf.</li>
+  <li><strong>Datei</strong> — dieselbe JSON als <code>branding.json</code> in das Datenverzeichnis legen, vor dem ersten Start.</li>
+  <li><strong>Umgebung</strong> — <code>OPENCHATBOX_BRAND_NAME</code>, <code>_TAGLINE</code>, <code>_ACCENT</code>, <code>_LOGO_URL</code>, <code>_IMPRINT_URL</code>, <code>_PRIVACY_URL</code>, <code>_SUPPORT_EMAIL</code>, <code>_SUPPORT_URL</code>.</li>
+</ul>
+<p>Ungültige Eingaben werden verworfen, nicht gespeichert: die Akzentfarbe muss
+<code>#rrggbb</code> sein, Verweise müssen <code>http(s)</code> sein, Bilder entweder
+<code>http(s)</code> oder eine Bild-Data-URL bis ~370 kB.</p>
 
 <h3 id="leistung">Leistung / VRAM</h3>
 <p><strong>Einstellungen → Leistung.</strong> Steuert, wie schnell Ollama Modelle aus dem

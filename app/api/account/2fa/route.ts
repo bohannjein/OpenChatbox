@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verify, SESSION_COOKIE } from "@/lib/server/session";
 import { findById, updateUser } from "@/lib/server/users";
 import { generateSecret, otpauthURI, verifyTotp } from "@/lib/server/totp";
+import { getBranding } from "@/lib/server/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
   });
   return NextResponse.json({
     secret,
-    uri: otpauthURI(secret, user.username),
+    uri: otpauthURI(secret, user.username, getBranding().appName),
   });
 }
 

@@ -1,3 +1,5 @@
+import type { BrandingConfig } from "./branding";
+
 export type Role = "system" | "user" | "assistant";
 
 export type Feedback = "up" | "down" | null;
@@ -231,6 +233,9 @@ export interface ProviderRequest {
 
 /** Admin-global config exposed to any client (no secrets). */
 export interface GlobalConfigPayload {
+  /** Complete company branding — preferred over the four flat mirrors below. */
+  branding?: BrandingConfig;
+  /** @deprecated Flat mirrors kept for caches/clients from before the brand layer. */
   appName?: string;
   logoUrl?: string;
   accentColor?: string;

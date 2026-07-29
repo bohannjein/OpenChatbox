@@ -10,6 +10,10 @@ const PUBLIC = [
   // Public, secret-free instance config — the login page reads it (before any
   // session cookie exists) to decide self-registration / guest access.
   /^\/api\/config/,
+  // App icon + web manifest: requested by the browser for every page, including
+  // the login screen where no session exists yet.
+  /^\/api\/brand\//,
+  /^\/manifest\.webmanifest/,
   /^\/share/,
   /^\/_next\//,
   /^\/favicon/,

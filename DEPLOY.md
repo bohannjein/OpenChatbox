@@ -23,7 +23,8 @@ cp .env.example .env
 docker compose up -d --build
 ```
 Open http://localhost:3000 → first launch shows the **setup screen** to create
-the admin account and server data.
+the admin account and server data (including the instance name, logo and accent
+color).
 
 ### Notes
 - **Persistence:** admin/config live in the `openchatbox-data` volume (`/app/data`),
@@ -33,3 +34,7 @@ the admin account and server data.
   `http://host.docker.internal:11434` (the compose file maps that host).
   Or uncomment the `ollama` service and use `http://ollama:11434`.
 - **Env:** `AUTH_SECRET` is required; SSO vars are optional (see `.env.example`).
+- **Branding without clicking:** drop a `branding.json` (the "Marke exportieren"
+  download) into the data dir before first start, or set the
+  `OPENCHATBOX_BRAND_*` env vars. Both only seed unset fields — whatever an admin
+  later changes under Settings → Marke wins and survives restarts.

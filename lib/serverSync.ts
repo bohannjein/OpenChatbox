@@ -53,17 +53,15 @@ function chatsOf(s: State): {
 }
 
 /**
- * Admin-global subset auto-pushed on change (branding + router). Providers are
- * NOT here on purpose: the client only holds an apiKey-stripped copy, so
- * auto-pushing them would wipe the server-side keys. Providers are saved
- * explicitly via the ProvidersPanel (which loads the full config with keys).
+ * Admin-global subset auto-pushed on change (router assignments). Deliberately
+ * NOT here:
+ *  - providers — the client only holds an apiKey-stripped copy, so auto-pushing
+ *    would wipe the server-side keys (saved explicitly via ProvidersPanel);
+ *  - branding — every keystroke would go live for every user within one live-sync
+ *    tick. The BrandingPanel edits a local draft and saves explicitly.
  */
 function globalOf(s: State): GlobalConfigPayload {
   return {
-    appName: s.appName,
-    logoUrl: s.logoUrl,
-    accentColor: s.accentColor,
-    appUrl: s.appUrl,
     routerModels: s.routerModels,
   };
 }

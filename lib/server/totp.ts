@@ -68,8 +68,12 @@ export function verifyTotp(secret: string, token: string, window = 1): boolean {
   return false;
 }
 
-/** otpauth:// URI for authenticator apps. */
-export function otpauthURI(secret: string, account: string, issuer = "OpenChatbox"): string {
+/**
+ * otpauth:// URI for authenticator apps. `issuer` is required on purpose — it is
+ * the label the user sees in their authenticator forever, so it must be the
+ * configured instance name (getBranding().appName), never a baked-in default.
+ */
+export function otpauthURI(secret: string, account: string, issuer: string): string {
   const label = encodeURIComponent(`${issuer}:${account}`);
   return `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent(
     issuer

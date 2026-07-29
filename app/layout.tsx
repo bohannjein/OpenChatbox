@@ -1,17 +1,40 @@
+import { cache } from "react";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import AppRoot from "@/components/AppRoot";
+import { getBranding } from "@/lib/server/config";
+import { brandTokenCss, normalizeHex } from "@/lib/branding";
 
-export const metadata: Metadata = {
-  title: "OpenChatbox",
-  description: "Self-hosted KI-Chat (Ollama & OpenAI-kompatibel)",
-};
+/**
+ * Branding is read from data/config.json at request time, so nothing may be
+ * prerendered at build time — a statically baked layout would ship the default
+ * brand forever. `cache` collapses the reads within a single request.
+ */
+export const dynamic = "force-dynamic";
+const brand = cache(() => getBranding());
 
-export const viewport: Viewport = {
-  themeColor: "#212121",
-  width: "device-width",
-  initialScale: 1,
-};
+/**
+ * Tab title, description and app icon come from the admin branding — a company
+ * instance must not announce itself as the product default. Dynamic (not static
+ * metadata) because branding lives in data/config.json, not in the build.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const b = brand();
+  return {
+    title: b.appName,
+    description: b.tagline || "Self-hosted KI-Chat (Ollama & OpenAI-kompatibel)",
+    icons: { icon: "/api/brand/icon", apple: "/api/brand/icon" },
+    openGraph: { title: b.appName, description: b.tagline || undefined },
+  };
+}
+
+export async function generateViewport(): Promise<Viewport> {
+  return {
+    themeColor: normalizeHex(brand().accentColor),
+    width: "device-width",
+    initialScale: 1,
+  };
+}
 
 // Set theme class before hydration to avoid flash of wrong theme.
 const themeScript = `
@@ -44,6 +67,10 @@ export default function RootLayout({
     <html lang="de" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* Accent from the server, so the very first paint is already the
+            company color — including on /login, where the app shell (which
+            applies it client-side) never mounts. */}
+        <style dangerouslySetInnerHTML={{ __html: brandTokenCss(brand().accentColor) }} />
       </head>
       <body>
         <AppRoot />

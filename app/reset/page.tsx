@@ -2,12 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { KeyRound, Loader2, CheckCircle2 } from "lucide-react";
+import BrandMark from "@/components/BrandMark";
+import BrandFooter from "@/components/BrandFooter";
+import { usePublicBrand } from "@/lib/usePublicBrand";
 
 /**
  * Password-reset completion page. Reached via the tokenized link from the
  * reset email (`/reset?token=…`). Verifies + sets a new password server-side.
  */
 export default function ResetPage() {
+  const brand = usePublicBrand();
   const [token, setToken] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -50,9 +54,12 @@ export default function ResetPage() {
   };
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-main-dark px-4 text-neutral-100">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-main-dark px-4 py-8 text-neutral-100">
       <div className="w-full max-w-sm rounded-2xl border border-border-dark bg-sidebar-dark p-6 shadow-2xl">
         <div className="mb-6 text-center">
+          {/* The link arrives by email — showing the company mark makes it
+              recognizable instead of looking like a phishing page. */}
+          <BrandMark brand={brand} layout="col" className="mb-4 justify-center" />
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-white">
             {done ? <CheckCircle2 size={26} /> : <KeyRound size={26} />}
           </div>
@@ -118,6 +125,8 @@ export default function ResetPage() {
           </div>
         )}
       </div>
+
+      <BrandFooter brand={brand} />
     </div>
   );
 }

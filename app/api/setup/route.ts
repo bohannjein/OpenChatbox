@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createUser, hasAdmin, publicUser } from "@/lib/server/users";
-import { setConfig, publicConfig } from "@/lib/server/config";
+import { setConfig, publicConfig, brandingFields } from "@/lib/server/config";
+import type { BrandingConfig } from "@/lib/branding";
 import {
   makeSession,
   SESSION_COOKIE,
@@ -21,7 +22,11 @@ export async function POST(req: NextRequest) {
   const username = String(body.username ?? "").trim();
   const password = String(body.password ?? "");
   const confirm = String(body.confirm ?? "");
-  const appName = String(body.appName ?? "").trim() || "OpenChatbox";
+  // Branding the admin entered in the wizard (name/logo/accent). sanitizeBranding
+  // inside brandingFields fills in the defaults and rejects anything invalid.
+  const branding = (
+    body.branding && typeof body.branding === "object" ? body.branding : { appName: body.appName }
+  ) as Partial<BrandingConfig>;
   const providerType = body.providerType === "openai" ? "openai" : "ollama";
   const baseUrl = String(body.baseUrl ?? "").trim();
   const apiKey = String(body.apiKey ?? "").trim();
@@ -67,7 +72,7 @@ export async function POST(req: NextRequest) {
       provider: "local",
     });
     setConfig({
-      appName,
+      ...brandingFields(branding),
       primaryProvider: {
         type: providerType,
         baseUrl,

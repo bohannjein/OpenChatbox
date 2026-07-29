@@ -18,12 +18,17 @@ export async function GET(req: NextRequest) {
   const authed = !!getUser(req) || payload?.purpose === "guest";
   if (authed) return NextResponse.json(full);
   return NextResponse.json({
+    branding: full.branding,
     appName: full.appName,
     logoUrl: full.logoUrl,
     accentColor: full.accentColor,
+    appUrl: full.appUrl,
     selfRegistration: full.selfRegistration,
     guest: full.guest,
     authMethods: full.authMethods,
     sso: full.sso,
+    // The login page renders the "forgot password" link from this flag, so the
+    // anonymous payload has to carry it too (it's a boolean, not a secret).
+    passwordReset: full.passwordReset,
   });
 }

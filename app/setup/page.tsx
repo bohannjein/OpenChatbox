@@ -9,8 +9,17 @@ import {
   Server,
   KeyRound,
   Check,
+  Upload,
+  Paintbrush,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import {
+  DEFAULT_ACCENT,
+  DEFAULT_APP_NAME,
+  normalizeHex,
+  resolveBranding,
+} from "@/lib/branding";
+import { resizeLogoToDataUrl } from "@/lib/imageResize";
 
 type ProviderType = "ollama" | "openai";
 
@@ -21,7 +30,7 @@ const BASE_URL_DEFAULTS: Record<ProviderType, string> = {
 
 export default function SetupPage() {
   const router = useRouter();
-  const setAppName = useStore((s) => s.setAppName);
+  const setBrand = useStore((s) => s.setBrand);
   const upsertProvider = useStore((s) => s.upsertProvider);
   const setAuthUser = useStore((s) => s.setAuthUser);
 
@@ -33,8 +42,11 @@ export default function SetupPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  // server data
-  const [appName, setAppNameField] = useState("OpenChatbox");
+  // server data — branding the instance starts with (changeable later under
+  // Einstellungen → Administration → Marke)
+  const [appName, setAppNameField] = useState(DEFAULT_APP_NAME);
+  const [logoUrl, setLogoUrl] = useState("");
+  const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT);
   const [providerType, setProviderType] = useState<ProviderType>("ollama");
   const [baseUrl, setBaseUrl] = useState(BASE_URL_DEFAULTS.ollama);
   const [apiKey, setApiKey] = useState("");
@@ -80,7 +92,7 @@ export default function SetupPage() {
           username,
           password,
           confirm,
-          appName,
+          branding: { appName, logoUrl, accentColor },
           providerType,
           baseUrl,
           apiKey,
@@ -100,7 +112,7 @@ export default function SetupPage() {
       // without waiting for a session round-trip or reload.
       if (d.user) setAuthUser(d.user);
       // Seed client store from the server data the admin just entered.
-      if (d.config?.appName) setAppName(d.config.appName);
+      if (d.config) setBrand(resolveBranding(d.config));
       if (d.provider) {
         if (d.provider.type === "openai") {
           upsertProvider({
@@ -146,7 +158,9 @@ export default function SetupPage() {
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-white">
             <Rocket size={26} />
           </div>
-          <h1 className="text-xl font-bold">Willkommen bei OpenChatbox</h1>
+          <h1 className="text-xl font-bold">
+            Willkommen bei {appName.trim() || DEFAULT_APP_NAME}
+          </h1>
           <p className="mt-1 text-sm text-neutral-400">
             Ersteinrichtung — lege das Admin-Konto und die Server-Daten fest.
           </p>
@@ -204,9 +218,47 @@ export default function SetupPage() {
           <input
             value={appName}
             onChange={(e) => setAppNameField(e.target.value)}
-            placeholder="Instanz-Name (z. B. OpenChatbox)"
+            placeholder="Instanz-Name (z. B. Musterfirma Chat)"
             className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent"
           />
+
+          {/* Optional first-run branding — same fields as the later Marke tab */}
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border-dark px-3 py-2 text-sm transition hover:bg-white/5">
+              <Upload size={14} /> {logoUrl ? "Logo ersetzen" : "Logo (optional)"}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!f) return;
+                  try {
+                    setLogoUrl(await resizeLogoToDataUrl(f, 512));
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "Bild ungültig.");
+                  }
+                }}
+                className="hidden"
+              />
+            </label>
+            {logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="" className="max-h-8 max-w-24 object-contain" />
+            )}
+            <label
+              className="ml-auto flex items-center gap-1.5 text-sm text-neutral-400"
+              title="Akzentfarbe"
+            >
+              <Paintbrush size={14} />
+              <input
+                type="color"
+                value={normalizeHex(accentColor)}
+                onChange={(e) => setAccentColor(e.target.value)}
+                className="h-8 w-10 cursor-pointer rounded-lg border border-border-dark bg-transparent"
+              />
+            </label>
+          </div>
 
           <div className="grid grid-cols-2 gap-2">
             {(["ollama", "openai"] as ProviderType[]).map((t) => (

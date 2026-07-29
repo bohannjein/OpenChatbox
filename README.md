@@ -93,6 +93,29 @@ npm run build && npm start
   `OIDC_AUTHORIZE_URL`, `OIDC_TOKEN_URL`. See `.env.example`.
 - `OPENCHATBOX_DATA_DIR` (optional): store runtime state on a host path instead
   of the Docker volume.
+- Branding seed (optional): `OPENCHATBOX_BRAND_NAME`, `_TAGLINE`, `_ACCENT`,
+  `_LOGO_URL`, `_IMPRINT_URL`, `_PRIVACY_URL`, `_SUPPORT_EMAIL`, `_SUPPORT_URL`.
+  See "Branding" below.
+
+### Branding
+
+Everything company-specific lives under Settings → Administration → Marke: name,
+tagline, logo (upload, with a separate variant for light backgrounds), favicon,
+accent color, imprint/privacy links, support contact and the public URL. Changes
+are previewed in place and only go live for other users when you hit save; the
+name, logo and color then also apply to the sign-in page, the browser tab, the
+web manifest, password-reset emails and the 2FA issuer shown in authenticator
+apps.
+
+To roll a brand out without clicking:
+
+- **Export/import**: "Marke exportieren" writes a `brand-<name>.json`; import it
+  on the next instance.
+- **File**: place that JSON as `branding.json` in the data dir before first start.
+- **Env**: set the `OPENCHATBOX_BRAND_*` variables (see `.env.example`).
+
+All three only seed fields that aren't configured yet, so a later change in the
+UI wins and survives restarts.
 
 ### Model backends
 
@@ -107,7 +130,7 @@ Configured under Settings → Providers:
 
 - Installer / Compose: `git pull` then
   `docker compose up -d --build`.
-- The running version is shown in Settings → "Über OpenChatbox / Info", which
+- The running version is shown in Settings → "Über <instance name>", which
   also lists the changelog. Released versions are tagged and published under
   [Releases](https://github.com/bohannjein/OpenChatbox/releases).
 

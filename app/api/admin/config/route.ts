@@ -3,10 +3,13 @@ import { getAdmin } from "@/lib/server/adminAuth";
 import {
   getConfig,
   setConfig,
+  getBranding,
+  brandingFields,
   resolveOidc,
   getSmtpConfig,
   type ServerConfig,
 } from "@/lib/server/config";
+import { LEGACY_BRAND_KEYS, resolveBranding, type BrandingConfig } from "@/lib/branding";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +21,9 @@ export async function GET(req: NextRequest) {
   // show the SSO toggle as inert-until-configured instead of silently doing
   // nothing when enabled without env.
   return NextResponse.json({
-    config: getConfig(),
+    // `branding` is resolved (legacy flat fields folded in) so the panel always
+    // gets a complete object, even on a config.json written before the brand layer.
+    config: { ...getConfig(), branding: getBranding() },
     ssoConfigured: !!resolveOidc(),
     smtpConfigured: !!getSmtpConfig(),
   });
@@ -30,11 +35,18 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
   const patch: Partial<ServerConfig> = {};
-  if (typeof body.appName === "string") patch.appName = body.appName.slice(0, 80);
-  if (typeof body.appUrl === "string")
-    patch.appUrl = body.appUrl.trim().replace(/\/+$/, "").slice(0, 500) || undefined;
-  if (typeof body.logoUrl === "string") patch.logoUrl = body.logoUrl.slice(0, 500_000);
-  if (typeof body.accentColor === "string") patch.accentColor = body.accentColor.slice(0, 32);
+
+  // Branding. Accepts the nested object (current clients) and/or the four flat
+  // legacy keys (older clients still push those); nested wins. All of it goes
+  // through sanitizeBranding, so an invalid hex or a `javascript:` URL is
+  // dropped instead of being stored.
+  const brandPatch: Partial<BrandingConfig> = {};
+  for (const k of LEGACY_BRAND_KEYS)
+    if (typeof body[k] === "string") brandPatch[k] = body[k] as string;
+  if (body.branding && typeof body.branding === "object")
+    Object.assign(brandPatch, body.branding as Partial<BrandingConfig>);
+  if (Object.keys(brandPatch).length) Object.assign(patch, brandingFields(brandPatch));
+
   if (Array.isArray(body.providers)) patch.providers = body.providers as ServerConfig["providers"];
   if (body.routerModels && typeof body.routerModels === "object")
     patch.routerModels = body.routerModels as ServerConfig["routerModels"];
@@ -88,5 +100,5 @@ export async function POST(req: NextRequest) {
   }
 
   const next = setConfig(patch);
-  return NextResponse.json({ config: next });
+  return NextResponse.json({ config: { ...next, branding: resolveBranding(next) } });
 }

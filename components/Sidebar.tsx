@@ -32,6 +32,7 @@ import { hasUnseenWhatsNew } from "@/lib/version";
 import { useClickOutside } from "@/lib/useClickOutside";
 import type { Chat, Folder } from "@/lib/types";
 import { SidekickAvatar } from "./SidekickIcon";
+import BrandMark from "./BrandMark";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import AsciiSpinner from "./AsciiSpinner";
 import Modal from "./Modal";
@@ -51,8 +52,6 @@ export default function Sidebar() {
   const activeChatId = useStore((s) => s.activeChatId);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const theme = useStore((s) => s.theme);
-  const logoUrl = useStore((s) => s.logoUrl);
-  const appName = useStore((s) => s.appName);
   const sidekicks = useStore((s) => s.sidekicks);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const titlePendingId = useStore((s) => s.titlePendingId);
@@ -345,17 +344,7 @@ export default function Sidebar() {
         <div className="flex h-full w-72 flex-col">
           <div className="flex shrink-0 items-center gap-0.5 px-3 py-2">
             <div className="flex min-w-0 flex-1 items-center gap-2">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoUrl} alt={appName || "Logo"} className="max-h-7 max-w-[70%] object-contain" />
-              ) : (
-                <span className="flex min-w-0 items-center gap-2 text-base font-bold tracking-tight">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent text-white">
-                    {(appName || "C").trim().charAt(0).toUpperCase()}
-                  </span>
-                  <span className="truncate">{appName || "OpenChatbox"}</span>
-                </span>
-              )}
+              <BrandMark dark={theme !== "light"} />
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -415,21 +404,7 @@ export default function Sidebar() {
         {/* Zeile 1 — Branding links · Suche + Einklappen rechts */}
         <div className="flex shrink-0 items-center gap-0.5 px-3 py-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoUrl}
-                alt={appName || "Logo"}
-                className="max-h-7 max-w-[70%] object-contain"
-              />
-            ) : (
-              <span className="flex min-w-0 items-center gap-2 text-base font-bold tracking-tight">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent text-white">
-                  {(appName || "C").trim().charAt(0).toUpperCase()}
-                </span>
-                <span className="truncate">{appName || "OpenChatbox"}</span>
-              </span>
-            )}
+            <BrandMark dark={theme !== "light"} />
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
             <button

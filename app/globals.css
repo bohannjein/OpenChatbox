@@ -17,9 +17,12 @@
 
 :root {
   color-scheme: light;
-  /* dynamic accent (RGB channels) — overridden at runtime from settings */
-  --accent: 16 163 127;
-  --accent-hover: 14 142 109;
+  /* Dynamic accent (RGB channels). The real value is server-rendered into
+     <head> from the admin branding (see app/layout.tsx) — these are only the
+     build-time fallback and must match DEFAULT_ACCENT in lib/branding.ts
+     (#4f46e5), otherwise the first paint flashes the wrong color. */
+  --accent: 79 70 229;
+  --accent-hover: 67 60 195;
   /* Dark-surface tokens (RGB channels) consumed by Tailwind's *-dark colors.
      Only used behind the `dark:` variant; defined here as a safe fallback. */
   --surface-main: 33 33 33;

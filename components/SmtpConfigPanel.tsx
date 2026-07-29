@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Mail, CheckCircle2, XCircle } from "lucide-react";
+import { useBrand } from "@/lib/store";
 import InfoTip from "./InfoTip";
 
 interface SmtpView {
@@ -20,6 +21,7 @@ interface SmtpView {
  * empty field keeps the stored one.
  */
 export default function SmtpConfigPanel() {
+  const brand = useBrand();
   const [enabled, setEnabled] = useState(false);
   const [host, setHost] = useState("");
   const [port, setPort] = useState(587);
@@ -185,12 +187,14 @@ export default function SmtpConfigPanel() {
         <div className="sm:col-span-2">
           <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
             Absender (From)
-            <InfoTip text='Die im Postfach angezeigte Absenderadresse, z. B. "OpenChatbox <noreply@firma.de>". Leer = Benutzer wird verwendet.' />
+            <InfoTip
+              text={`Die im Postfach angezeigte Absenderadresse. Eine reine Adresse (noreply@firma.de) bekommt automatisch „${brand.appName}“ als Anzeigenamen; ein eigener Anzeigename wird übernommen. Leer = SMTP-Benutzer.`}
+            />
           </label>
           <input
             value={from}
             onChange={(e) => setFrom(e.target.value)}
-            placeholder="OpenChatbox <noreply@firma.de>"
+            placeholder="noreply@firma.de"
             className="w-full input-base py-1.5 text-sm"
           />
         </div>

@@ -27,11 +27,12 @@ import {
   Info,
   type LucideIcon,
 } from "lucide-react";
-import { useStore } from "@/lib/store";
+import { useStore, useBrand } from "@/lib/store";
 import { hasUnseenWhatsNew } from "@/lib/version";
-import { DEFAULT_ACCENT, normalizeHex } from "@/lib/branding";
 import { resizeImageToDataUrl } from "@/lib/imageResize";
 import { uid } from "@/lib/uid";
+import { Section, SectionTitle } from "./Section";
+import BrandingPanel from "./BrandingPanel";
 import AdminPanel from "./AdminPanel";
 import PluginsPanel from "./PluginsPanel";
 import UserManagement from "./UserManagement";
@@ -170,7 +171,7 @@ const GROUPS: { title: string; adminOnly?: boolean; tabs: Tab[] }[] = [
         id: "admin-branding",
         label: "Marke",
         Icon: Paintbrush,
-        desc: "Farbe, Name, Logo und öffentliche Adresse dieser Instanz.",
+        desc: "Name, Logo, Farbe, Rechtliches und öffentliche Adresse dieser Instanz.",
       },
       {
         id: "admin-performance",
@@ -184,8 +185,9 @@ const GROUPS: { title: string; adminOnly?: boolean; tabs: Tab[] }[] = [
     title: "System",
     tabs: [
       {
+        // {app} is substituted with the configured instance name at render time.
         id: "about",
-        label: "Über OpenChatbox",
+        label: "Über {app}",
         Icon: Info,
         desc: "Version und Änderungsverlauf.",
       },
@@ -204,31 +206,6 @@ const LEGACY_TABS: Record<string, TabId> = {
   info: "about",
 };
 
-/** Section wrapper — consistent divider + spacing; first section has no border. */
-function Section({ children }: { children: React.ReactNode }) {
-  return (
-    <section className="border-t border-border-light pt-6 first:border-0 first:pt-0 dark:border-border-dark">
-      {children}
-    </section>
-  );
-}
-
-/** Heading for a section that used to carry its own <h3> inside a panel. */
-function SectionTitle({
-  title,
-  hint,
-}: {
-  title: string;
-  hint?: React.ReactNode;
-}) {
-  return (
-    <>
-      <h4 className="font-medium">{title}</h4>
-      {hint && <p className="mb-3 text-sm text-neutral-500">{hint}</p>}
-    </>
-  );
-}
-
 export default function SettingsModal() {
   const open = useStore((s) => s.settingsOpen);
   const setOpen = useStore((s) => s.setSettingsOpen);
@@ -240,14 +217,7 @@ export default function SettingsModal() {
   const prompts = useStore((s) => s.prompts);
   const upsertPrompt = useStore((s) => s.upsertPrompt);
   const removePrompt = useStore((s) => s.removePrompt);
-  const accentColor = useStore((s) => s.accentColor);
-  const setAccentColor = useStore((s) => s.setAccentColor);
-  const logoUrl = useStore((s) => s.logoUrl);
-  const setLogoUrl = useStore((s) => s.setLogoUrl);
-  const appName = useStore((s) => s.appName);
-  const setAppName = useStore((s) => s.setAppName);
-  const appUrl = useStore((s) => s.appUrl);
-  const setAppUrl = useStore((s) => s.setAppUrl);
+  const brand = useBrand();
   const codeSplitEnabled = useStore((s) => s.codeSplitEnabled);
   const setCodeSplitEnabled = useStore((s) => s.setCodeSplitEnabled);
   const codeSplitThreshold = useStore((s) => s.codeSplitThreshold);
@@ -294,6 +264,9 @@ export default function SettingsModal() {
       /* ignore bad image */
     }
   };
+
+  /** Fill the {app} placeholder in a tab label with the configured brand name. */
+  const brandLabel = (l: string) => l.replace("{app}", brand.appName);
 
   const [tab, setTab] = useState<TabId>("account");
   const [confirmClear, setConfirmClear] = useState(false);
@@ -350,7 +323,7 @@ export default function SettingsModal() {
                     )}
                   >
                     <Icon size={16} className="shrink-0" />
-                    <span className="min-w-0 flex-1 truncate">{label}</span>
+                    <span className="min-w-0 flex-1 truncate">{brandLabel(label)}</span>
                     {id === "about" && showWhatsNewDot && (
                       <span
                         aria-label="Neue Updates"
@@ -369,7 +342,7 @@ export default function SettingsModal() {
             <div className="mb-5">
               <div className="flex items-center gap-2">
                 <active.Icon size={18} className="shrink-0 text-accent" />
-                <h3 className="text-base font-semibold">{active.label}</h3>
+                <h3 className="text-base font-semibold">{brandLabel(active.label)}</h3>
               </div>
               <p className="mt-0.5 text-sm text-neutral-500">{active.desc}</p>
             </div>
@@ -842,89 +815,7 @@ export default function SettingsModal() {
                 </>
               )}
 
-              {activeTab === "admin-branding" && isAdmin && (
-                <>
-                  <Section>
-                    <SectionTitle
-                      title="Akzentfarbe"
-                      hint="Wird für Buttons, Links und Hervorhebungen verwendet."
-                    />
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        value={normalizeHex(accentColor)}
-                        onChange={(e) => setAccentColor(e.target.value)}
-                        title="Akzentfarbe wählen"
-                        className="h-9 w-12 cursor-pointer rounded-lg border border-border-light bg-transparent dark:border-border-dark"
-                      />
-                      <input
-                        value={accentColor}
-                        onChange={(e) => setAccentColor(e.target.value)}
-                        placeholder={DEFAULT_ACCENT}
-                        className="w-28 input-base font-mono"
-                      />
-                      <button
-                        onClick={() => setAccentColor(DEFAULT_ACCENT)}
-                        className="rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
-                      >
-                        Zurücksetzen (Indigo)
-                      </button>
-                      <span
-                        className="ml-auto h-6 w-6 rounded-full ring-1 ring-black/10"
-                        style={{ backgroundColor: normalizeHex(accentColor) }}
-                      />
-                    </div>
-                  </Section>
-
-                  <Section>
-                    <SectionTitle
-                      title="Name & Logo"
-                      hint="Erscheint in der Seitenleiste und auf der Anmeldeseite."
-                    />
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div>
-                        <label className="mb-1 block text-xs text-neutral-500">
-                          App-Name (Platzhalter, wenn kein Logo)
-                        </label>
-                        <input
-                          value={appName}
-                          onChange={(e) => setAppName(e.target.value)}
-                          placeholder="OpenChatbox"
-                          className="w-full input-base"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs text-neutral-500">
-                          Logo-Bild-URL (optional)
-                        </label>
-                        <input
-                          value={logoUrl}
-                          onChange={(e) => setLogoUrl(e.target.value)}
-                          placeholder="https://…/logo.png"
-                          className="w-full input-base font-mono"
-                        />
-                      </div>
-                    </div>
-                  </Section>
-
-                  <Section>
-                    <SectionTitle
-                      title="Öffentliche Adresse"
-                      hint="Basis für absolute Links in E-Mails und SSO-Rücksprüngen."
-                    />
-                    <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-                      Öffentliche App-URL (HTTPS)
-                      <InfoTip text="Die von außen erreichbare Adresse dieser Instanz, z. B. https://chat.firma.de. Wird für absolute Links in E-Mails (z. B. Passwort-Reset) verwendet. Ohne diese Angabe rät die App die Adresse aus der Anfrage — hinter einem Reverse-Proxy / bei Bind auf 0.0.0.0 ergibt das eine unbrauchbare URL." />
-                    </label>
-                    <input
-                      value={appUrl}
-                      onChange={(e) => setAppUrl(e.target.value)}
-                      placeholder="https://chat.firma.de"
-                      className="w-full input-base font-mono"
-                    />
-                  </Section>
-                </>
-              )}
+              {activeTab === "admin-branding" && isAdmin && <BrandingPanel />}
 
               {activeTab === "admin-performance" && isAdmin && (
                 <Section>

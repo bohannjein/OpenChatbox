@@ -4,6 +4,12 @@ import { DATA_DIR } from "./paths";
 import { decryptSecret } from "./crypto";
 import { oidcConfig, type OidcConfig } from "./oidc";
 import type { Provider } from "@/lib/types";
+import {
+  DEFAULT_APP_NAME,
+  resolveBranding,
+  sanitizeBranding,
+  type BrandingConfig,
+} from "@/lib/branding";
 
 /**
  * Global, server-side instance configuration ("system settings") — the master
@@ -100,7 +106,8 @@ export interface SmtpConfig {
   user?: string;
   /** encrypted (enc:v1:…) — never returned to any client. */
   passwordSecret?: string;
-  /** From: header, e.g. "OpenChatbox <noreply@firma.de>". */
+  /** From: header. A bare address gets the instance name as display name
+   *  (see mailFrom); an explicit `Name <addr>` is used verbatim. */
   from?: string;
 }
 /** Fully resolved (decrypted) SMTP config — server-side only. */
@@ -162,14 +169,17 @@ export interface AuthMethodsConfig {
 }
 
 export interface ServerConfig {
-  /** display name of this instance (shown in the UI) */
+  /** admin-global company branding (name, logo, accent, legal, support) — the
+   *  source of truth; read it via `getBranding()`, never field by field. */
+  branding?: BrandingConfig;
+  /** @deprecated Mirror of `branding.appName`, kept so pre-brand-layer configs
+   *  and older clients keep working. Read `getBranding()` instead. */
   appName: string;
-  /** public base URL of this instance (e.g. https://chat.firma.de) used to build
-   *  absolute links in outbound email — the request origin is unreliable behind
-   *  a reverse proxy / when the server binds 0.0.0.0. No trailing slash. */
+  /** @deprecated Mirror of `branding.appUrl` — use `getPublicBaseUrl()`. */
   appUrl?: string;
-  /** admin-global branding shown to every user */
+  /** @deprecated Mirror of `branding.logoUrl`. */
   logoUrl?: string;
+  /** @deprecated Mirror of `branding.accentColor`. */
   accentColor?: string;
   /** default AI provider the first admin configured during setup */
   primaryProvider?: {
@@ -240,7 +250,7 @@ export function setPlugins(patch: Partial<PluginFlags>): PluginFlags {
 
 const FILE = path.join(DATA_DIR, "config.json");
 
-const DEFAULTS: ServerConfig = { appName: "OpenChatbox" };
+const DEFAULTS: ServerConfig = { appName: DEFAULT_APP_NAME };
 
 export function getConfig(): ServerConfig {
   try {
@@ -286,6 +296,95 @@ export function getSelfRegistration(): { enabled: boolean; domains: string[] } {
 }
 
 /**
+ * Company branding, fully resolved: nested `branding` → legacy flat fields →
+ * defaults. Always complete and valid, so callers can use it directly.
+ */
+export function getBranding(): BrandingConfig {
+  ensureBrandingBootstrap();
+  return resolveBranding(getConfig());
+}
+
+let bootstrapDone = false;
+
+/**
+ * Provisioning: seed branding from `<DATA_DIR>/branding.json` and/or
+ * `OPENCHATBOX_BRAND_*` env vars on first use, so IT can roll out a branded
+ * instance without anyone clicking through the UI.
+ *
+ * Only keys that are not configured yet are filled in — the admin UI stays the
+ * authority, and a later change in Settings survives the next restart. Runs once
+ * per process.
+ */
+function ensureBrandingBootstrap(): void {
+  if (bootstrapDone) return;
+  bootstrapDone = true;
+  try {
+    const cfg = getConfig();
+    const current = resolveBranding(cfg);
+
+    let seed: Partial<BrandingConfig> = {};
+    try {
+      const raw = fs.readFileSync(path.join(DATA_DIR, "branding.json"), "utf8");
+      seed = JSON.parse(raw) as Partial<BrandingConfig>;
+    } catch {
+      /* no provisioning file — fine */
+    }
+
+    const env: Partial<BrandingConfig> = {
+      appName: process.env.OPENCHATBOX_BRAND_NAME,
+      accentColor: process.env.OPENCHATBOX_BRAND_ACCENT,
+      logoUrl: process.env.OPENCHATBOX_BRAND_LOGO_URL,
+      tagline: process.env.OPENCHATBOX_BRAND_TAGLINE,
+      imprintUrl: process.env.OPENCHATBOX_BRAND_IMPRINT_URL,
+      privacyUrl: process.env.OPENCHATBOX_BRAND_PRIVACY_URL,
+      supportEmail: process.env.OPENCHATBOX_BRAND_SUPPORT_EMAIL,
+      supportUrl: process.env.OPENCHATBOX_BRAND_SUPPORT_URL,
+    };
+    // First source that provides a key wins: branding.json → env (same
+    // precedence style as getPublicBaseUrl).
+    for (const [k, v] of Object.entries(env)) {
+      const have = (seed as Record<string, unknown>)[k];
+      if (typeof have === "string" && have.trim()) continue;
+      if (typeof v === "string" && v.trim()) (seed as Record<string, string>)[k] = v;
+    }
+
+    // Keep only what the instance hasn't set itself.
+    const defaults = sanitizeBranding(null);
+    const patch = sanitizeBranding({ ...current, ...seed });
+    const apply: Partial<BrandingConfig> = {};
+    for (const key of Object.keys(patch) as (keyof BrandingConfig)[])
+      if (current[key] === defaults[key] && patch[key] !== current[key]) apply[key] = patch[key];
+
+    if (Object.keys(apply).length)
+      setConfig(brandingFields(apply));
+  } catch (e) {
+    console.error("[branding] bootstrap failed:", e instanceof Error ? e.message : e);
+  }
+}
+
+/**
+ * Merge a branding patch through the shared validator and return the config
+ * fields to write. The four legacy flat fields are mirrored so older clients
+ * (which read them from `publicConfig`) and a rollback keep working. Exported so
+ * a caller patching other keys too can do it in a single atomic write.
+ */
+export function brandingFields(patch: Partial<BrandingConfig>): Partial<ServerConfig> {
+  const next = sanitizeBranding({ ...getBranding(), ...patch });
+  return {
+    branding: next,
+    appName: next.appName,
+    appUrl: next.appUrl || undefined,
+    logoUrl: next.logoUrl || undefined,
+    accentColor: next.accentColor,
+  };
+}
+
+/** Merge a branding patch and persist it. */
+export function setBranding(patch: Partial<BrandingConfig>): BrandingConfig {
+  return resolveBranding(setConfig(brandingFields(patch)));
+}
+
+/**
  * Public base URL for absolute links in outbound email. Priority: admin-set
  * `appUrl` → env (APP_URL / NEXT_PUBLIC_APP_URL / AUTH_URL) → the request origin
  * as a last resort (unreliable behind a proxy / with a 0.0.0.0 bind). No
@@ -293,7 +392,7 @@ export function getSelfRegistration(): { enabled: boolean; domains: string[] } {
  */
 export function getPublicBaseUrl(reqOrigin?: string): string {
   const strip = (u: string) => u.trim().replace(/\/+$/, "");
-  const cfg = strip(getConfig().appUrl ?? "");
+  const cfg = strip(getBranding().appUrl);
   if (cfg) return cfg;
   const env = strip(
     process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.AUTH_URL || ""
@@ -451,11 +550,16 @@ function sanitizeProvider(p: Provider): Omit<Provider, "apiKey"> {
 
 /** Config safe to expose to any client (no secrets). */
 export function publicConfig(c: ServerConfig = getConfig()) {
+  const brand = resolveBranding(c);
   return {
-    appName: c.appName,
-    logoUrl: c.logoUrl,
-    accentColor: c.accentColor,
-    appUrl: c.appUrl ?? "",
+    /** Complete company branding — what clients should read. */
+    branding: brand,
+    // Flat mirrors of the four legacy branding fields. Kept so a client built
+    // before the brand layer (or a stale localStorage cache) still renders.
+    appName: brand.appName,
+    logoUrl: brand.logoUrl,
+    accentColor: brand.accentColor,
+    appUrl: brand.appUrl,
     primaryProvider: c.primaryProvider
       ? { type: c.primaryProvider.type, baseUrl: c.primaryProvider.baseUrl }
       : undefined,

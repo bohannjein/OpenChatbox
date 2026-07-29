@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Loader2, Check, XCircle, Layers } from "lucide-react";
 import { useStore } from "@/lib/store";
+import BrandMark from "@/components/BrandMark";
 
 type State =
   | { k: "loading" }
@@ -49,6 +50,8 @@ export default function JoinWorkspacePage() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-main-dark px-4 text-neutral-100">
       <div className="w-full max-w-sm rounded-2xl border border-border-dark bg-sidebar-dark p-6 text-center shadow-2xl">
+        {/* This page is only reachable with a session, so the store brand is warm. */}
+        <BrandMark size="sm" className="mb-4 justify-center" />
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-white">
           <Layers size={26} />
         </div>
