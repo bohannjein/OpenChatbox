@@ -511,6 +511,24 @@ async function spellcheckQuery(query: string): Promise<string | null> {
   }
 }
 
+/**
+ * All books, for the admin's per-assistant book picker. Names only — the picker
+ * needs to show what an embedded assistant would be allowed to read.
+ */
+export async function listBooks(): Promise<Array<{ id: number; name: string }>> {
+  const cfg = getBookstackConfig();
+  if (!cfg) return [];
+  const r = await api<{ data?: Array<{ id?: unknown; name?: unknown }> }>(
+    cfg,
+    "GET",
+    "/books?count=500&sort=name"
+  );
+  return (r.data ?? [])
+    .map((b) => ({ id: num(b.id) ?? -1, name: String(b.name ?? "") }))
+    .filter((b) => b.id > 0 && b.name)
+    .sort((a, b) => a.name.localeCompare(b.name, "de"));
+}
+
 export interface SearchOutcome {
   items: Array<Record<string, unknown>>;
   /** set only when stage-2 spellcheck correction produced the hits. */
@@ -596,17 +614,23 @@ export interface BookstackPage {
  */
 export async function retrievePages(
   query: string,
-  maxPages = 3
+  maxPages = 3,
+  opts?: { bookIds?: number[] }
 ): Promise<{ pages: BookstackPage[]; correctedQuery?: string }> {
   const cfg = getBookstackConfig();
   if (!cfg) return { pages: [] };
   const q = query.trim();
   if (!q) return { pages: [] };
 
+  // Book restriction (used by embedded assistants, which must not see the whole
+  // wiki). BookStack's /search has no book filter, so we over-fetch and drop
+  // everything outside the allowed books.
+  const bookIds = opts?.bookIds?.length ? new Set(opts.bookIds) : null;
+
   let hits: Array<Record<string, unknown>> = [];
   let correctedQuery: string | undefined;
   try {
-    const outcome = await searchWithFallback(cfg, q, 8);
+    const outcome = await searchWithFallback(cfg, q, bookIds ? 24 : 8);
     hits = outcome.items;
     correctedQuery = outcome.correctedQuery;
   } catch (e) {
@@ -617,8 +641,24 @@ export async function retrievePages(
   }
 
   // Prefer pages (books/chapters carry no readable body of their own).
-  const pages = hits.filter((h) => String(h.type ?? "") === "page");
-  const targets = (pages.length ? pages : hits).slice(0, maxPages);
+  let pages = hits.filter((h) => String(h.type ?? "") === "page");
+  if (bookIds) {
+    const before = pages.length;
+    // Search hits for pages carry book_id; a hit without one can't be proven to
+    // be inside an allowed book, so it is dropped (fail closed).
+    pages = pages.filter((h) => {
+      const b = num(h.book_id);
+      return b != null && bookIds.has(b);
+    });
+    if (before !== pages.length)
+      console.log(
+        `[bookstack] Buch-Filter: ${before} → ${pages.length} Treffer (erlaubt: ${[
+          ...bookIds,
+        ].join(", ")}).`
+      );
+  }
+  // Without a book restriction, non-page hits are a usable last resort.
+  const targets = (pages.length ? pages : bookIds ? [] : hits).slice(0, maxPages);
   const out: BookstackPage[] = [];
   for (const it of targets) {
     const id = num(it.id);
@@ -653,9 +693,10 @@ export async function retrievePages(
  */
 export async function retrieveContext(
   query: string,
-  maxPages = 3
+  maxPages = 3,
+  opts?: { bookIds?: number[] }
 ): Promise<{ text: string; sources: SourceLink[]; correctedQuery?: string }> {
-  const { pages, correctedQuery } = await retrievePages(query, maxPages);
+  const { pages, correctedQuery } = await retrievePages(query, maxPages, opts);
   if (!pages.length) return { text: "", sources: [] };
 
   const blocks = pages.map(

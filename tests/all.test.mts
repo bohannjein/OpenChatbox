@@ -374,5 +374,169 @@ await bookstackTests();
   ok("branding: no hardcoded product name in UI code", leaks.length === 0, leaks.join(", "));
 }
 
+// ── providerStream: request shapes + stream normalization ────────────────
+{
+  const { buildProviderRequest, streamProvider, normalizeKeepAlive, tokenBudgetFor, NUM_CTX } =
+    await import("../lib/server/providerStream");
+
+  const msgs = [
+    { role: "system", content: "sys" },
+    { role: "user", content: "hi", images: ["data:image/png;base64,AAA"] },
+  ];
+  const base = { baseUrl: "http://h", model: "m", messages: msgs, maxTokens: 100 };
+
+  const oll = buildProviderRequest({ ...base, type: "ollama", keepAlive: -1 });
+  const ollBody = JSON.parse(String(oll.init.body));
+  eq("providerStream: ollama url", oll.url, "http://h/api/chat");
+  eq("providerStream: ollama strips data-URL prefix", ollBody.messages[1].images, ["AAA"]);
+  eq("providerStream: ollama num_ctx", ollBody.options.num_ctx, NUM_CTX);
+  eq("providerStream: ollama num_predict from maxTokens", ollBody.options.num_predict, 100);
+  eq("providerStream: ollama keep_alive numeric", ollBody.keep_alive, -1);
+
+  const ant = buildProviderRequest({ ...base, type: "anthropic", apiKey: "k" });
+  const antBody = JSON.parse(String(ant.init.body));
+  eq("providerStream: anthropic url", ant.url, "http://h/messages");
+  eq("providerStream: anthropic system hoisted", antBody.system, "sys");
+  eq("providerStream: anthropic drops system from messages", antBody.messages.length, 1);
+  eq(
+    "providerStream: anthropic image part",
+    antBody.messages[0].content[1].source.media_type,
+    "image/png"
+  );
+  eq(
+    "providerStream: anthropic api key header",
+    (ant.init.headers as Record<string, string>)["x-api-key"],
+    "k"
+  );
+
+  const oai = buildProviderRequest({ ...base, type: "openai", apiKey: "k" });
+  const oaiBody = JSON.parse(String(oai.init.body));
+  eq("providerStream: openai url", oai.url, "http://h/chat/completions");
+  eq("providerStream: openai image part", oaiBody.messages[1].content[1].type, "image_url");
+  eq(
+    "providerStream: openai bearer",
+    (oai.init.headers as Record<string, string>).Authorization,
+    "Bearer k"
+  );
+
+  eq("providerStream: keepAlive '-1' → number", normalizeKeepAlive("-1"), -1);
+  eq("providerStream: keepAlive '2m' stays string", normalizeKeepAlive("2m"), "2m");
+  eq("providerStream: keepAlive empty → undefined", normalizeKeepAlive(""), undefined);
+  ok("providerStream: ollama budget bounded by num_ctx", tokenBudgetFor("ollama", 100) < NUM_CTX);
+  eq("providerStream: cloud budget flat", tokenBudgetFor("openai", 100), 24_000);
+
+  // Normalization against a fake provider: the extracted transforms must still
+  // split answer text ("c") from reasoning ("r") for all three wire formats.
+  const http = await import("http");
+  const collect = async (
+    type: "ollama" | "anthropic" | "openai",
+    payload: string,
+    contentType: string
+  ) => {
+    const srv = http.createServer((_q, res) => {
+      res.writeHead(200, { "Content-Type": contentType });
+      res.end(payload);
+    });
+    await new Promise<void>((r) => srv.listen(0, "127.0.0.1", r));
+    const port = (srv.address() as { port: number }).port;
+    try {
+      const stream = await streamProvider({
+        type,
+        baseUrl: `http://127.0.0.1:${port}`,
+        model: "m",
+        messages: [{ role: "user", content: "x" }],
+      });
+      let out = "";
+      const reader = stream.getReader();
+      const dec = new TextDecoder();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        out += dec.decode(value, { stream: true });
+      }
+      return out
+        .split("\n")
+        .filter(Boolean)
+        .map((l) => JSON.parse(l) as { t: string; v: string });
+    } finally {
+      // Await the close: exiting while a handle is still closing trips a libuv
+      // assertion on Windows.
+      await new Promise<void>((r) => srv.close(() => r()));
+    }
+  };
+
+  eq(
+    "providerStream: ollama NDJSON → c/r",
+    await collect(
+      "ollama",
+      '{"message":{"thinking":"denk","content":"Hallo"}}\n{"message":{"content":" Welt"}}\n',
+      "application/x-ndjson"
+    ),
+    [
+      { t: "r", v: "denk" },
+      { t: "c", v: "Hallo" },
+      { t: "c", v: " Welt" },
+    ]
+  );
+  eq(
+    "providerStream: anthropic SSE → c/r",
+    await collect(
+      "anthropic",
+      'data: {"type":"content_block_delta","delta":{"thinking":"denk"}}\n\n' +
+        'data: {"type":"content_block_delta","delta":{"text":"Hallo"}}\n\n' +
+        'data: {"type":"message_stop"}\n\n',
+      "text/event-stream"
+    ),
+    [
+      { t: "r", v: "denk" },
+      { t: "c", v: "Hallo" },
+    ]
+  );
+  eq(
+    "providerStream: openai SSE → c/r",
+    await collect(
+      "openai",
+      'data: {"choices":[{"delta":{"reasoning_content":"denk"}}]}\n\n' +
+        'data: {"choices":[{"delta":{"content":"Hallo"}}]}\n\n' +
+        "data: [DONE]\n\n",
+      "text/event-stream"
+    ),
+    [
+      { t: "r", v: "denk" },
+      { t: "c", v: "Hallo" },
+    ]
+  );
+
+  // A failing upstream must arrive as a translated ProviderError, not a throw
+  // from deep inside fetch.
+  const { ProviderError } = await import("../lib/server/providerStream");
+  const bad = http.createServer((_q, res) => {
+    res.writeHead(429, { "Content-Type": "application/json" });
+    res.end('{"error":{"message":"rate limited"}}');
+  });
+  await new Promise<void>((r) => bad.listen(0, "127.0.0.1", r));
+  const badPort = (bad.address() as { port: number }).port;
+  try {
+    await streamProvider({
+      type: "openai",
+      baseUrl: `http://127.0.0.1:${badPort}`,
+      model: "m",
+      messages: [{ role: "user", content: "x" }],
+    });
+    ok("providerStream: upstream error throws", false, "no throw");
+  } catch (e) {
+    ok(
+      "providerStream: upstream error unwrapped",
+      e instanceof ProviderError && e.message.includes("rate limited") && e.status === 502,
+      String(e)
+    );
+  } finally {
+    await new Promise<void>((r) => bad.close(() => r()));
+  }
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
-process.exit(fail ? 1 : 0);
+// Set the code instead of process.exit(): the providerStream tests leave undici
+// keep-alive sockets in the pool, and exiting while those handles are closing
+// trips a libuv assertion on Windows. Draining the loop is the safe way out.
+process.exitCode = fail ? 1 : 0;
