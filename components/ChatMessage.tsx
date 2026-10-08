@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect } from "react";
 import clsx from "clsx";
 import {
   Copy,
@@ -52,7 +52,9 @@ const PIPELINE_BADGE: Record<PipelineStage, { Icon: LucideIcon; key: StringKey }
   knowledge: { Icon: Library, key: "pipeline.knowledge" },
 };
 
-export default function ChatMessage({
+// Memoized: while a reply streams only that message's props change, so the rest
+// of the history skips re-rendering on every token.
+export default memo(function ChatMessage({
   chatId,
   message,
   streaming,
@@ -92,7 +94,7 @@ export default function ChatMessage({
               key={f.id}
               onClick={() => f.content && download(f.name, f.content, "text/plain")}
               disabled={!clickable}
-              title={f.content ? `${f.name} herunterladen` : f.name}
+              title={f.content ? t("common.downloadNamed", { name: f.name }) : f.name}
               className="flex items-center gap-2 rounded-xl border border-border-light bg-neutral-50 px-3 py-2 text-sm transition enabled:hover:border-accent enabled:hover:bg-accent/5 disabled:cursor-default dark:border-border-dark dark:bg-white/5"
             >
               <Icon size={16} className="shrink-0 text-accent" />
@@ -142,7 +144,7 @@ export default function ChatMessage({
         {showModel && (
           <span
             className="inline-flex items-center gap-1"
-            title={`Antwort erzeugt von ${message.model}`}
+            title={t("msg.generatedBy", { model: message.model ?? "" })}
           >
             <Bot size={11} className="opacity-70" />
             {message.model}
@@ -151,7 +153,7 @@ export default function ChatMessage({
         {showTimestamps && <span>{time}</span>}
         {showStats && message.content && (
           <span>
-            {words} Wörter · ~{approxTokens} Tokens
+            {t("msg.stats", { words, tokens: approxTokens })}
           </span>
         )}
       </div>
@@ -163,7 +165,7 @@ export default function ChatMessage({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={assistantAvatarUrl}
-          alt="KI"
+          alt={t("msg.ai")}
           className="h-8 w-8 rounded-full object-cover ring-1 ring-border-light dark:ring-border-dark"
         />
       ) : (
@@ -245,13 +247,13 @@ export default function ChatMessage({
                   onClick={() => setEditing(false)}
                   className="rounded-lg px-3 py-1 text-sm hover:bg-neutral-200 dark:hover:bg-white/10"
                 >
-                  Abbrechen
+                  {t("common.cancel")}
                 </button>
                 <button
                   onClick={saveEdit}
                   className="rounded-lg bg-accent px-3 py-1 text-sm font-medium text-white hover:bg-accent-hover"
                 >
-                  Senden
+                  {t("common.send")}
                 </button>
               </div>
             </div>
@@ -264,7 +266,7 @@ export default function ChatMessage({
                     <img
                       key={i}
                       src={src}
-                      alt={`Anhang ${i + 1}`}
+                      alt={t("msg.attachment", { n: i + 1 })}
                       className="max-h-48 rounded-2xl rounded-tr-none border border-border-light object-cover dark:border-border-dark"
                     />
                   ))}
@@ -284,7 +286,7 @@ export default function ChatMessage({
               {/* Actions */}
               <div className="mt-1 flex items-center gap-1 text-neutral-400 print:hidden">
                 {message.content && (
-                  <IconBtn onClick={copy} title="Kopieren">
+                  <IconBtn onClick={copy} title={t("common.copy")}>
                     {copied ? <Check size={15} /> : <Copy size={15} />}
                   </IconBtn>
                 )}
@@ -293,18 +295,14 @@ export default function ChatMessage({
                     setDraft(message.content);
                     setEditing(true);
                   }}
-                  title="Bearbeiten"
+                  title={t("common.edit")}
                 >
                   <Pencil size={15} />
                 </IconBtn>
                 <IconBtn
                   onClick={() => toggleStar(chatId, message.id)}
-                  title={
-                    message.starred
-                      ? "Markierung entfernen"
-                      : "Markieren (erscheint unter „Markiert“)"
-                  }
-                  active={message.starred}
+                  title={t(message.starred ? "msg.unstar" : "msg.star")}
+                  active={!!message.starred}
                 >
                   <Star
                     size={15}
@@ -339,13 +337,12 @@ export default function ChatMessage({
             <div className="mb-3 rounded-xl border border-border-light dark:border-border-dark">
               <button
                 onClick={() => setShowReasoning((v) => !v)}
+                aria-expanded={showReasoning}
                 className="flex w-full items-center gap-2 px-3 py-2 text-sm text-neutral-500 transition hover:text-neutral-700 dark:hover:text-neutral-300"
               >
                 <Brain size={15} />
                 <span className="font-medium">
-                  {streaming && !message.content
-                    ? "Denkt nach…"
-                    : "Denkprozess"}
+                  {t(streaming && !message.content ? "msg.thinking" : "msg.reasoning")}
                 </span>
                 <ChevronDown
                   size={15}
@@ -412,7 +409,8 @@ export default function ChatMessage({
           <div
             className={clsx(
               bubble &&
-                "inline-block max-w-full rounded-2xl rounded-tl-none bg-bubble-light px-4 py-3 dark:bg-bubble-dark"
+                // Dracula: #bd93f9 links are 3.79:1 on the #44475a bubble; #d6bcfa is 5.42:1.
+                "inline-block max-w-full rounded-2xl rounded-tl-none bg-bubble-light px-4 py-3 dark:bg-bubble-dark [.dracula_&]:[--accent-text:214_188_250]"
             )}
           >
             {message.content ? (
@@ -433,7 +431,7 @@ export default function ChatMessage({
                 <img
                   key={i}
                   src={src}
-                  alt={`Bild ${i + 1}`}
+                  alt={t("msg.image", { n: i + 1 })}
                   className="max-h-96 rounded-xl border border-border-light object-contain dark:border-border-dark"
                 />
               ))}
@@ -464,7 +462,7 @@ export default function ChatMessage({
                       <div className="truncate font-medium">{doc.name}</div>
                       <div className="text-xs text-neutral-400">
                         {(doc.size / 1024).toFixed(0)} KB ·{" "}
-                        {isPdf ? "PDF-Dokument" : "Excel-Tabelle"}
+                        {t(isPdf ? "msg.pdfDoc" : "msg.sheet")}
                       </div>
                     </div>
                     <a
@@ -473,7 +471,7 @@ export default function ChatMessage({
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-hover"
                     >
                       <Download size={16} />
-                      {isPdf ? "PDF-Dokument herunterladen" : "Tabelle herunterladen"}
+                      {t(isPdf ? "msg.downloadPdf" : "msg.downloadSheet")}
                     </a>
                   </div>
                 );
@@ -485,7 +483,7 @@ export default function ChatMessage({
           {message.sources && message.sources.length > 0 && (
             <div className="mt-3 rounded-xl border border-border-light p-3 dark:border-border-dark">
               <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                <BookOpen size={13} className="text-emerald-500" /> BookStack-Quellen
+                <BookOpen size={13} className="text-emerald-500" /> {t("msg.sources")}
               </div>
               <div className="space-y-1">
                 {message.sources.map((src, i) => (
@@ -517,7 +515,9 @@ export default function ChatMessage({
                       setActiveVariant(chatId, message.id, active - 1)
                     }
                     disabled={active <= 0}
-                    className="rounded p-0.5 hover:text-neutral-700 disabled:opacity-30 dark:hover:text-neutral-200"
+                    title={t("msg.prevVariant")}
+                    aria-label={t("msg.prevVariant")}
+                    className="rounded p-0.5 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-30 dark:hover:text-neutral-200"
                   >
                     <ChevronLeft size={14} />
                   </button>
@@ -529,7 +529,9 @@ export default function ChatMessage({
                       setActiveVariant(chatId, message.id, active + 1)
                     }
                     disabled={active >= variants!.length - 1}
-                    className="rounded p-0.5 hover:text-neutral-700 disabled:opacity-30 dark:hover:text-neutral-200"
+                    title={t("msg.nextVariant")}
+                    aria-label={t("msg.nextVariant")}
+                    className="rounded p-0.5 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-30 dark:hover:text-neutral-200"
                   >
                     <ChevronRight size={14} />
                   </button>
@@ -537,42 +539,38 @@ export default function ChatMessage({
               )}
 
               {message.content && (
-                <IconBtn onClick={copy} title="Kopieren">
+                <IconBtn onClick={copy} title={t("common.copy")}>
                   {copied ? <Check size={15} /> : <Copy size={15} />}
                 </IconBtn>
               )}
 
               <IconBtn
                 onClick={() => onRegenerate(message.id)}
-                title="Neu generieren"
+                title={t("msg.regenerate")}
               >
                 <RefreshCw size={15} />
               </IconBtn>
-              <IconBtn onClick={speak} title="Vorlesen">
+              <IconBtn onClick={speak} title={t("msg.readAloud")}>
                 {speaking ? <Square size={15} /> : <Volume2 size={15} />}
               </IconBtn>
               <IconBtn
                 onClick={() => setFeedback(chatId, message.id, "up")}
-                title="Gute Antwort"
+                title={t("msg.good")}
                 active={message.feedback === "up"}
               >
                 <ThumbsUp size={15} />
               </IconBtn>
               <IconBtn
                 onClick={() => setFeedback(chatId, message.id, "down")}
-                title="Schlechte Antwort"
+                title={t("msg.bad")}
                 active={message.feedback === "down"}
               >
                 <ThumbsDown size={15} />
               </IconBtn>
               <IconBtn
                 onClick={() => toggleStar(chatId, message.id)}
-                title={
-                  message.starred
-                    ? "Markierung entfernen"
-                    : "Markieren (erscheint unter „Markiert“)"
-                }
-                active={message.starred}
+                title={t(message.starred ? "msg.unstar" : "msg.star")}
+                active={!!message.starred}
               >
                 <Star
                   size={15}
@@ -586,7 +584,7 @@ export default function ChatMessage({
       </div>
     </div>
   );
-}
+});
 
 function IconBtn({
   children,
@@ -603,11 +601,13 @@ function IconBtn({
     <button
       onClick={onClick}
       title={title}
+      aria-label={title}
+      aria-pressed={active}
       className={clsx(
-        "rounded-lg p-1.5 transition hover:bg-neutral-200 hover:text-neutral-700 dark:hover:bg-white/10 dark:hover:text-neutral-200",
+        "rounded-lg p-1.5 transition hover:bg-neutral-200 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:hover:bg-white/10 dark:hover:text-neutral-200",
         active
           ? "text-accent opacity-100"
-          : "opacity-0 group-hover:opacity-100"
+          : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
       )}
     >
       {children}

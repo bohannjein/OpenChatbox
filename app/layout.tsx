@@ -36,7 +36,8 @@ export async function generateViewport(): Promise<Viewport> {
   };
 }
 
-// Set theme class before hydration to avoid flash of wrong theme.
+// Set theme class + <html lang> before hydration (no flash of wrong theme, and
+// screen readers pick the right voice from the first paint).
 const themeScript = `
 (function(){
   try {
@@ -54,6 +55,10 @@ const themeScript = `
     if (t === 'dark' || t === 'dracula') d.classList.add('dark');
     else d.classList.remove('dark');
     if (t === 'dracula') d.classList.add('dracula');
+    // UI language (null = not chosen yet → browser language, like detectBrowserLang).
+    var l = s.state && s.state.lang;
+    d.lang = l === 'en' || l === 'de' ? l
+      : ((navigator.language || 'de').toLowerCase().indexOf('en') === 0 ? 'en' : 'de');
   } catch(e) { document.documentElement.classList.add('dark'); }
 })();
 `;

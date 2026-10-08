@@ -23,6 +23,7 @@ import {
   LogIn,
   Folder as FolderIcon,
   FolderPlus,
+  FolderInput,
   ChevronRight,
   MoreVertical,
   StickyNote,
@@ -45,10 +46,39 @@ import { useT } from "@/lib/i18n";
 const LIST_FADE =
   "linear-gradient(to bottom, black 0%, black 95%, transparent 100%)";
 
+// Row actions appear on hover — and also on keyboard focus and on touch
+// screens, where there is no hover.
+const REVEAL =
+  "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100";
+const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+
+/** The list shows chat metadata only. A streaming reply replaces the active chat
+ *  object on every token (new messages + updatedAt), so keep returning the
+ *  previous array while nothing the sidebar renders has changed. */
+let listChats: Chat[] = [];
+const IGNORED = new Set(["messages", "updatedAt"]);
+function selectListChats(chats: Chat[]): Chat[] {
+  const same =
+    chats.length === listChats.length &&
+    chats.every((c, i) => {
+      const p = listChats[i] as unknown as Record<string, unknown>;
+      const n = c as unknown as Record<string, unknown>;
+      if (n === p) return true;
+      const keys = Object.keys(n);
+      return (
+        keys.length === Object.keys(p).length &&
+        keys.every((k) => IGNORED.has(k) || n[k] === p[k])
+      );
+    });
+  if (!same) listChats = chats;
+  return listChats;
+}
+
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const allChats = useStore((s) => s.chats);
+  const allChats = useStore((s) => selectListChats(s.chats));
   const chats = allChats.filter((c) => !c.temporary);
   const activeChatId = useStore((s) => s.activeChatId);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
@@ -111,9 +141,10 @@ export default function Sidebar() {
     setEditingFolderId(null);
   };
   const handleCreateFolder = () => {
-    const id = createFolder("Neuer Ordner");
+    const name = t("sidebar.newFolder");
+    const id = createFolder(name);
     setOpenFolders((prev) => new Set(prev).add(id));
-    startFolderEdit(id, "Neuer Ordner");
+    startFolderEdit(id, name);
   };
   const dropOnFolder = (e: DragEvent, folderId: string | null) => {
     e.preventDefault();
@@ -241,7 +272,7 @@ export default function Sidebar() {
         {active && (
           <span
             aria-hidden
-            className="absolute left-0 top-1/4 h-1/2 w-[3px] rounded-r bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]"
+            className="absolute left-0 top-1/4 h-1/2 w-[3px] rounded-r bg-accent"
           />
         )}
         {c.pinned ? (
@@ -267,13 +298,17 @@ export default function Sidebar() {
             />
             <button
               onClick={commitEdit}
-              className="text-neutral-500 hover:text-accent"
+              title={t("common.save")}
+              aria-label={t("common.save")}
+              className={clsx("rounded text-neutral-500 hover:text-accent", FOCUS_RING)}
             >
               <Check size={15} strokeWidth={1.5} />
             </button>
             <button
               onClick={() => setEditingId(null)}
-              className="text-neutral-500 hover:text-red-500"
+              title={t("common.cancel")}
+              aria-label={t("common.cancel")}
+              className={clsx("rounded text-neutral-500 hover:text-red-500", FOCUS_RING)}
             >
               <X size={15} strokeWidth={1.5} />
             </button>
@@ -290,19 +325,21 @@ export default function Sidebar() {
               </span>
               {c.draft && c.draft.trim() && (
                 <span className="shrink-0 rounded bg-amber-200 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
-                  Entwurf
+                  {t("sidebar.draft")}
                 </span>
               )}
             </button>
             <button
               onClick={() => togglePinChat(c.id)}
               className={clsx(
-                "shrink-0 transition",
+                "shrink-0 rounded transition",
+                FOCUS_RING,
                 c.pinned
                   ? "text-accent"
-                  : "text-neutral-400 opacity-0 hover:text-neutral-700 group-hover:opacity-100 dark:hover:text-neutral-200"
+                  : clsx("text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200", REVEAL)
               )}
-              title={c.pinned ? "Lösen" : "Anpinnen"}
+              title={t(c.pinned ? "sidebar.unpin" : "sidebar.pin")}
+              aria-label={t(c.pinned ? "sidebar.unpin" : "sidebar.pin")}
             >
               {c.pinned ? (
                 <PinOff size={14} strokeWidth={1.5} />
@@ -312,15 +349,47 @@ export default function Sidebar() {
             </button>
             <button
               onClick={() => startEdit(c.id, c.title)}
-              className="shrink-0 text-neutral-400 opacity-0 transition hover:text-neutral-700 group-hover:opacity-100 dark:hover:text-neutral-200"
-              title="Umbenennen"
+              className={clsx("shrink-0 rounded text-neutral-400 transition hover:text-neutral-700 dark:hover:text-neutral-200", REVEAL, FOCUS_RING)}
+              title={t("common.rename")}
+              aria-label={t("common.rename")}
             >
               <Pencil size={14} strokeWidth={1.5} />
             </button>
+            {wsFolders.length > 0 && (
+              <span
+                title={t("sidebar.moveToFolder")}
+                className={clsx(
+                  "relative shrink-0 rounded text-neutral-400 transition hover:text-neutral-700 dark:hover:text-neutral-200",
+                  "[&:has(:focus-visible)]:ring-2 [&:has(:focus-visible)]:ring-accent",
+                  REVEAL
+                )}
+              >
+                <FolderInput size={14} strokeWidth={1.5} aria-hidden />
+                {/* Native select over the icon: keyboard/touch alternative to drag & drop. */}
+                <select
+                  aria-label={t("sidebar.moveToFolder")}
+                  value={c.folderId && folderIds.has(c.folderId) ? c.folderId : ""}
+                  onChange={(e) => {
+                    const fid = e.target.value || null;
+                    setChatFolder(c.id, fid);
+                    if (fid) setOpenFolders((prev) => new Set(prev).add(fid));
+                  }}
+                  className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0 outline-none"
+                >
+                  <option value="">{t("sidebar.noFolder")}</option>
+                  {wsFolders.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+              </span>
+            )}
             <button
               onClick={() => setPendingDelete(c)}
-              className="shrink-0 text-neutral-400 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
-              title="Löschen"
+              className={clsx("shrink-0 rounded text-neutral-400 transition hover:text-red-500", REVEAL, FOCUS_RING)}
+              title={t("common.delete")}
+              aria-label={t("common.delete")}
             >
               <Trash2 size={14} strokeWidth={1.5} />
             </button>
@@ -335,6 +404,7 @@ export default function Sidebar() {
   if (guestMode) {
     return (
       <aside
+        inert={!sidebarOpen}
         className={clsx(
           "z-30 h-dvh shrink-0 overflow-hidden border-r border-border-light bg-sidebar-light dark:border-border-dark dark:bg-sidebar-dark print:hidden",
           "fixed inset-y-0 left-0 md:static",
@@ -349,8 +419,9 @@ export default function Sidebar() {
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              title="Sidebar einklappen"
-              className="cursor-pointer rounded-lg p-2 text-zinc-400 transition-all duration-150 hover:text-neutral-900 active:scale-95 dark:hover:bg-white/5 dark:hover:text-white"
+              title={t("sidebar.collapse")}
+              aria-label={t("sidebar.collapse")}
+              className="cursor-pointer rounded-lg p-2 text-zinc-400 transition-all duration-150 hover:text-neutral-900 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:hover:bg-white/5 dark:hover:text-white"
             >
               <PanelLeftClose size={18} strokeWidth={1.5} />
             </button>
@@ -359,17 +430,16 @@ export default function Sidebar() {
           <div className="flex flex-1 flex-col px-3 py-4">
             <div className="rounded-xl border border-border-light bg-white/60 p-4 dark:border-border-dark dark:bg-white/5">
               <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold">
-                <User size={16} className="text-accent" /> Gast-Modus
+                <User size={16} className="text-accent" /> {t("sidebar.guestTitle")}
               </div>
               <p className="text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
-                Du nutzt den Gast-Modus. Melde dich an, um Verläufe zu speichern und
-                Workspaces zu nutzen.
+                {t("sidebar.guestBody")}
               </p>
               <button
                 onClick={() => router.push("/login")}
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
               >
-                <LogIn size={16} /> Anmelden
+                <LogIn size={16} /> {t("common.signIn")}
               </button>
             </div>
           </div>
@@ -377,8 +447,9 @@ export default function Sidebar() {
           <div className="flex shrink-0 items-center justify-end border-t border-border-light px-3 py-2 dark:border-border-dark">
             <button
               onClick={handleThemeClick}
-              title={theme === "light" ? "Dark Mode" : "Light Mode"}
-              className="rounded-lg p-1.5 text-zinc-500 transition-colors hover:text-neutral-900 dark:hover:text-white"
+              title={t(theme === "light" ? "common.darkMode" : "common.lightMode")}
+              aria-label={t(theme === "light" ? "common.darkMode" : "common.lightMode")}
+              className="rounded-lg p-1.5 text-zinc-500 transition-colors hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:hover:text-white"
             >
               {theme === "light" ? <Moon size={17} strokeWidth={1.5} /> : <Sun size={17} strokeWidth={1.5} />}
             </button>
@@ -391,6 +462,7 @@ export default function Sidebar() {
   return (
     <>
     <aside
+      inert={!sidebarOpen}
       className={clsx(
         "z-30 h-dvh shrink-0 overflow-hidden border-r border-border-light bg-sidebar-light dark:border-border-dark dark:bg-sidebar-dark print:hidden",
         "fixed inset-y-0 left-0 md:static",
@@ -410,15 +482,17 @@ export default function Sidebar() {
           <div className="flex shrink-0 items-center gap-0.5">
             <button
               onClick={() => setSearchOpen(true)}
-              title="Chats durchsuchen (⌘K)"
-              className="cursor-pointer rounded-lg p-2 text-zinc-400 transition-all duration-150 hover:text-neutral-900 active:scale-95 dark:hover:bg-white/5 dark:hover:text-white"
+              title={t("sidebar.searchShortcut")}
+              aria-label={t("sidebar.searchLabel")}
+              className="cursor-pointer rounded-lg p-2 text-zinc-400 transition-all duration-150 hover:text-neutral-900 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:hover:bg-white/5 dark:hover:text-white"
             >
               <Search size={18} strokeWidth={1.5} />
             </button>
             <button
               onClick={() => setSidebarOpen(false)}
-              title="Sidebar einklappen"
-              className="cursor-pointer rounded-lg p-2 text-zinc-400 transition-all duration-150 hover:text-neutral-900 active:scale-95 dark:hover:bg-white/5 dark:hover:text-white"
+              title={t("sidebar.collapse")}
+              aria-label={t("sidebar.collapse")}
+              className="cursor-pointer rounded-lg p-2 text-zinc-400 transition-all duration-150 hover:text-neutral-900 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:hover:bg-white/5 dark:hover:text-white"
             >
               <PanelLeftClose size={18} strokeWidth={1.5} />
             </button>
@@ -432,15 +506,16 @@ export default function Sidebar() {
         <div className="flex items-center gap-2 px-3 pb-1 pt-0.5">
           <button
             onClick={startNewChat}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-violet-500/20 bg-zinc-950/40 px-3 py-2.5 text-sm font-medium tracking-wide text-violet-700 shadow-[0_0_15px_rgba(139,92,246,0.05)] backdrop-blur-md transition-all duration-150 ease-out hover:scale-[1.01] hover:border-violet-400/40 hover:bg-gradient-to-r hover:from-violet-600/10 hover:to-indigo-600/10 hover:text-violet-900 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] active:scale-[0.98] dark:text-violet-200 dark:hover:text-white"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border-light bg-white px-3 py-2.5 text-sm font-medium tracking-wide text-accent transition-colors duration-150 ease-out hover:border-accent/40 hover:bg-accent/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:border-border-dark dark:bg-white/[0.04] dark:hover:border-accent/40 dark:hover:bg-accent/10"
           >
             <Plus size={16} />
             {t("sidebar.newChat")}
           </button>
           <button
             onClick={handleCreateFolder}
-            title="Ordner erstellen"
-            className="flex shrink-0 items-center justify-center rounded-xl border border-violet-500/20 bg-zinc-950/40 p-2.5 text-violet-700 shadow-[0_0_15px_rgba(139,92,246,0.05)] backdrop-blur-md transition-all duration-150 ease-out hover:scale-[1.03] hover:border-violet-400/40 hover:text-violet-900 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] active:scale-95 dark:text-violet-200 dark:hover:text-white"
+            title={t("sidebar.createFolder")}
+            aria-label={t("sidebar.createFolder")}
+            className="flex shrink-0 items-center justify-center rounded-xl border border-border-light bg-white p-2.5 text-zinc-500 transition-colors duration-150 ease-out hover:border-accent/40 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:border-border-dark dark:bg-white/[0.04] dark:hover:border-accent/40"
           >
             <FolderPlus size={16} />
           </button>
@@ -505,14 +580,14 @@ export default function Sidebar() {
                 className={clsx(
                   "group/f relative flex items-center gap-1.5 rounded-xl px-2 py-2 text-sm transition-all duration-150 ease-out",
                   dragOverFolder === f.id
-                    ? "scale-[1.02] border border-violet-500/40 bg-violet-500/10 shadow-[0_0_12px_rgba(139,92,246,0.25)]"
+                    ? "border border-accent/40 bg-accent/10"
                     : "border border-transparent hover:bg-neutral-200/40 dark:hover:bg-white/[0.02]"
                 )}
               >
                 {editingF ? (
                   <>
                     <ChevronRight size={14} className="shrink-0 text-zinc-400" />
-                    <FolderIcon size={15} className="shrink-0 text-violet-400" />
+                    <FolderIcon size={15} className="shrink-0 text-accent" />
                     <input
                       autoFocus
                       value={folderDraft}
@@ -529,6 +604,7 @@ export default function Sidebar() {
                   <>
                     <button
                       onClick={() => toggleFolder(f.id)}
+                      aria-expanded={open}
                       className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
                     >
                       <ChevronRight
@@ -538,7 +614,7 @@ export default function Sidebar() {
                           open && "rotate-90"
                         )}
                       />
-                      <FolderIcon size={15} className="shrink-0 text-violet-400" />
+                      <FolderIcon size={15} className="shrink-0 text-accent" />
                       <span className="min-w-0 flex-1 truncate font-medium">
                         {f.name}
                       </span>
@@ -556,8 +632,14 @@ export default function Sidebar() {
                         onClick={() =>
                           setFolderMenuId((v) => (v === f.id ? null : f.id))
                         }
-                        title="Ordner-Menü"
-                        className="shrink-0 rounded p-1 text-neutral-400 opacity-0 transition hover:text-neutral-700 group-hover/f:opacity-100 dark:hover:text-neutral-200"
+                        title={t("sidebar.folderMenu")}
+                        aria-label={t("sidebar.folderMenu")}
+                        aria-haspopup="menu"
+                        aria-expanded={folderMenuId === f.id}
+                        className={clsx(
+                          "shrink-0 rounded p-1 text-neutral-400 opacity-0 transition hover:text-neutral-700 group-hover/f:opacity-100 group-focus-within/f:opacity-100 [@media(hover:none)]:opacity-100 dark:hover:text-neutral-200",
+                          FOCUS_RING
+                        )}
                       >
                         <MoreVertical size={14} />
                       </button>
@@ -567,7 +649,7 @@ export default function Sidebar() {
                             onClick={() => startFolderEdit(f.id, f.name)}
                             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors duration-150 ease-out hover:bg-neutral-100 dark:hover:bg-white/10"
                           >
-                            <Pencil size={14} /> Umbenennen
+                            <Pencil size={14} /> {t("common.rename")}
                           </button>
                           <button
                             onClick={() => {
@@ -576,7 +658,7 @@ export default function Sidebar() {
                             }}
                             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-500 transition-colors duration-150 ease-out hover:bg-red-500/10"
                           >
-                            <Trash2 size={14} /> Ordner löschen
+                            <Trash2 size={14} /> {t("sidebar.deleteFolder")}
                           </button>
                         </div>
                       )}
@@ -586,6 +668,7 @@ export default function Sidebar() {
               </div>
               {/* Accordion body — grid-rows height animation */}
               <div
+                inert={!open}
                 className={clsx(
                   "grid transition-all duration-200 ease-out",
                   open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
@@ -597,7 +680,7 @@ export default function Sidebar() {
                       fChats.map(chatRow)
                     ) : (
                       <p className="px-3 py-1 text-xs text-neutral-400">
-                        Leer — zieh Chats hierher.
+                        {t("sidebar.folderEmpty")}
                       </p>
                     )}
                   </div>
@@ -623,20 +706,20 @@ export default function Sidebar() {
             "mt-1 flex-1 rounded-xl transition-colors duration-150 ease-out",
             dragOverFolder === "__root__" &&
               draggingChatId &&
-              "bg-violet-500/5 ring-1 ring-violet-500/20"
+              "bg-accent/5 ring-1 ring-accent/20"
           )}
         >
           {pinned.length > 0 && (
             <div className="mb-2">
               <div className="flex items-center gap-1 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500 opacity-60">
-                <Pin size={10} /> Angepinnt
+                <Pin size={10} /> {t("sidebar.pinned")}
               </div>
               {pinned.map(chatRow)}
             </div>
           )}
           {(wsFolders.length > 0 || pinned.length > 0) && rest.length > 0 && (
             <div className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500 opacity-60">
-              Chats
+              {t("sidebar.chats")}
             </div>
           )}
           {rest.map(chatRow)}
@@ -647,6 +730,7 @@ export default function Sidebar() {
       <div className="relative p-2" ref={footerRef}>
         {/* Cyber-glass popover */}
         <div
+          inert={!menuOpen}
           className={clsx(
             "absolute bottom-16 left-2 right-2 z-50 mb-1 flex origin-bottom flex-col gap-1 rounded-2xl border border-white/[0.08] bg-zinc-950/90 p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur-md transition-all duration-200 ease-expo",
             menuOpen
@@ -656,21 +740,21 @@ export default function Sidebar() {
         >
           {/* Header — current user (non-clickable) */}
           <div className="mb-1 truncate border-b border-white/[0.05] px-3 py-2 font-mono text-xs text-zinc-500">
-            {authUser?.username ?? "Angemeldet"}
+            {authUser?.username ?? t("sidebar.signedIn")}
           </div>
           <button
             onClick={switchAccount}
             className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-white/[0.04]"
           >
             <Users size={16} strokeWidth={1.5} className="shrink-0 text-zinc-400" />
-            Account wechseln
+            {t("sidebar.switchAccount")}
           </button>
           <button
             onClick={openProfile}
             className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-white/[0.04]"
           >
             <User size={16} strokeWidth={1.5} className="shrink-0 text-zinc-400" />
-            Profil &amp; Sicherheit
+            {t("sidebar.profile")}
           </button>
           <div className="my-1 border-t border-white/[0.05]" />
           <button
@@ -682,7 +766,7 @@ export default function Sidebar() {
               strokeWidth={1.5}
               className="shrink-0 text-red-400/80"
             />
-            Abmelden
+            {t("common.signOut")}
           </button>
         </div>
 
@@ -690,7 +774,9 @@ export default function Sidebar() {
           {/* Profile — opens popover */}
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            title="Konto-Menü"
+            title={t("sidebar.accountMenu")}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
             className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg text-left transition-colors"
           >
             <div className="relative shrink-0">
@@ -701,7 +787,7 @@ export default function Sidebar() {
             </div>
             <div className="min-w-0 leading-tight">
               <div className="truncate text-sm font-medium">
-                {fullNameOf(authUser) || "Nutzer"}
+                {fullNameOf(authUser) || t("sidebar.user")}
               </div>
               <div className="truncate font-mono text-xs text-zinc-500">
                 {authUser?.role
@@ -714,7 +800,9 @@ export default function Sidebar() {
           <div className="flex shrink-0 items-center gap-0.5">
             <button
               onClick={() => setGlobalNotesOpen(!globalNotesOpen)}
-              title="Meine Notizen (chatübergreifend)"
+              title={t("sidebar.notesTitle")}
+              aria-label={t("sidebar.notes")}
+              aria-pressed={globalNotesOpen}
               className={clsx(
                 "rounded-lg p-1.5 transition-colors",
                 globalNotesOpen
@@ -726,8 +814,9 @@ export default function Sidebar() {
             </button>
             <button
               onClick={() => setSettingsOpen(true)}
-              title={showWhatsNewDot ? "Einstellungen — neue Updates" : "Einstellungen"}
-              className="relative rounded-lg p-1.5 text-zinc-500 transition-colors hover:text-neutral-900 dark:hover:text-white"
+              title={t(showWhatsNewDot ? "sidebar.settingsUpdates" : "common.settings")}
+              aria-label={t(showWhatsNewDot ? "sidebar.settingsUpdates" : "common.settings")}
+              className="relative rounded-lg p-1.5 text-zinc-500 transition-colors hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:hover:text-white"
             >
               <Settings size={17} strokeWidth={1.5} />
               {showWhatsNewDot && (
@@ -739,8 +828,9 @@ export default function Sidebar() {
             </button>
             <button
               onClick={handleThemeClick}
-              title={theme === "light" ? "Dark Mode" : "Light Mode"}
-              className="rounded-lg p-1.5 text-zinc-500 transition-colors hover:text-neutral-900 dark:hover:text-white"
+              title={t(theme === "light" ? "common.darkMode" : "common.lightMode")}
+              aria-label={t(theme === "light" ? "common.darkMode" : "common.lightMode")}
+              className="rounded-lg p-1.5 text-zinc-500 transition-colors hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:hover:text-white"
             >
               {theme === "light" ? (
                 <Moon size={17} strokeWidth={1.5} />
@@ -756,17 +846,16 @@ export default function Sidebar() {
 
       {pendingDelete && (
         <Modal onClose={() => setPendingDelete(null)}>
-          <h2 className="text-lg font-bold">Chat löschen?</h2>
+          <h2 className="text-lg font-bold">{t("sidebar.deleteChatTitle")}</h2>
           <p className="mt-2 text-sm text-neutral-500">
-            Auch Prompts, Antworten, Feedback und von dir erstellte Inhalte
-            werden aus deinem Aktivitätsverlauf gelöscht.
+            {t("sidebar.deleteChatBody")}
           </p>
           <div className="mt-5 flex justify-end gap-2">
             <button
               onClick={() => setPendingDelete(null)}
               className="rounded-lg border border-border-light px-4 py-2 text-sm font-medium transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
             >
-              Abbrechen
+              {t("common.cancel")}
             </button>
             <button
               onClick={() => {
@@ -775,61 +864,54 @@ export default function Sidebar() {
               }}
               className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
             >
-              Löschen
+              {t("common.delete")}
             </button>
           </div>
         </Modal>
       )}
 
-      {/* Cyber-Glass folder delete confirmation — cascades to the chats inside. */}
+      {/* Folder delete confirmation — cascades to the chats inside. */}
       {pendingFolderDelete && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 print:hidden">
-          <div
-            className="absolute inset-0 animate-fade-in bg-black/50"
-            onClick={() => setPendingFolderDelete(null)}
-          />
-          <div className="relative z-10 w-full max-w-md animate-pop-in rounded-2xl border border-red-500/20 bg-zinc-950/80 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.7)] backdrop-blur-xl">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-400">
-                <Trash2 size={18} />
-              </span>
-              <h2 className="text-lg font-bold text-zinc-100">
-                Ordner „{pendingFolderDelete.name}" löschen?
-              </h2>
-            </div>
-            {(() => {
-              const count = chats.filter(
-                (c) => c.folderId === pendingFolderDelete.id
-              ).length;
-              return (
-                <p className="mt-3 text-sm text-zinc-400">
-                  Achtung: Dabei werden auch alle{" "}
-                  <span className="font-medium text-red-300">
-                    {count} darin enthaltenen Chats
-                  </span>{" "}
-                  unwiderruflich gelöscht.
-                </p>
-              );
-            })()}
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                onClick={() => setPendingFolderDelete(null)}
-                className="rounded-xl px-4 py-2 text-sm text-zinc-400 transition-colors duration-150 ease-out hover:text-zinc-200"
-              >
-                Abbrechen
-              </button>
-              <button
-                onClick={() => {
-                  deleteFolder(pendingFolderDelete.id);
-                  setPendingFolderDelete(null);
-                }}
-                className="rounded-xl border border-red-500/30 bg-red-950/40 px-4 py-2 text-sm font-medium text-red-200 transition-all duration-150 ease-out hover:bg-red-900/60 active:scale-95"
-              >
-                Ordner &amp; Chats löschen
-              </button>
-            </div>
+        <Modal onClose={() => setPendingFolderDelete(null)}>
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-400">
+              <Trash2 size={18} />
+            </span>
+            <h2 className="text-lg font-bold">
+              {t("sidebar.deleteFolderTitle", { name: pendingFolderDelete.name })}
+            </h2>
           </div>
-        </div>
+          {(() => {
+            const n = chats.filter((c) => c.folderId === pendingFolderDelete.id).length;
+            const [before, after] = t("sidebar.deleteFolderBody").split("{chats}");
+            return (
+              <p className="mt-3 text-sm text-neutral-500">
+                {before}
+                <span className="font-medium text-red-500">
+                  {t(n === 1 ? "sidebar.deleteFolderChatsOne" : "sidebar.deleteFolderChats", { n })}
+                </span>
+                {after}
+              </p>
+            );
+          })()}
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              onClick={() => setPendingFolderDelete(null)}
+              className="rounded-lg border border-border-light px-4 py-2 text-sm font-medium transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              onClick={() => {
+                deleteFolder(pendingFolderDelete.id);
+                setPendingFolderDelete(null);
+              }}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
+            >
+              {t("sidebar.deleteFolderConfirm")}
+            </button>
+          </div>
+        </Modal>
       )}
     </>
   );

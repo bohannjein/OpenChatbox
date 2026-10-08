@@ -10,7 +10,7 @@ import FileManager from "@/components/FileManager";
 import { useStore, useBrand } from "@/lib/store";
 import { loadServerState, startProfileSync, startLiveSync } from "@/lib/serverSync";
 import { brandTokens } from "@/lib/branding";
-import { detectBrowserLang } from "@/lib/i18n";
+import { detectBrowserLang, useT } from "@/lib/i18n";
 import clsx from "clsx";
 
 /**
@@ -30,7 +30,15 @@ export default function AppRoot() {
   const brand = useBrand();
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
-  const chats = useStore((s) => s.chats);
+  // AppRoot wraps the whole shell, so it must not re-render per streamed token:
+  // subscribe to the two facts it needs instead of the chats array.
+  const urlChatId = pathname.startsWith("/c/")
+    ? decodeURIComponent(pathname.slice(3))
+    : null;
+  const urlChatExists = useStore((s) => s.chats.some((c) => c.id === urlChatId));
+  const isTemp = useStore(
+    (s) => s.chats.find((c) => c.id === s.activeChatId)?.temporary ?? false
+  );
   const activeChatId = useStore((s) => s.activeChatId);
   const newChat = useStore((s) => s.newChat);
   const selectChat = useStore((s) => s.selectChat);
@@ -44,6 +52,7 @@ export default function AppRoot() {
   const syncError = useStore((s) => s.syncError);
   const lang = useStore((s) => s.lang);
   const setLang = useStore((s) => s.setLang);
+  const t = useT();
   const upsertWorkspace = useStore((s) => s.upsertWorkspace);
 
   const prevPath = useRef<string | null>(null);
@@ -192,10 +201,9 @@ export default function AppRoot() {
   // Drive the active chat from the URL.
   useEffect(() => {
     if (!mounted) return;
-    if (pathname.startsWith("/c/")) {
-      const id = decodeURIComponent(pathname.slice(3));
-      if (chats.some((c) => c.id === id)) {
-        if (activeChatId !== id) selectChat(id);
+    if (urlChatId) {
+      if (urlChatExists) {
+        if (activeChatId !== urlChatId) selectChat(urlChatId);
       } else {
         router.replace("/");
       }
@@ -205,7 +213,7 @@ export default function AppRoot() {
     }
     prevPath.current = pathname;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, pathname, chats]);
+  }, [mounted, pathname, urlChatExists]);
 
   // Note: promoting a fresh "/" chat to its own /c/[id] URL happens on send
   // (ChatWindow.handleSend), not via an effect — an effect races the newChat()
@@ -223,8 +231,6 @@ export default function AppRoot() {
   if (needsSetup !== false) {
     return <div className="h-dvh w-full bg-main-light dark:bg-main-dark" />;
   }
-
-  const isTemp = chats.find((c) => c.id === activeChatId)?.temporary ?? false;
 
   return (
     <div className="flex h-dvh w-full overflow-hidden">
@@ -254,9 +260,10 @@ export default function AppRoot() {
       <SearchModal />
       <FileManager />
       {syncError && (
-        <div className="fixed bottom-3 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-700 shadow-lg dark:border-red-900 dark:bg-red-950/80 dark:text-red-300">
-          Serverspeicherung fehlgeschlagen — Änderungen evtl. nur lokal
-          (Speicherplatz voll?).
+        <div
+          role="alert"
+          className="fixed bottom-3 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-700 shadow-lg dark:border-red-900 dark:bg-red-950/80 dark:text-red-300">
+          {t("app.syncError")}
         </div>
       )}
     </div>

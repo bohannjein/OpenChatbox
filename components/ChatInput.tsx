@@ -118,7 +118,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
     () => [
       {
         cmd: "/file",
-        label: "Datei hochladen",
+        label: t("input.cmdFile"),
         Icon: Paperclip,
         inline: false,
         run: () => fileRef.current?.click(),
@@ -127,26 +127,26 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
         // inline: completing "/model " opens the model list INSIDE this menu,
         // so there is no direct `run` action (the inline path never calls it).
         cmd: "/model",
-        label: "Modell wählen",
+        label: t("input.cmdModel"),
         Icon: Cpu,
         inline: true,
       },
       {
         cmd: "/sidekick",
-        label: "Sidekick wechseln / erstellen",
+        label: t("input.cmdSidekick"),
         Icon: Sparkles,
         inline: false,
         run: () => window.dispatchEvent(new Event("openModelSwitcher")),
       },
       {
         cmd: "/search",
-        label: "Internetsuche umschalten",
+        label: t("input.cmdSearch"),
         Icon: Globe,
         inline: false,
         run: () => toggleWebSearch(),
       },
     ],
-    [toggleWebSearch]
+    [toggleWebSearch, t]
   );
 
   useImperativeHandle(ref, () => ({
@@ -303,7 +303,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
             name: f.name,
             size: f.size,
             kind: "other",
-            note: "Bild konnte nicht verarbeitet werden.",
+            note: t("input.imageFailed"),
           });
         }
       }
@@ -353,7 +353,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
                   name: toUpload[i]?.name ?? "Datei",
                   size: toUpload[i]?.size ?? 0,
                   kind: "other",
-                  note: "Datei konnte nicht verarbeitet werden.",
+                  note: t("input.fileFailed"),
                 }
           )
         );
@@ -497,9 +497,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
           <div className="absolute bottom-full left-0 z-40 mb-2 max-h-72 w-full overflow-y-auto menu-panel">
             <div className="flex items-center gap-1.5 border-b border-border-light px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:border-border-dark">
               <BookText size={13} />{" "}
-              {modelMode
-                ? "Modell wählen · ↑↓ · Tab/⏎ bestätigt"
-                : "Befehle & Vorlagen · ↑↓ · Tab/⏎ bestätigt"}
+              {t(modelMode ? "input.pickerModel" : "input.pickerCmds")}
               {modelMode && ghost && (
                 <span className="ml-auto normal-case text-neutral-400">
                   <span className="text-neutral-500">{modelQuery}</span>
@@ -584,7 +582,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
         >
           {dragActive && (
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-3xl bg-accent/10 text-sm font-medium text-accent backdrop-blur-[1px]">
-              <Paperclip size={16} /> Dateien hier ablegen
+              <Paperclip size={16} /> {t("input.dropFiles")}
             </div>
           )}
           {/* Attachment tiles (inside the box, above the textarea) */}
@@ -611,8 +609,9 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
                   <span className="max-w-[10rem] truncate">{a.name}</span>
                   <button
                     onClick={() => removeAttachment(a.id)}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-neutral-400 hover:text-red-500"
-                    title="Entfernen"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-neutral-400 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    title={t("common.remove")}
+                    aria-label={t("common.removeNamed", { name: a.name })}
                   >
                     <X size={14} />
                   </button>
@@ -637,8 +636,9 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
             <button
               onClick={() => fileRef.current?.click()}
               disabled={disabled}
-              title="Datei anhängen"
-              className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-neutral-500 transition hover:bg-neutral-200 disabled:opacity-40 dark:hover:bg-white/10"
+              title={t("input.attach")}
+              aria-label={t("input.attach")}
+              className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-neutral-500 transition hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 dark:hover:bg-white/10"
             >
               <Paperclip size={18} />
             </button>
@@ -648,38 +648,34 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
             <button
               onClick={() => toggleWebSearch()}
               disabled={disabled}
-              title={
-                webSearchEnabled
-                  ? "Internetsuche ist an — zum Ausschalten klicken"
-                  : "Internetsuche einschalten"
-              }
+              title={t(webSearchEnabled ? "input.webOn" : "input.webOff")}
+              aria-label={t("input.web")}
+              aria-pressed={webSearchEnabled}
               className={clsx(
-                "mb-0.5 flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full transition-all duration-150 ease-out disabled:opacity-40",
+                "mb-0.5 flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40",
                 webSearchEnabled
                   ? "bg-accent/15 pl-2.5 pr-3 text-sm font-medium text-accent"
                   : "w-9 text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
               )}
             >
               <Globe size={18} className="shrink-0" />
-              {webSearchEnabled && <span>Websuche</span>}
+              {webSearchEnabled && <span>{t("input.webShort")}</span>}
             </button>
             <button
               onClick={() => toggleKb()}
               disabled={disabled}
-              title={
-                kbEnabled
-                  ? "Wissensdatenbank ist an — zum Ausschalten klicken"
-                  : "Wissensdatenbank einschalten"
-              }
+              title={t(kbEnabled ? "input.kbOn" : "input.kbOff")}
+              aria-label={t("input.kb")}
+              aria-pressed={kbEnabled}
               className={clsx(
-                "mb-0.5 flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full transition-all duration-150 ease-out disabled:opacity-40",
+                "mb-0.5 flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40",
                 kbEnabled
                   ? "bg-accent/15 pl-2.5 pr-3 text-sm font-medium text-accent"
                   : "w-9 text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
               )}
             >
               <Library size={18} className="shrink-0" />
-              {kbEnabled && <span>Wissen</span>}
+              {kbEnabled && <span>{t("input.kbShort")}</span>}
             </button>
 
             <textarea
@@ -691,14 +687,16 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
               onKeyDown={onKeyDown}
               onPaste={onPaste}
               placeholder={placeholder ?? t("input.placeholder")}
+              aria-label={placeholder ?? t("input.placeholder")}
               className="max-h-60 flex-1 resize-none bg-transparent px-2 py-2 leading-6 outline-none placeholder:text-neutral-400 disabled:cursor-not-allowed"
             />
 
             {streaming ? (
               <button
                 onClick={onStop}
-                title="Generierung stoppen"
-                className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-white transition-all duration-150 ease-out hover:bg-neutral-700 active:scale-95 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+                title={t("input.stop")}
+                aria-label={t("input.stop")}
+                className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-white transition-all duration-150 ease-out hover:bg-neutral-700 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:bg-white dark:text-black dark:hover:bg-neutral-200"
               >
                 <Square size={16} fill="currentColor" />
               </button>
@@ -706,8 +704,9 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
               <button
                 onClick={submit}
                 disabled={(!value.trim() && attachments.length === 0) || disabled}
-                title="Senden"
-                className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-white transition-all duration-150 ease-out hover:scale-105 hover:bg-neutral-700 active:scale-95 disabled:opacity-30 disabled:hover:scale-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+                title={t("common.send")}
+                aria-label={t("common.send")}
+                className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-white transition-all duration-150 ease-out hover:scale-105 hover:bg-neutral-700 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-30 disabled:hover:scale-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
               >
                 <ArrowUp size={18} />
               </button>

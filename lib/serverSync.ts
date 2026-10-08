@@ -1,3 +1,4 @@
+import { shallow } from "zustand/shallow";
 import { useStore } from "./store";
 import type { Chat, Folder, GlobalConfigPayload, ServerUserProfile } from "./types";
 
@@ -165,10 +166,13 @@ function scheduleChatPush() {
   // last change (i.e. shortly after a stream ends).
   chatTimer = setTimeout(() => {
     chatTimer = null;
+    const body = JSON.stringify(chatsOf(useStore.getState()));
+    if (body === lastChats) return; // only volatile/temporary data changed
+    lastChats = body;
     fetch("/api/chats", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(chatsOf(useStore.getState())),
+      body,
     })
       .then((r) => useStore.getState().setSyncError(!r.ok))
       .catch(() => useStore.getState().setSyncError(true))
@@ -198,29 +202,35 @@ function scheduleGlobalPush() {
  */
 export function startProfileSync(): () => void {
   if (unsub) return unsub;
-  unsub = useStore.subscribe((s) => {
+  unsub = useStore.subscribe((s, prev) => {
     // Never push before the first server hydration completes (would clobber the
     // server with stale local-cache values).
     if (hydrating || !ready) return;
     // Guests are ephemeral: nothing they do is persisted server-side (and the
     // persistence routes would 403 anyway — no stored user).
     if (s.guestMode) return;
-    const snap = JSON.stringify(profileOf(s));
-    if (snap !== lastSnapshot) {
-      lastSnapshot = snap;
-      schedulePush();
-    }
-    // Chats → server (only after a successful initial fetch, so a failed load
-    // never clobbers the server copy with an empty local one).
-    if (chatsLoaded) {
-      const cs = JSON.stringify(chatsOf(s));
-      if (cs !== lastChats) {
-        lastChats = cs;
-        scheduleChatPush();
+    // This fires on every store change — including every streamed token — so
+    // reference-check the slices first and only serialize what actually moved.
+    if (!shallow(profileOf(s), profileOf(prev))) {
+      const snap = JSON.stringify(profileOf(s));
+      if (snap !== lastSnapshot) {
+        lastSnapshot = snap;
+        schedulePush();
       }
     }
+    // Chats → server (only after a successful initial fetch, so a failed load
+    // never clobbers the server copy with an empty local one). Serializing the
+    // whole history per token was the main streaming cost; the content diff now
+    // runs once, when the debounced push fires.
+    if (
+      chatsLoaded &&
+      (s.chats !== prev.chats ||
+        s.folders !== prev.folders ||
+        s.activeChatId !== prev.activeChatId)
+    )
+      scheduleChatPush();
     // Admin-global config is only pushed by admins (server 403s otherwise).
-    if (s.authUser?.role === "admin") {
+    if (s.authUser?.role === "admin" && s.routerModels !== prev.routerModels) {
       const g = JSON.stringify(globalOf(s));
       if (g !== lastGlobal) {
         lastGlobal = g;

@@ -40,13 +40,16 @@ export default function ParamsPopover() {
       <button
         onClick={() => setOpen((v) => !v)}
         title="Antwortstil"
+        aria-label="Antwortstil"
+        aria-haspopup="true"
+        aria-expanded={open}
         className="rounded-l-none rounded-r-xl p-2 text-zinc-400 transition-colors duration-150 hover:bg-neutral-200/70 hover:text-neutral-900 dark:hover:bg-white/10 dark:hover:text-white"
       >
         <SlidersHorizontal size={18} strokeWidth={1.5} />
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-40 mt-2 w-72 origin-top animate-pop-in rounded-2xl border border-white/[0.08] bg-zinc-950/75 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+        <div className="absolute left-0 top-full z-40 mt-2 w-72 origin-top animate-pop-in rounded-2xl border border-border-light bg-white p-4 shadow-xl dark:border-white/[0.08] dark:bg-zinc-950/75 dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] dark:backdrop-blur-xl">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               Antwortstil
@@ -57,7 +60,7 @@ export default function ParamsPopover() {
                 setAdvanced(false);
               }}
               title="Zurücksetzen"
-              className="flex items-center gap-1 text-xs text-zinc-400 transition-colors hover:text-violet-400"
+              className="flex items-center gap-1 text-xs text-zinc-400 transition-colors hover:text-accent"
             >
               <RotateCcw size={12} /> Reset
             </button>
@@ -89,7 +92,7 @@ export default function ParamsPopover() {
 
           <button
             onClick={() => setAdvanced((v) => !v)}
-            className="mt-4 flex w-full items-center gap-1 text-[11px] text-zinc-500 transition-colors hover:text-zinc-300"
+            className="mt-4 flex w-full items-center gap-1 text-[11px] text-zinc-500 transition-colors hover:text-neutral-900 dark:hover:text-zinc-300"
           >
             <ChevronDown
               size={13}
@@ -102,7 +105,7 @@ export default function ParamsPopover() {
           </button>
 
           {advanced && (
-            <div className="mt-3 border-t border-white/[0.06] pt-3">
+            <div className="mt-3 border-t border-border-light pt-3 dark:border-white/[0.06]">
           <Slider
             label="Temperatur"
             hint="Kreativität"
@@ -163,8 +166,8 @@ function Choice({
             className={clsx(
               "flex-1 rounded-lg px-2 py-1.5 text-xs transition-colors duration-150",
               activeId === o.id
-                ? "bg-violet-500/20 font-medium text-violet-300"
-                : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
+                ? "bg-accent/10 font-medium text-accent dark:bg-accent/20"
+                : "text-zinc-400 hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
             )}
           >
             {o.label}
@@ -194,7 +197,7 @@ function InfoTip({ text }: { text: string }) {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="flex h-4 w-4 items-center justify-center rounded-full text-zinc-500 transition-colors hover:text-zinc-300 focus:text-zinc-300 focus:outline-none"
+        className="flex h-4 w-4 items-center justify-center rounded-full text-zinc-500 transition-colors hover:text-neutral-900 focus:text-neutral-900 focus:outline-none dark:hover:text-zinc-300 dark:focus:text-zinc-300"
       >
         <Info size={13} />
       </button>
@@ -235,11 +238,11 @@ function Slider({
   return (
     <div className="mb-4 last:mb-0">
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-200">
+        <span className="flex items-center gap-1.5 text-sm font-medium text-neutral-900 dark:text-zinc-200">
           {label}
           <InfoTip text={info} />
         </span>
-        <span className="rounded-md border border-white/[0.05] bg-zinc-900/80 px-2 py-0.5 font-mono text-xs text-violet-400">
+        <span className="rounded-md border border-border-light bg-neutral-100 px-2 py-0.5 font-mono text-xs text-accent dark:border-white/[0.05] dark:bg-zinc-900/80">
           {format ? format(value) : value.toFixed(2)}
         </span>
       </div>

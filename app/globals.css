@@ -23,12 +23,32 @@
      (#4f46e5), otherwise the first paint flashes the wrong color. */
   --accent: 79 70 229;
   --accent-hover: 67 60 195;
+  /* Contrast-safe accent variants, derived in lib/branding.ts (brandTokens):
+     text/border use on light (≥4.5:1 on #f4f4f4) and dark (≥4.5:1 on #2f2f2f)
+     surfaces, plus the foreground for text on a solid bg-accent. */
+  --accent-text-light: 79 70 229; /* #4f46e5 */
+  --accent-text-dark: 149 144 239; /* #9590ef */
+  --accent-fg-brand: 255 255 255;
   /* Dark-surface tokens (RGB channels) consumed by Tailwind's *-dark colors.
      Only used behind the `dark:` variant; defined here as a safe fallback. */
   --surface-main: 33 33 33;
   --surface-sidebar: 23 23 23;
   --surface-bubble: 47 47 47;
   --surface-border: 47 47 47;
+  /* neutral/zinc 400+500 (tailwind.config.ts) — per theme so secondary text
+     clears 4.5:1 on every surface incl. the bubble. Light: on #f4f4f4. */
+  --n-400: 110 110 110; /* #6e6e6e */
+  --n-500: 99 99 99; /* #636363 */
+  --range-rail: 212 212 212; /* #d4d4d4 */
+}
+
+/* Resolved accent tokens. Also re-resolved on any element that carries the
+   brand tokens inline (BrandingPanel preview), since custom properties
+   inherit already-substituted. */
+:root,
+[style*="--accent-text-light"] {
+  --accent-text: var(--accent-text-light);
+  --accent-fg: var(--accent-fg-brand);
 }
 
 .dark {
@@ -37,6 +57,13 @@
   --surface-sidebar: 23 23 23; /* #171717 */
   --surface-bubble: 47 47 47; /* #2f2f2f */
   --surface-border: 47 47 47; /* #2f2f2f */
+  --n-400: 163 163 163; /* #a3a3a3 (unchanged) */
+  --n-500: 150 150 150; /* #969696 */
+  --range-rail: 63 63 70; /* #3f3f46 */
+}
+.dark,
+.dark [style*="--accent-text-dark"] {
+  --accent-text: var(--accent-text-dark);
 }
 
 /* Dracula — high-contrast, purple-accented dark theme (unlocked via the
@@ -48,6 +75,40 @@
   --surface-bubble: 68 71 90; /* #44475a current-line */
   --surface-border: 98 114 164; /* #6272a4 comment — visible separators */
   /* accent (#bd93f9) is pinned from AppRoot so inline styles don't override it */
+  --accent-text: var(--accent); /* #bd93f9: 5.9:1 on #282a36 */
+  --accent-fg: 33 34 44; /* white on #bd93f9 is 2.4:1; #21222c is 6.6:1 */
+  --n-400: 195 197 212; /* #c3c5d4 */
+  --n-500: 180 182 200; /* #b4b6c8 */
+}
+
+/* Always-dark panels (ParamsPopover, Sidebar user menu, AdminTerminal) keep
+   the dark grays/accent in light mode. Matches only un-prefixed bg classes. */
+html:not(.dark)
+  :is(
+    [class^="bg-zinc-950"],
+    [class*=" bg-zinc-950"],
+    [class^="bg-neutral-950"],
+    [class*=" bg-neutral-950"]
+  ) {
+  --n-400: 163 163 163;
+  --n-500: 150 150 150;
+  --range-rail: 63 63 70;
+  --accent-text: var(--accent-text-dark);
+}
+
+/* Text on a solid accent fill follows the accent's own contrast (dark text
+   on Dracula purple / light brand colors). :where keeps the specificity of
+   .text-white, so explicit variant overrides still win. */
+:where(.bg-accent).text-white {
+  color: rgb(var(--accent-fg) / var(--tw-text-opacity, 1));
+}
+
+/* Preflight paints unclassed placeholders gray-400 (2.5:1). */
+@layer base {
+  input::placeholder,
+  textarea::placeholder {
+    color: rgb(var(--n-400));
+  }
 }
 
 /* Butter-smooth theme crossfade. Applied only for the ~300ms around a theme
@@ -91,40 +152,74 @@ body {
   background: transparent;
 }
 
-/* highlight.js theme (github-dark-dimmed subset, works both modes) */
+/* highlight.js theme: github-light on #f6f8fa, github-dark-dimmed under .dark
+   (code bg #0d1117, see CodeBlock). All pairs ≥4.5:1. */
 .hljs {
-  color: #adbac7;
+  color: #24292f;
   background: transparent;
 }
 .hljs-comment,
 .hljs-quote {
-  color: #768390;
+  color: #59636e;
   font-style: italic;
 }
 .hljs-keyword,
 .hljs-selector-tag,
 .hljs-built_in {
-  color: #f47067;
+  color: #cf222e;
 }
 .hljs-string,
 .hljs-attr {
-  color: #96d0ff;
+  color: #0a3069;
 }
 .hljs-number,
 .hljs-literal {
-  color: #6cb6ff;
+  color: #0550ae;
 }
 .hljs-title,
 .hljs-function .hljs-title,
 .hljs-section {
-  color: #dcbdfb;
+  color: #8250df;
 }
 .hljs-type,
 .hljs-class .hljs-title {
-  color: #f69d50;
+  color: #953800;
 }
 .hljs-tag,
 .hljs-name {
+  color: #116329;
+}
+.dark .hljs {
+  color: #adbac7;
+}
+.dark .hljs-comment,
+.dark .hljs-quote {
+  color: #768390;
+}
+.dark .hljs-keyword,
+.dark .hljs-selector-tag,
+.dark .hljs-built_in {
+  color: #f47067;
+}
+.dark .hljs-string,
+.dark .hljs-attr {
+  color: #96d0ff;
+}
+.dark .hljs-number,
+.dark .hljs-literal {
+  color: #6cb6ff;
+}
+.dark .hljs-title,
+.dark .hljs-function .hljs-title,
+.dark .hljs-section {
+  color: #dcbdfb;
+}
+.dark .hljs-type,
+.dark .hljs-class .hljs-title {
+  color: #f69d50;
+}
+.dark .hljs-tag,
+.dark .hljs-name {
   color: #8ddb8c;
 }
 
@@ -143,6 +238,8 @@ body {
 .incognito {
   --accent: 255 255 255;
   --accent-hover: 226 226 226;
+  --accent-text: 255 255 255;
+  --accent-fg: 0 0 0;
   background-color: #000 !important;
   color: #fff;
   box-shadow:
@@ -197,6 +294,10 @@ body {
   to {
     --ai-angle: 360deg;
   }
+}
+/* Faded out (ChatInput toggles opacity-0 on the wrapper): stop rotating. */
+.opacity-0 > .ai-glow {
+  animation-play-state: paused;
 }
 
 /* Markdown prose spacing */
@@ -356,7 +457,33 @@ body {
   animation: shatter-shard 1150ms cubic-bezier(0.25, 0.6, 0.4, 1) forwards;
 }
 
+/* Reduced motion: entrances become a plain fade (no travel/scale), looping
+   decoration stops. Spinners and animate-pulse stay — they are state
+   feedback and do not move across the screen. */
+@keyframes fade-only {
+  from {
+    opacity: 0;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-pop-in,
+  .animate-modal-in {
+    animation-name: fade-only;
+  }
+  .ai-glow,
+  .animate-blink,
+  .animate-glow-pulse,
+  .animate-gradient-x {
+    animation: none;
+  }
+  /* separate rules: an unknown vendor pseudo drops the whole selector list */
+  .param-range::-webkit-slider-thumb {
+    transition: none;
+  }
+  .param-range::-moz-range-thumb {
+    transition: none;
+  }
   .shatter-plate,
   .shatter-flash,
   .shatter-shard {
@@ -365,7 +492,7 @@ body {
   }
 }
 
-/* High-end parameter slider: dark rail + violet→indigo fill + filigree thumb.
+/* High-end parameter slider: theme rail + accent fill + filigree thumb.
    The fill percentage is driven by an inline `--pct` custom property. */
 .param-range {
   -webkit-appearance: none;
@@ -380,9 +507,8 @@ body {
   border-radius: 9999px;
   background: linear-gradient(
     to right,
-    #7c3aed 0%,
-    #6366f1 var(--pct, 0%),
-    #27272a var(--pct, 0%)
+    rgb(var(--accent-text)) var(--pct, 0%),
+    rgb(var(--range-rail)) var(--pct, 0%)
   );
 }
 .param-range::-webkit-slider-thumb {
@@ -405,12 +531,12 @@ body {
 .param-range::-moz-range-track {
   height: 0.25rem;
   border-radius: 9999px;
-  background: #27272a;
+  background: rgb(var(--range-rail));
 }
 .param-range::-moz-range-progress {
   height: 0.25rem;
   border-radius: 9999px;
-  background: linear-gradient(to right, #7c3aed, #6366f1);
+  background: rgb(var(--accent-text));
 }
 .param-range::-moz-range-thumb {
   height: 0.875rem;

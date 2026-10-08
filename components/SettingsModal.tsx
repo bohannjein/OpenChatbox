@@ -50,7 +50,9 @@ import AuthAccessPanel from "./AuthAccessPanel";
 import SsoConfigPanel from "./SsoConfigPanel";
 import SmtpConfigPanel from "./SmtpConfigPanel";
 import InfoTip from "./InfoTip";
-import Modal from "./Modal";
+import ConfirmDialog from "./ConfirmDialog";
+import { useDialog } from "@/lib/useDialog";
+import { useT, type StringKey } from "@/lib/i18n";
 
 type TabId =
   | "account"
@@ -70,135 +72,55 @@ type TabId =
   | "admin-performance"
   | "about";
 
-type Tab = { id: TabId; label: string; Icon: LucideIcon; desc: string };
+/** Label + description come from i18n: settings.tab.<id> / settings.desc.<id>. */
+type Tab = { id: TabId; Icon: LucideIcon };
 
 /**
  * Grouped like a phone's settings app: identity first, then personalization,
  * then features, admin bundled into one block, "about" last. `adminOnly` sits
  * on the group so the whole heading disappears for non-admins.
  */
-const GROUPS: { title: string; adminOnly?: boolean; tabs: Tab[] }[] = [
+const GROUPS: { title: StringKey; adminOnly?: boolean; tabs: Tab[] }[] = [
   {
-    title: "Konto",
+    title: "settings.group.account",
     tabs: [
-      {
-        id: "account",
-        label: "Mein Konto",
-        Icon: User,
-        desc: "Profil, Passwort und Zwei-Faktor-Authentifizierung.",
-      },
+      { id: "account", Icon: User },
     ],
   },
   {
-    title: "Personalisierung",
+    title: "settings.group.personal",
     tabs: [
-      {
-        id: "appearance",
-        label: "Darstellung",
-        Icon: Palette,
-        desc: "Design und Sprache der Oberfläche.",
-      },
-      {
-        id: "chat",
-        label: "Chat",
-        Icon: MessageSquare,
-        desc: "Layout und Personalisierung des Chatverlaufs.",
-      },
-      {
-        id: "assistant",
-        label: "Assistent",
-        Icon: Bot,
-        desc: "Wie sich das Modell verhält — Anweisungen, Vorlagen, Sidekicks, Gedächtnis.",
-      },
+      { id: "appearance", Icon: Palette },
+      { id: "chat", Icon: MessageSquare },
+      { id: "assistant", Icon: Bot },
     ],
   },
   {
-    title: "Funktionen",
+    title: "settings.group.features",
     tabs: [
-      {
-        id: "websearch",
-        label: "Websuche",
-        Icon: Globe,
-        desc: "Aktuelle Informationen aus dem Web als Kontext für Antworten.",
-      },
-      {
-        id: "knowledge",
-        label: "Wissen",
-        Icon: Library,
-        desc: "Eigene Dokumente als durchsuchbare Wissensdatenbank.",
-      },
-      {
-        id: "data",
-        label: "Daten & Verlauf",
-        Icon: Database,
-        desc: "Gespeicherte Unterhaltungen verwalten und löschen.",
-      },
+      { id: "websearch", Icon: Globe },
+      { id: "knowledge", Icon: Library },
+      { id: "data", Icon: Database },
     ],
   },
   {
-    title: "Administration",
+    title: "settings.group.admin",
     adminOnly: true,
     tabs: [
-      {
-        id: "admin-users",
-        label: "Benutzer & Zugriff",
-        Icon: Users,
-        desc: "Konten, Rollen und wer sich überhaupt anmelden darf.",
-      },
-      {
-        id: "admin-login",
-        label: "Anmeldung & E-Mail",
-        Icon: KeyRound,
-        desc: "Single Sign-On und ausgehender E-Mail-Versand.",
-      },
-      {
-        id: "admin-models",
-        label: "Modelle",
-        Icon: Server,
-        desc: "Anbieter, verfügbare Modelle und Standardzuordnungen.",
-      },
-      {
-        id: "admin-imagegen",
-        label: "Bildgenerierung",
-        Icon: ImageIcon,
-        desc: "Backend für die Bilderzeugung im Chat.",
-      },
-      {
-        id: "admin-integrations",
-        label: "Integrationen",
-        Icon: Blocks,
-        desc: "Externe Dienste und serverseitige Hintergrund-Dienste.",
-      },
-      {
-        id: "admin-assistants",
-        label: "Assistenten & API",
-        Icon: Bot,
-        desc: "Die KI auf anderen Seiten einbetten — festes Modell, freigegebenes Wissen, Schlüssel.",
-      },
-      {
-        id: "admin-branding",
-        label: "Marke",
-        Icon: Paintbrush,
-        desc: "Name, Logo, Farbe, Rechtliches und öffentliche Adresse dieser Instanz.",
-      },
-      {
-        id: "admin-performance",
-        label: "Leistung",
-        Icon: Gauge,
-        desc: "Wie die GPU zwischen mehreren Nutzern geteilt wird.",
-      },
+      { id: "admin-users", Icon: Users },
+      { id: "admin-login", Icon: KeyRound },
+      { id: "admin-models", Icon: Server },
+      { id: "admin-imagegen", Icon: ImageIcon },
+      { id: "admin-integrations", Icon: Blocks },
+      { id: "admin-assistants", Icon: Bot },
+      { id: "admin-branding", Icon: Paintbrush },
+      { id: "admin-performance", Icon: Gauge },
     ],
   },
   {
-    title: "System",
+    title: "settings.group.system",
     tabs: [
-      {
-        // {app} is substituted with the configured instance name at render time.
-        id: "about",
-        label: "Über {app}",
-        Icon: Info,
-        desc: "Version und Änderungsverlauf.",
-      },
+      { id: "about", Icon: Info },
     ],
   },
 ];
@@ -239,6 +161,7 @@ export default function SettingsModal() {
   const draculaUnlocked = useStore((s) => s.draculaUnlocked);
   const lang = useStore((s) => s.lang);
   const setLang = useStore((s) => s.setLang);
+  const t = useT();
   const webSearchEnabled = useStore((s) => s.webSearchEnabled);
   const toggleWebSearch = useStore((s) => s.toggleWebSearch);
   const chatLayout = useStore((s) => s.chatLayout);
@@ -273,11 +196,12 @@ export default function SettingsModal() {
     }
   };
 
-  /** Fill the {app} placeholder in a tab label with the configured brand name. */
-  const brandLabel = (l: string) => l.replace("{app}", brand.appName);
+  /** Tab label in the UI language; {app} becomes the configured brand name. */
+  const tabLabel = (id: TabId) => t(`settings.tab.${id}` as const, { app: brand.appName });
 
   const [tab, setTab] = useState<TabId>("account");
   const [confirmClear, setConfirmClear] = useState(false);
+  const dialogRef = useDialog(open, () => setOpen(false));
 
   // Honor a one-shot tab request (e.g. footer → "Mein Konto"), mapping any
   // pre-regroup id onto its replacement.
@@ -298,13 +222,21 @@ export default function SettingsModal() {
   const activeTab = active.id;
 
   return (
-    <div className="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-black/50 p-4">
-      <div className="flex h-[85vh] max-h-[85vh] w-full max-w-3xl origin-center animate-modal-in flex-col overflow-hidden rounded-2xl border border-border-light bg-white shadow-2xl dark:border-border-dark dark:bg-sidebar-dark">
+    <div className="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-black/50 md:p-4">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        className="flex h-dvh w-full max-w-3xl origin-center animate-modal-in flex-col overflow-hidden border md:h-[85vh] md:max-h-[85vh] md:rounded-2xl border-border-light bg-white shadow-2xl outline-none dark:border-border-dark dark:bg-sidebar-dark"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border-light px-5 py-3 dark:border-border-dark">
-          <h2 className="text-lg font-semibold">Einstellungen</h2>
+          <h2 className="text-lg font-semibold">{t("common.settings")}</h2>
           <button
             onClick={() => setOpen(false)}
+            aria-label={t("common.close")}
+            title={t("common.close")}
             className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
           >
             <X size={20} />
@@ -313,16 +245,17 @@ export default function SettingsModal() {
 
         <div className="flex min-h-0 flex-1">
           {/* Grouped tab sidebar */}
-          <nav className="w-52 shrink-0 overflow-y-auto border-r border-border-light p-2 dark:border-border-dark">
+          <nav className="hidden w-52 shrink-0 md:block overflow-y-auto border-r border-border-light p-2 dark:border-border-dark">
             {visibleGroups.map((group) => (
               <div key={group.title} className="space-y-0.5">
                 <div className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wide text-neutral-400 first:pt-1 dark:text-neutral-500">
-                  {group.title}
+                  {t(group.title)}
                 </div>
-                {group.tabs.map(({ id, label, Icon }) => (
+                {group.tabs.map(({ id, Icon }) => (
                   <button
                     key={id}
                     onClick={() => setTab(id)}
+                    aria-current={activeTab === id ? "page" : undefined}
                     className={clsx(
                       "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors duration-150 ease-out",
                       activeTab === id
@@ -331,10 +264,10 @@ export default function SettingsModal() {
                     )}
                   >
                     <Icon size={16} className="shrink-0" />
-                    <span className="min-w-0 flex-1 truncate">{brandLabel(label)}</span>
+                    <span className="min-w-0 flex-1 truncate">{tabLabel(id)}</span>
                     {id === "about" && showWhatsNewDot && (
                       <span
-                        aria-label="Neue Updates"
+                        aria-label={t("settings.newUpdates")}
                         className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent"
                       />
                     )}
@@ -345,14 +278,31 @@ export default function SettingsModal() {
           </nav>
 
           {/* Content */}
-          <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden break-words p-5">
+          <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden break-words p-4 md:p-5">
+            {/* Compact navigation below md, where the side nav is hidden */}
+            <select
+              aria-label={t("settings.pickSection")}
+              value={activeTab}
+              onChange={(e) => setTab(e.target.value as TabId)}
+              className="input-base mb-4 w-full py-2 text-sm dark:bg-sidebar-dark md:hidden"
+            >
+              {visibleGroups.map((group) => (
+                <optgroup key={group.title} label={t(group.title)}>
+                  {group.tabs.map(({ id }) => (
+                    <option key={id} value={id}>
+                      {tabLabel(id)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
             {/* Page title — replaces the per-panel heading */}
             <div className="mb-5">
               <div className="flex items-center gap-2">
                 <active.Icon size={18} className="shrink-0 text-accent" />
-                <h3 className="text-base font-semibold">{brandLabel(active.label)}</h3>
+                <h3 className="text-base font-semibold">{tabLabel(active.id)}</h3>
               </div>
-              <p className="mt-0.5 text-sm text-neutral-500">{active.desc}</p>
+              <p className="mt-0.5 text-sm text-neutral-500">{t(`settings.desc.${active.id}` as const)}</p>
             </div>
 
             <div className="space-y-6">
@@ -543,6 +493,7 @@ export default function SettingsModal() {
                               onClick={() => setAssistantAvatarUrl("")}
                               className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
                               title="Entfernen"
+                              aria-label="Assistenten-Avatar entfernen"
                             >
                               <Trash2 size={16} />
                             </button>
@@ -580,6 +531,7 @@ export default function SettingsModal() {
                               onClick={() => setChatBackgroundUrl("")}
                               className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
                               title="Entfernen"
+                              aria-label="Chat-Hintergrund entfernen"
                             >
                               <Trash2 size={16} />
                             </button>
@@ -685,6 +637,7 @@ export default function SettingsModal() {
                               onClick={() => removePrompt(p.id)}
                               className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
                               title="Vorlage entfernen"
+                              aria-label="Vorlage entfernen"
                             >
                               <Trash2 size={16} />
                             </button>
@@ -914,31 +867,17 @@ export default function SettingsModal() {
       </div>
 
       {confirmClear && (
-        <Modal onClose={() => setConfirmClear(false)}>
-          <h2 className="text-lg font-bold">Alle Chats löschen?</h2>
-          <p className="mt-2 text-sm text-neutral-500">
-            Sämtliche Unterhaltungen dieses Kontos werden entfernt — mit allen
-            Prompts, Antworten und angehängten Dateien. Das lässt sich nicht
-            rückgängig machen.
-          </p>
-          <div className="mt-5 flex justify-end gap-2">
-            <button
-              onClick={() => setConfirmClear(false)}
-              className="rounded-lg border border-border-light px-4 py-2 text-sm font-medium transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
-            >
-              Abbrechen
-            </button>
-            <button
-              onClick={() => {
-                clearAllChats();
-                setConfirmClear(false);
-              }}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
-            >
-              Alle löschen
-            </button>
-          </div>
-        </Modal>
+        <ConfirmDialog
+          title="Alle Chats löschen?"
+          message="Sämtliche Unterhaltungen dieses Kontos werden entfernt — mit allen Prompts, Antworten und angehängten Dateien. Das lässt sich nicht rückgängig machen."
+          confirmLabel="Alle löschen"
+          danger
+          onConfirm={() => {
+            clearAllChats();
+            setConfirmClear(false);
+          }}
+          onCancel={() => setConfirmClear(false)}
+        />
       )}
     </div>
   );

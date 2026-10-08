@@ -5,6 +5,7 @@ import { KeyRound, Loader2, CheckCircle2 } from "lucide-react";
 import BrandMark from "@/components/BrandMark";
 import BrandFooter from "@/components/BrandFooter";
 import { usePublicBrand } from "@/lib/usePublicBrand";
+import { useT, withDetail } from "@/lib/i18n";
 
 /**
  * Password-reset completion page. Reached via the tokenized link from the
@@ -12,6 +13,7 @@ import { usePublicBrand } from "@/lib/usePublicBrand";
  */
 export default function ResetPage() {
   const brand = usePublicBrand();
+  const t = useT();
   const [token, setToken] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -43,11 +45,14 @@ export default function ResetPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Zurücksetzen fehlgeschlagen.");
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setError(withDetail(t("reset.err"), d?.error));
+        return;
+      }
       setDone(true);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Fehler");
+    } catch {
+      setError(t("common.errNetwork"));
     } finally {
       setBusy(false);
     }
@@ -63,66 +68,81 @@ export default function ResetPage() {
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-white">
             {done ? <CheckCircle2 size={26} /> : <KeyRound size={26} />}
           </div>
-          <h1 className="text-xl font-bold">Passwort zurücksetzen</h1>
+          <h1 className="text-xl font-bold">{t("login.titleReset")}</h1>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-lg border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+          <div role="alert" className="mb-4 rounded-lg border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-300">
             {error}
           </div>
         )}
 
         {done ? (
           <div className="space-y-4 text-center">
-            <p className="text-sm text-neutral-300">
-              Dein Passwort wurde geändert. Du kannst dich jetzt anmelden.
+            <p role="status" className="text-sm text-neutral-300">
+              {t("reset.done")}
             </p>
             <a
               href="/login"
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2 font-medium text-white transition hover:bg-accent-hover"
             >
-              Zur Anmeldung
+              {t("reset.toLogin")}
             </a>
           </div>
         ) : !token ? (
           <p className="text-sm text-neutral-400">
-            Kein gültiger Reset-Link. Fordere über die Anmeldeseite einen neuen an.
+            {t("reset.invalid")}
           </p>
         ) : (
-          <div className="space-y-3">
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              submit();
+            }}
+          >
             <input
               autoFocus
               type="password"
+              autoComplete="new-password"
+              aria-label={t("reset.newPw")}
+              required
+              aria-invalid={pwTooShort}
+              aria-describedby={pwTooShort ? "reset-pw-short" : undefined}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Neues Passwort (min. 8 Zeichen)"
-              className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent"
+              placeholder={t("reset.newPwPh")}
+              className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/60"
             />
             <input
               type="password"
+              autoComplete="new-password"
+              aria-label={t("reset.confirmPw")}
+              required
+              aria-invalid={pwMismatch}
+              aria-describedby={pwMismatch ? "reset-pw-mismatch" : undefined}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submit()}
-              placeholder="Passwort bestätigen"
-              className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent"
+              placeholder={t("reset.confirmPw")}
+              className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/60"
             />
             {pwTooShort && (
-              <p className="text-xs text-amber-400">
-                Passwort muss mindestens 8 Zeichen lang sein.
+              <p id="reset-pw-short" className="text-xs text-amber-400">
+                {t("reset.tooShort")}
               </p>
             )}
             {pwMismatch && (
-              <p className="text-xs text-amber-400">Passwörter stimmen nicht überein.</p>
+              <p id="reset-pw-mismatch" className="text-xs text-amber-400">{t("reset.mismatch")}</p>
             )}
             <button
-              onClick={submit}
+              type="submit"
               disabled={!canSubmit || busy}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2 font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
             >
               {busy ? <Loader2 size={16} className="animate-spin" /> : null}
-              Passwort setzen
+              {t("reset.submit")}
             </button>
-          </div>
+          </form>
         )}
       </div>
 

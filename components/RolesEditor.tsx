@@ -116,8 +116,9 @@ export default function RolesEditor() {
               {!r.builtin && (
                 <button
                   onClick={() => del(r)}
-                  className="shrink-0 rounded p-1 text-neutral-400 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
+                  className="shrink-0 rounded p-1 text-neutral-400 opacity-0 transition hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
                   title="Rolle löschen"
+                  aria-label="Rolle löschen"
                 >
                   <Trash2 size={13} />
                 </button>

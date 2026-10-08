@@ -176,18 +176,62 @@ function stripEmpty(o: Partial<BrandingConfig>): Partial<BrandingConfig> {
   return out;
 }
 
-/** CSS custom properties derived from the accent color. */
+type Rgb = number[];
+
+const rgbOf = (hex: string): Rgb => hexToRgbChannels(hex).split(" ").map(Number);
+
+/** WCAG 2.x relative luminance / contrast ratio. */
+const luminance = (rgb: Rgb) =>
+  rgb
+    .map((v) => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    })
+    .reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
+
+export function contrastRatio(a: Rgb, b: Rgb): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** Mix the accent toward `toward` in 5% steps until it reaches `min`:1 on `bg`. */
+function readableOn(hex: string, bg: Rgb, toward: Rgb, min = 4.5): string {
+  const c = rgbOf(hex);
+  for (let i = 0; i <= 20; i++) {
+    const m = c.map((v, j) => Math.round(v + ((toward[j] - v) * i) / 20));
+    if (contrastRatio(m, bg) >= min) return m.join(" ");
+  }
+  return toward.join(" ");
+}
+
+const WHITE = [255, 255, 255];
+const INK = [23, 23, 23]; // #171717
+
+/**
+ * CSS custom properties derived from the accent color. Besides the raw fill
+ * colors, this yields contrast-safe variants for accent text/borders on light
+ * (#f4f4f4 bubble) and dark (#2f2f2f bubble) surfaces and the foreground for
+ * text on a solid accent fill — globals.css picks one per theme.
+ */
 export function brandTokens(accent: string): Record<string, string> {
+  const rgb = rgbOf(accent);
   return {
     "--accent": hexToRgbChannels(accent),
     "--accent-hover": darkenChannels(accent),
+    "--accent-text-light": readableOn(accent, [244, 244, 244], [0, 0, 0]),
+    "--accent-text-dark": readableOn(accent, [47, 47, 47], WHITE),
+    "--accent-fg-brand": (contrastRatio(WHITE, rgb) >= contrastRatio(INK, rgb) ? WHITE : INK).join(" "),
   };
 }
 
-/** Same tokens as a `:root` rule — server-rendered into <head> to avoid a flash. */
+/** Same tokens as a rule — server-rendered into <head> to avoid a flash.
+ *  `html:root` outranks the build-time `:root` fallback in globals.css
+ *  regardless of stylesheet order. */
 export function brandTokenCss(accent: string): string {
-  const t = brandTokens(accent);
-  return `:root{--accent:${t["--accent"]};--accent-hover:${t["--accent-hover"]}}`;
+  const body = Object.entries(brandTokens(accent))
+    .map(([k, v]) => `${k}:${v}`)
+    .join(";");
+  return `html:root{${body}}`;
 }
 
 /** The logo to render on a given surface (light surfaces prefer the variant). */

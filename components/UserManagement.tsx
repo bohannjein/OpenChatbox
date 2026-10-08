@@ -18,6 +18,7 @@ import clsx from "clsx";
 import { providerLabel } from "@/lib/authProvider";
 import InfoTip from "./InfoTip";
 import Modal from "./Modal";
+import ConfirmDialog from "./ConfirmDialog";
 
 type U = {
   id: string;
@@ -113,6 +114,14 @@ export default function UserManagement() {
       })
     | null
   >(null);
+
+  /** Pending destructive action awaiting the confirm dialog. */
+  const [ask, setAsk] = useState<{
+    title: string;
+    message: string;
+    label: string;
+    run: () => void;
+  } | null>(null);
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [lastSeen, setLastSeen] = useState<Record<string, number>>({});
@@ -238,7 +247,12 @@ export default function UserManagement() {
     else if (pw !== null) setErr("Passwort muss mindestens 6 Zeichen haben.");
   };
   const del = (u: U) => {
-    if (window.confirm(`Benutzer "${u.username}" wirklich löschen?`)) act(u.id, "delete");
+    setAsk({
+      title: `Benutzer „${u.username}“ löschen?`,
+      message: "Das Konto wird dauerhaft entfernt.",
+      label: "Löschen",
+      run: () => act(u.id, "delete"),
+    });
   };
 
   /**
@@ -488,6 +502,7 @@ export default function UserManagement() {
                 }
                 disabled={busy !== null}
                 title="Name, Benutzername und E-Mail bearbeiten"
+                aria-label={`${u.username} bearbeiten`}
                 className={clsx(
                   "rounded-lg p-1.5 transition hover:bg-neutral-200 dark:hover:bg-white/10",
                   u.email ? "text-accent" : "text-neutral-500 hover:text-accent"
@@ -498,16 +513,17 @@ export default function UserManagement() {
 
               {u.twoFactorEnabled && (
                 <button
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        `2FA für "${u.username}" abschalten? Nötig, wenn der Authenticator verloren ist.`
-                      )
-                    )
-                      act(u.id, "clearTwoFactor");
-                  }}
+                  onClick={() =>
+                    setAsk({
+                      title: `2FA für „${u.username}“ abschalten?`,
+                      message: "Nötig, wenn der Authenticator verloren ist.",
+                      label: "Abschalten",
+                      run: () => act(u.id, "clearTwoFactor"),
+                    })
+                  }
                   disabled={busy !== null}
                   title="2FA aktiv — zum Zurücksetzen klicken"
+                  aria-label={`2FA für ${u.username} zurücksetzen`}
                   className="rounded-lg p-1.5 text-accent transition hover:bg-neutral-200 dark:hover:bg-white/10"
                 >
                   <ShieldCheck size={15} />
@@ -518,6 +534,7 @@ export default function UserManagement() {
                 onClick={() => resetPw(u)}
                 disabled={busy !== null}
                 title="Passwort zurücksetzen"
+                aria-label={`Passwort von ${u.username} zurücksetzen`}
                 className="rounded-lg p-1.5 text-neutral-500 transition hover:bg-neutral-200 hover:text-accent dark:hover:bg-white/10"
               >
                 <KeyRound size={15} />
@@ -529,6 +546,7 @@ export default function UserManagement() {
                     onClick={() => act(u.id, u.blocked ? "unblock" : "block")}
                     disabled={busy !== null}
                     title={u.blocked ? "Entsperren" : "Sperren"}
+                    aria-label={`${u.username} ${u.blocked ? "entsperren" : "sperren"}`}
                     className="rounded-lg p-1.5 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/10"
                   >
                     {u.blocked ? <Unlock size={15} /> : <Lock size={15} />}
@@ -537,6 +555,7 @@ export default function UserManagement() {
                     onClick={() => del(u)}
                     disabled={busy !== null}
                     title="Löschen"
+                    aria-label={`${u.username} löschen`}
                     className="rounded-lg p-1.5 text-neutral-500 transition hover:bg-neutral-200 hover:text-red-500 dark:hover:bg-white/10"
                   >
                     <Trash2 size={15} />
@@ -666,6 +685,20 @@ export default function UserManagement() {
             </button>
           </div>
         </Modal>
+      )}
+
+      {ask && (
+        <ConfirmDialog
+          title={ask.title}
+          message={ask.message}
+          confirmLabel={ask.label}
+          danger
+          onConfirm={() => {
+            ask.run();
+            setAsk(null);
+          }}
+          onCancel={() => setAsk(null)}
+        />
       )}
     </div>
   );

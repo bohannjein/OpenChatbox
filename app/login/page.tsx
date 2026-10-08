@@ -5,6 +5,7 @@ import { Building2, Loader2, LogIn, UserPlus } from "lucide-react";
 import BrandMark from "@/components/BrandMark";
 import BrandFooter from "@/components/BrandFooter";
 import { DEFAULT_BRANDING, resolveBranding, type BrandingConfig } from "@/lib/branding";
+import { useT, withDetail, type StringKey } from "@/lib/i18n";
 
 type Mode = "login" | "register" | "forgot";
 
@@ -14,11 +15,9 @@ interface AccessCfg {
   authMethods: { password: boolean; sso: boolean };
   passwordReset: boolean;
   sso: boolean;
-  /** Button wording — admin-configurable, defaults to the Microsoft variant. */
+  /** Button wording — admin-configurable; empty = the translated Microsoft default. */
   ssoLabel: string;
 }
-
-const SSO_LABEL_FALLBACK = "Mit Microsoft-Geschäftskonto anmelden";
 
 /**
  * Only allow same-origin internal targets for post-auth navigation. Rejects
@@ -43,16 +42,18 @@ const enterApp = (target: string) => {
   window.location.assign(safeFrom(target));
 };
 
-const SSO_ERRORS: Record<string, string> = {
-  sso_not_configured: "Die Microsoft-Anmeldung ist nicht konfiguriert.",
-  sso: "Die Microsoft-Anmeldung ist fehlgeschlagen.",
-  sso_state: "Sicherheitsprüfung fehlgeschlagen. Bitte erneut versuchen.",
-  sso_token: "Token-Austausch fehlgeschlagen.",
-  sso_claims: "Kein Benutzername vom Identity-Provider erhalten.",
-  sso_tenant: "Dieser Account gehört nicht zur zugelassenen Organisation.",
+/** `?error=` codes from the OIDC callback → message keys. */
+const SSO_ERRORS: Record<string, StringKey> = {
+  sso_not_configured: "login.sso.sso_not_configured",
+  sso: "login.sso.sso",
+  sso_state: "login.sso.sso_state",
+  sso_token: "login.sso.sso_token",
+  sso_claims: "login.sso.sso_claims",
+  sso_tenant: "login.sso.sso_tenant",
 };
 
 export default function LoginPage() {
+  const t = useT();
   const [mode, setMode] = useState<Mode>("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -81,7 +82,7 @@ export default function LoginPage() {
     }
     const p = new URLSearchParams(window.location.search);
     const e = p.get("error");
-    if (e) setError(SSO_ERRORS[e] || "Anmeldung fehlgeschlagen.");
+    if (e) setError(t(SSO_ERRORS[e] ?? "login.failed"));
     const fromParam = p.get("from") || "/";
     setFrom(fromParam);
     // Auto-enter guest only when redirected from the app (a `from` is present),
@@ -114,7 +115,7 @@ export default function LoginPage() {
           },
           passwordReset: !!c?.passwordReset?.enabled,
           sso: !!c?.sso?.enabled,
-          ssoLabel: c?.sso?.label?.trim() || SSO_LABEL_FALLBACK,
+          ssoLabel: c?.sso?.label?.trim() || "",
         });
         if (cameFromApp && !e && c?.guest?.enabled && c?.guest?.model) {
           const g = await fetch("/api/auth/guest", { method: "POST" });
@@ -157,12 +158,21 @@ export default function LoginPage() {
     setError(null);
     try {
       const r = await post("/api/auth/login", { username, password });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Anmeldung fehlgeschlagen");
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        // 401 is fully explained by the main text; other refusals (locked,
+        // password sign-in off, …) carry their reason in the server detail.
+        setError(
+          r.status === 401
+            ? t("login.err.credentials")
+            : withDetail(t("login.err.login"), d?.error)
+        );
+        return;
+      }
       if (d.twoFactor) setTicket(d.ticket);
       else succeed(d.user);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Fehler");
+    } catch {
+      setError(t("common.errNetwork"));
     } finally {
       setBusy(false);
     }
@@ -173,11 +183,14 @@ export default function LoginPage() {
     setError(null);
     try {
       const r = await post("/api/auth/2fa", { ticket, code });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Code ungültig");
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setError(withDetail(t("login.err.code"), d?.error));
+        return;
+      }
       succeed(d.user);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Fehler");
+    } catch {
+      setError(t("common.errNetwork"));
     } finally {
       setBusy(false);
     }
@@ -188,11 +201,14 @@ export default function LoginPage() {
     setError(null);
     try {
       const r = await post("/api/auth/register", { username, password });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Registrierung fehlgeschlagen");
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setError(withDetail(t("login.err.register"), d?.error));
+        return;
+      }
       succeed(d.user);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Fehler");
+    } catch {
+      setError(t("common.errNetwork"));
     } finally {
       setBusy(false);
     }
@@ -212,18 +228,10 @@ export default function LoginPage() {
     }
   };
 
-  const onKey = (e: React.KeyboardEvent) => {
-    if (e.key !== "Enter") return;
-    if (ticket) submit2fa();
-    else if (mode === "forgot") submitForgot();
-    else if (mode === "login") submitLogin();
-    else submitRegister();
-  };
-
   const selfRegEnabled = !!cfg?.selfRegistration.enabled;
   const domains = cfg?.selfRegistration.domains ?? [];
   const ssoEnabled = !!cfg?.sso;
-  const ssoLabel = cfg?.ssoLabel || SSO_LABEL_FALLBACK;
+  const ssoLabel = cfg?.ssoLabel || t("login.ssoFallback");
   const passwordEnabled = !!cfg?.authMethods.password;
   // Show the username/password fields when password sign-in is on, or when the
   // built-in-admin recovery fallback has been revealed.
@@ -250,62 +258,70 @@ export default function LoginPage() {
           {brand.tagline && (
             <p className="mt-1 text-sm text-neutral-500">{brand.tagline}</p>
           )}
-          <p className="mt-1 text-sm text-neutral-400">
+          <h1 className="mt-1 text-sm text-neutral-400">
             {ticket
-              ? "Bestätige mit deinem Authenticator-Code"
+              ? t("login.title2fa")
               : mode === "forgot"
-              ? "Passwort zurücksetzen"
+              ? t("login.titleReset")
               : !showCreds
               ? ssoLabel
               : mode === "login"
-              ? "Anmelden"
-              : "Konto erstellen"}
-          </p>
+              ? t("common.signIn")
+              : t("login.titleRegister")}
+          </h1>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-lg border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+          <div role="alert" className="mb-4 rounded-lg border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-300">
             {error}
           </div>
         )}
 
         {ticket ? (
-          <div className="space-y-3">
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!busy && code.length === 6) submit2fa();
+            }}
+          >
             <input
               autoFocus
               inputMode="numeric"
+              autoComplete="one-time-code"
+              aria-label={t("login.codeLabel")}
+              required
+              aria-invalid={!!error}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              onKeyDown={onKey}
-              placeholder="6-stelliger Code"
-              className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-center text-lg tracking-[0.3em] outline-none focus:border-accent"
+              placeholder={t("common.code6")}
+              className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-center text-lg tracking-[0.3em] outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/60"
             />
             <button
-              onClick={submit2fa}
+              type="submit"
               disabled={busy || code.length !== 6}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2 font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
             >
               {busy ? <Loader2 size={16} className="animate-spin" /> : null}
-              Bestätigen
+              {t("common.confirm")}
             </button>
             <button
+              type="button"
               onClick={() => {
                 setTicket(null);
                 setCode("");
               }}
               className="w-full text-sm text-neutral-400 hover:text-neutral-200"
             >
-              Zurück
+              {t("common.back")}
             </button>
-          </div>
+          </form>
         ) : mode === "forgot" ? (
           <div className="space-y-3">
             {forgotSent ? (
               <>
-                <p className="rounded-lg border border-border-dark bg-white/5 px-3 py-3 text-sm text-neutral-300">
-                  Falls ein Konto mit dieser Angabe existiert, wurde ein Link zum
-                  Zurücksetzen des Passworts per E-Mail verschickt. Prüfe dein
-                  Postfach (auch Spam).
+                <p role="status" className="rounded-lg border border-border-dark bg-white/5 px-3 py-3 text-sm text-neutral-300">
+                  {t("login.forgotSent")}
                 </p>
                 <button
                   onClick={() => {
@@ -314,71 +330,90 @@ export default function LoginPage() {
                   }}
                   className="w-full text-sm text-neutral-400 hover:text-neutral-200"
                 >
-                  Zurück zur Anmeldung
+                  {t("login.backToLogin")}
                 </button>
               </>
             ) : (
-              <>
+              <form
+                className="space-y-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!busy && username) submitForgot();
+                }}
+              >
                 <p className="text-xs text-neutral-500">
-                  Gib deinen Benutzernamen oder deine E-Mail ein — wir senden dir
-                  einen Link zum Zurücksetzen.
+                  {t("login.forgotHint")}
                 </p>
                 <input
                   autoFocus
+                  autoComplete="username"
+                  aria-label={t("login.userOrEmail")}
+                  required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  onKeyDown={onKey}
-                  placeholder="Benutzername oder E-Mail"
-                  className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent"
+                  placeholder={t("login.userOrEmail")}
+                  className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/60"
                 />
                 <button
-                  onClick={submitForgot}
+                  type="submit"
                   disabled={busy || !username}
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2 font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
                 >
                   {busy ? <Loader2 size={16} className="animate-spin" /> : null}
-                  Link anfordern
+                  {t("login.requestLink")}
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setMode("login");
                     setError(null);
                   }}
                   className="w-full text-sm text-neutral-400 hover:text-neutral-200"
                 >
-                  Zurück zur Anmeldung
+                  {t("login.backToLogin")}
                 </button>
-              </>
+              </form>
             )}
           </div>
         ) : (
           <div className="space-y-3">
             {showCreds && (
-              <>
+              <form
+                className="space-y-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (busy || !username || !password) return;
+                  if (mode === "login") submitLogin();
+                  else submitRegister();
+                }}
+              >
                 <input
                   autoFocus
+                  autoComplete={mode === "register" && domains.length ? "email" : "username"}
+                  aria-label={t(mode === "register" && domains.length ? "login.emailAddress" : "common.username")}
+                  required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  onKeyDown={onKey}
-                  placeholder={mode === "register" && domains.length ? "E-Mail-Adresse" : "Benutzername"}
-                  className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent"
+                  placeholder={t(mode === "register" && domains.length ? "login.emailAddress" : "common.username")}
+                  className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/60"
                 />
                 <input
                   type="password"
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  aria-label={t("common.password")}
+                  required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={onKey}
-                  placeholder="Passwort"
-                  className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent"
+                  placeholder={t("common.password")}
+                  className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/60"
                 />
                 {mode === "register" && domains.length > 0 && (
                   <p className="text-xs text-neutral-500">
-                    Registrierung nur mit einer erlaubten Domain:{" "}
-                    {domains.map((d) => "@" + d).join(", ")}
+                    {t("login.domainOnly", { domains: domains.map((d) => "@" + d).join(", ") })}
                   </p>
                 )}
                 <button
-                  onClick={mode === "login" ? submitLogin : submitRegister}
+                  type="submit"
                   disabled={busy || !username || !password}
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2 font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
                 >
@@ -389,16 +424,16 @@ export default function LoginPage() {
                   ) : (
                     <UserPlus size={16} />
                   )}
-                  {mode === "login" ? "Anmelden" : "Registrieren"}
+                  {t(mode === "login" ? "common.signIn" : "login.register")}
                 </button>
-              </>
+              </form>
             )}
 
             {ssoEnabled && (
               <>
                 {showCreds && (
                   <div className="relative py-1 text-center text-xs text-neutral-500">
-                    <span className="bg-sidebar-dark px-2">oder</span>
+                    <span className="bg-sidebar-dark px-2">{t("login.or")}</span>
                     <div className="absolute inset-x-0 top-1/2 -z-10 h-px bg-border-dark" />
                   </div>
                 )}
@@ -422,9 +457,7 @@ export default function LoginPage() {
                 }}
                 className="w-full pt-1 text-sm text-neutral-400 hover:text-neutral-200"
               >
-                {mode === "login"
-                  ? "Noch kein Konto? Registrieren"
-                  : "Schon ein Konto? Anmelden"}
+                {t(mode === "login" ? "login.noAccount" : "login.haveAccount")}
               </button>
             )}
 
@@ -437,7 +470,7 @@ export default function LoginPage() {
                 }}
                 className="w-full text-center text-xs text-neutral-500 hover:text-neutral-300"
               >
-                Passwort vergessen?
+                {t("login.forgot")}
               </button>
             )}
 
@@ -448,7 +481,7 @@ export default function LoginPage() {
                 onClick={() => setShowPwFallback(true)}
                 className="w-full pt-1 text-xs text-neutral-500 hover:text-neutral-300"
               >
-                Administrator-Anmeldung
+                {t("login.adminLogin")}
               </button>
             )}
           </div>

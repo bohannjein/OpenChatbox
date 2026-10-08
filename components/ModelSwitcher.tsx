@@ -23,6 +23,7 @@ import {
 import { useClickOutside } from "@/lib/useClickOutside";
 import { SidekickAvatar } from "./SidekickIcon";
 import type { ModelOption } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 
 export default function ModelSwitcher() {
   const providers = useStore((s) => s.providers);
@@ -33,16 +34,17 @@ export default function ModelSwitcher() {
   const toggleFavorite = useStore((s) => s.toggleFavorite);
   const aliases = useStore((s) => s.aliases);
   const sidekicks = useStore((s) => s.sidekicks);
-  const chats = useStore((s) => s.chats);
+  const activeSidekickId = useStore(
+    (s) => s.chats.find((c) => c.id === s.activeChatId)?.sidekickId ?? null
+  );
   const activeChatId = useStore((s) => s.activeChatId);
   const setChatSidekick = useStore((s) => s.setChatSidekick);
   const setChatModel = useStore((s) => s.setChatModel);
   const autoRouter = useStore((s) => s.autoRouter);
   const setAutoRouter = useStore((s) => s.setAutoRouter);
   const guestMode = useStore((s) => s.guestMode);
+  const t = useT();
 
-  const activeChat = chats.find((c) => c.id === activeChatId);
-  const activeSidekickId = activeChat?.sidekickId ?? null;
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -141,8 +143,8 @@ export default function ModelSwitcher() {
     : selectedModelKey
     ? displayName(aliases, selectedModelKey, parseModelKey(selectedModelKey).model)
     : loading
-    ? "Lade Modelle…"
-    : "Kein Modell";
+    ? t("model.loading")
+    : t("model.none");
   const errorCount = Object.keys(errors).length;
 
   const Row = ({ o }: { o: ModelOption }) => (
@@ -154,7 +156,9 @@ export default function ModelSwitcher() {
     >
       <button
         onClick={() => toggleFavorite(o.key)}
-        title={favorites.includes(o.key) ? "Favorit entfernen" : "Favorisieren"}
+        title={t(favorites.includes(o.key) ? "model.unfav" : "model.fav")}
+        aria-label={t(favorites.includes(o.key) ? "model.unfav" : "model.fav")}
+        aria-pressed={favorites.includes(o.key)}
         className="shrink-0 text-neutral-400 hover:text-amber-400"
       >
         <Star
@@ -189,11 +193,11 @@ export default function ModelSwitcher() {
       ? name(current)
       : selectedModelKey
       ? displayName(aliases, selectedModelKey, parseModelKey(selectedModelKey).model)
-      : "Gast-Modell";
+      : t("model.guest");
     return (
       <div
-        title="Im Gast-Modus ist das Modell festgelegt."
-        className="flex cursor-default items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-neutral-500"
+        title={t("model.guestLocked")}
+        className="flex min-w-0 cursor-default items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-neutral-500"
       >
         <Lock size={14} strokeWidth={1.5} />
         <span className="max-w-[50vw] truncate">{gLabel}</span>
@@ -202,10 +206,12 @@ export default function ModelSwitcher() {
   }
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative min-w-0" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 rounded-l-xl rounded-r-none px-3 py-1.5 text-sm font-medium transition-colors duration-150 hover:bg-neutral-200/70 dark:hover:bg-white/10"
+        aria-haspopup="true"
+        aria-expanded={open}
+        className="flex max-w-full items-center gap-1.5 rounded-l-xl rounded-r-none px-3 py-1.5 text-sm font-medium transition-colors duration-150 hover:bg-neutral-200/70 dark:hover:bg-white/10"
       >
         {activeSk && (
           <SidekickAvatar icon={activeSk.icon} color={activeSk.color} size={20} />
@@ -228,13 +234,15 @@ export default function ModelSwitcher() {
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Modell suchen…"
+              placeholder={t("model.searchPh")}
+              aria-label={t("model.search")}
               className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400"
             />
             <button
               onClick={refresh}
               className="rounded p-1 text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
-              title="Modelle neu laden"
+              title={t("model.reload")}
+              aria-label={t("model.reload")}
             >
               <RefreshCw size={14} className={clsx(loading && "animate-spin")} />
             </button>
@@ -256,7 +264,7 @@ export default function ModelSwitcher() {
               <span className="min-w-0 flex-1">
                 <span className="font-medium">Auto</span>
                 <span className="ml-1.5 text-xs text-neutral-400">
-                  Bild→Vision · Doku→OCR · sonst Text
+                  {t("model.autoHint")}
                 </span>
               </span>
               {autoRouter && <Check size={16} className="shrink-0 text-accent" />}
@@ -298,7 +306,7 @@ export default function ModelSwitcher() {
 
             {filtered.length === 0 && !loading && (
               <div className="px-3 py-4 text-sm text-neutral-500">
-                Keine Modelle{query ? " gefunden" : ""}.{" "}
+                {t(query ? "model.noMatch" : "model.noModels")}{" "}
                 <button
                   className="text-accent underline"
                   onClick={() => {
@@ -306,7 +314,7 @@ export default function ModelSwitcher() {
                     setSettingsOpen(true);
                   }}
                 >
-                  Provider prüfen
+                  {t("model.checkProviders")}
                 </button>
               </div>
             )}
@@ -316,7 +324,7 @@ export default function ModelSwitcher() {
               <div className="mb-1">
                 <div className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
                   <Star size={11} className="fill-amber-400 text-amber-400" />
-                  Favoriten
+                  {t("model.favorites")}
                 </div>
                 {favOptions.map((o) => (
                   <Row key={o.key} o={o} />

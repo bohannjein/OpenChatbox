@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "app/globals.css"
+        ],
+        "createdAt": "2026-10-08T12:45:50.032Z",
+        "reason": "Agent: border-l-4 is the markdown blockquote style using neutral border tokens, not an accent side-tab"
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "components/FileManager.tsx"
+        ],
+        "createdAt": "2026-10-08T12:45:50.101Z",
+        "reason": "Agent: bg-red-100 is hover-only and hover also sets text-red-600; gray never sits on red"
+      }
+    ]
+  }
+}

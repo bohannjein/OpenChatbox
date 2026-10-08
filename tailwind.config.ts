@@ -1,5 +1,10 @@
 import type { Config } from "tailwindcss";
 
+const v = (name: string) => `rgb(var(${name}) / <alpha-value>)`;
+// Contrast-safe accent for text/borders/rings (lighter in dark themes);
+// bg-accent keeps the raw brand color. Values: globals.css + lib/branding.ts.
+const accentInk = { accent: { DEFAULT: v("--accent-text") } };
+
 const config: Config = {
   darkMode: "class",
   content: [
@@ -32,7 +37,16 @@ const config: Config = {
           DEFAULT: "rgb(var(--accent) / <alpha-value>)",
           hover: "rgb(var(--accent-hover) / <alpha-value>)",
         },
+        // Secondary-text grays are per-theme variables (globals.css) so the
+        // ~300 text-neutral/zinc-400/500 uses pass 4.5:1 in light, dark and
+        // Dracula. zinc shares the neutral values (tint difference invisible).
+        neutral: { 400: v("--n-400"), 500: v("--n-500") },
+        zinc: { 400: v("--n-400"), 500: v("--n-500") },
       },
+      textColor: accentInk,
+      borderColor: accentInk,
+      ringColor: accentInk,
+      outlineColor: accentInk,
       fontFamily: {
         sans: [
           "Helvetica Neue",

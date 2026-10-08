@@ -301,6 +301,19 @@ await bookstackTests();
   ok("authMethods: sso not configured in test env", def.sso.configured === false);
 }
 
+// ── branding: derived accent tokens stay readable for any brand color ──
+{
+  const { brandTokens, contrastRatio } = await import("../lib/branding");
+  const ch = (s: string) => s.split(" ").map(Number);
+  const hex = (s: string) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
+  for (const accent of ["#4f46e5", "#10a37f", "#ffeb3b", "#111111", "#bd93f9"]) {
+    const t = brandTokens(accent);
+    ok(`branding: ${accent} text on light ≥4.5`, contrastRatio(ch(t["--accent-text-light"]), [244, 244, 244]) >= 4.5);
+    ok(`branding: ${accent} text on dark ≥4.5`, contrastRatio(ch(t["--accent-text-dark"]), [47, 47, 47]) >= 4.5);
+    ok(`branding: ${accent} fg on fill ≥3`, contrastRatio(ch(t["--accent-fg-brand"]), hex(accent)) >= 3);
+  }
+}
+
 // ── branding: sanitize / resolve / publicConfig / no hardcoded product name ──
 {
   const { sanitizeBranding, resolveBranding, DEFAULT_ACCENT, DEFAULT_APP_NAME } = await import(
@@ -756,6 +769,16 @@ await bookstackTests();
   ok("domains: no domain refused", !!checkEmailDomain("anna"));
   setConfig({ selfRegistration: { enabled: true, domains: [] } });
   eq("domains: empty list allows any", checkEmailDomain("anna@gmail.com"), null);
+}
+
+// ── i18n: placeholder fill + error detail ────────────────────────────────
+{
+  const { translate, withDetail } = await import("../lib/i18n");
+  eq("i18n: en placeholder filled", translate("en", "common.downloadNamed", { name: "a.pdf" }), "Download a.pdf");
+  eq("i18n: de stays source wording", translate("de", "sidebar.newChat"), "Neuer Chat");
+  eq("i18n: missing var left visible", translate("en", "common.downloadNamed"), "Download {name}");
+  eq("i18n: detail appended", withDetail("Not saved.", "Disk full."), "Not saved. (Disk full)");
+  eq("i18n: no detail, no parens", withDetail("Not saved.", undefined), "Not saved.");
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

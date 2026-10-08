@@ -14,6 +14,11 @@ import {
   Upload,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useDialog } from "@/lib/useDialog";
+import type { Chat } from "@/lib/types";
+import { useT } from "@/lib/i18n";
+
+const NO_CHATS: Chat[] = [];
 
 /** Mirror of lib/server/files.ts FileMeta (client copy). */
 interface FileMeta {
@@ -46,10 +51,12 @@ const iconFor = (kind: FileMeta["kind"]) =>
 export default function FileManager() {
   const open = useStore((s) => s.filesOpen);
   const setOpen = useStore((s) => s.setFilesOpen);
-  const chats = useStore((s) => s.chats);
+  // Closed most of the time: don't re-render on every streamed token.
+  const chats = useStore((s) => (s.filesOpen ? s.chats : NO_CHATS));
   const [files, setFiles] = useState<FileMeta[]>([]);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const t = useT();
 
   useEffect(() => setMounted(true), []);
 
@@ -66,11 +73,7 @@ export default function FileManager() {
     if (open) load();
   }, [open, load]);
 
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    if (open) window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [open, setOpen]);
+  const dialogRef = useDialog(mounted && open, () => setOpen(false));
 
   const remove = async (id: string) => {
     await fetch(`/api/files/${id}`, { method: "DELETE" }).catch(() => {});
@@ -80,7 +83,7 @@ export default function FileManager() {
   if (!mounted || !open) return null;
 
   const titleOf = (chatId: string) =>
-    chats.find((c) => c.id === chatId)?.title || "Ohne Chat";
+    chats.find((c) => c.id === chatId)?.title || t("files.noChat");
   // Group by chat, chats with files first (newest file wins ordering).
   const groups = new Map<string, FileMeta[]>();
   for (const f of files) {
@@ -92,13 +95,19 @@ export default function FileManager() {
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 print:hidden">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} />
-      <div className="relative z-10 flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border-light bg-white shadow-2xl dark:border-border-dark dark:bg-sidebar-dark">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        className="relative z-10 flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border-light bg-white shadow-2xl outline-none dark:border-border-dark dark:bg-sidebar-dark"
+      >
         <div className="flex items-center justify-between border-b border-border-light px-5 py-3 dark:border-border-dark">
-          <h2 className="font-semibold">Dateimanager</h2>
+          <h2 className="font-semibold">{t("files.title")}</h2>
           <button
             onClick={() => setOpen(false)}
             className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-200/70 hover:text-neutral-700 dark:hover:bg-white/10"
-            aria-label="Schließen"
+            aria-label={t("common.close")}
           >
             <X size={18} />
           </button>
@@ -106,10 +115,10 @@ export default function FileManager() {
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {loading ? (
-            <p className="py-8 text-center text-sm text-neutral-400">Lädt…</p>
+            <p className="py-8 text-center text-sm text-neutral-400">{t("common.loading")}</p>
           ) : files.length === 0 ? (
             <p className="py-8 text-center text-sm text-neutral-400">
-              Noch keine Dateien. Hochgeladene und erzeugte Dateien erscheinen hier.
+              {t("files.empty")}
             </p>
           ) : (
             <div className="space-y-5">
@@ -138,21 +147,23 @@ export default function FileManager() {
                             </div>
                             <div className="text-xs text-neutral-400">
                               {(f.size / 1024).toFixed(0)} KB ·{" "}
-                              {f.source === "generated" ? "KI-generiert" : "Hochgeladen"}
+                              {t(f.source === "generated" ? "files.generated" : "files.uploaded")}
                             </div>
                           </div>
                           <a
                             href={`/api/files/${f.id}`}
                             download={f.name}
                             className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-200/70 hover:text-accent dark:hover:bg-white/10"
-                            title="Herunterladen"
+                            title={t("common.download")}
+                            aria-label={t("common.downloadNamed", { name: f.name })}
                           >
                             <Download size={16} />
                           </a>
                           <button
                             onClick={() => remove(f.id)}
                             className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-950/40"
-                            title="Löschen"
+                            title={t("common.delete")}
+                            aria-label={t("common.deleteNamed", { name: f.name })}
                           >
                             <Trash2 size={16} />
                           </button>

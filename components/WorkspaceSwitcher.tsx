@@ -114,6 +114,8 @@ export default function WorkspaceSwitcher() {
         <button
           onClick={() => setOpen((v) => !v)}
           title="Workspaces verwalten"
+          aria-haspopup="true"
+          aria-expanded={open}
           className={clsx(
             "relative z-10 flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors duration-300",
             !isPersonal
@@ -155,7 +157,8 @@ export default function WorkspaceSwitcher() {
                     setShareWs({ id: w.id, name: w.name, token: tokens[w.id] })
                   }
                   title="Workspace teilen"
-                  className="shrink-0 rounded p-1 text-neutral-400 opacity-0 transition hover:text-accent group-hover:opacity-100"
+                  aria-label={`Workspace „${w.name}“ teilen`}
+                  className="shrink-0 rounded p-1 text-neutral-400 opacity-0 transition hover:text-accent focus-visible:opacity-100 group-hover:opacity-100"
                 >
                   <Share2 size={13} />
                 </button>
@@ -164,7 +167,8 @@ export default function WorkspaceSwitcher() {
                 <button
                   onClick={() => removeWorkspace(w.id)}
                   title="Workspace löschen (Inhalte wandern nach „Persönlich“)"
-                  className="shrink-0 rounded p-1 text-neutral-400 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
+                  aria-label={`Workspace „${w.name}“ löschen`}
+                  className="shrink-0 rounded p-1 text-neutral-400 opacity-0 transition hover:text-red-500 focus-visible:opacity-100 group-hover:opacity-100"
                 >
                   <Trash2 size={13} />
                 </button>
@@ -184,6 +188,7 @@ export default function WorkspaceSwitcher() {
                     if (e.key === "Escape") setAdding(false);
                   }}
                   placeholder="Workspace-Name…"
+                  aria-label="Workspace-Name"
                   className="min-w-0 flex-1 input-base"
                 />
                 <button

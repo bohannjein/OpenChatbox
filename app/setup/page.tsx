@@ -20,6 +20,7 @@ import {
   resolveBranding,
 } from "@/lib/branding";
 import { resizeLogoToDataUrl } from "@/lib/imageResize";
+import { useT, withDetail } from "@/lib/i18n";
 
 type ProviderType = "ollama" | "openai";
 
@@ -33,6 +34,7 @@ export default function SetupPage() {
   const setBrand = useStore((s) => s.setBrand);
   const upsertProvider = useStore((s) => s.upsertProvider);
   const setAuthUser = useStore((s) => s.setAuthUser);
+  const t = useT();
 
   const [checking, setChecking] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -68,9 +70,9 @@ export default function SetupPage() {
       .catch(() => setChecking(false));
   }, [router]);
 
-  const chooseType = (t: ProviderType) => {
-    setProviderType(t);
-    if (!urlTouched) setBaseUrl(BASE_URL_DEFAULTS[t]);
+  const chooseType = (pt: ProviderType) => {
+    setProviderType(pt);
+    if (!urlTouched) setBaseUrl(BASE_URL_DEFAULTS[pt]);
   };
 
   const canSubmit =
@@ -98,8 +100,12 @@ export default function SetupPage() {
           apiKey,
         }),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Setup fehlgeschlagen.");
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setError(withDetail(t("setup.err"), d?.error));
+        setBusy(false);
+        return;
+      }
 
       // Adopt the new admin's storage namespace *before* seeding, so the
       // seeded values persist under the right user and AppRoot won't reload.
@@ -134,8 +140,8 @@ export default function SetupPage() {
         }
       }
       router.push("/");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Fehler");
+    } catch {
+      setError(t("common.errNetwork"));
       setBusy(false);
     }
   };
@@ -159,73 +165,94 @@ export default function SetupPage() {
             <Rocket size={26} />
           </div>
           <h1 className="text-xl font-bold">
-            Willkommen bei {appName.trim() || DEFAULT_APP_NAME}
+            {t("setup.welcome", { app: appName.trim() || DEFAULT_APP_NAME })}
           </h1>
           <p className="mt-1 text-sm text-neutral-400">
-            Ersteinrichtung — lege das Admin-Konto und die Server-Daten fest.
+            {t("setup.intro")}
           </p>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-lg border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+          <div role="alert" className="mb-4 rounded-lg border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-300">
             {error}
           </div>
         )}
 
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+        >
         {/* Admin account */}
         <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-          <ShieldCheck size={14} className="text-accent" /> Admin-Konto
+          <ShieldCheck size={14} className="text-accent" /> {t("setup.admin")}
         </div>
         <div className="space-y-3">
           <input
             autoFocus
+            autoComplete="username"
+            aria-label={t("setup.adminUser")}
+            required
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Admin-Benutzername"
-            className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent"
+            placeholder={t("setup.adminUser")}
+            className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/60"
           />
           <input
             type="password"
+            autoComplete="new-password"
+            aria-label={t("common.password")}
+            required
+            aria-invalid={pwTooShort}
+            aria-describedby={pwTooShort ? "setup-pw-short" : undefined}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Passwort (min. 8 Zeichen)"
-            className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent"
+            placeholder={t("setup.pwPh")}
+            className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/60"
           />
           <input
             type="password"
+            autoComplete="new-password"
+            aria-label={t("reset.confirmPw")}
+            required
+            aria-invalid={pwMismatch}
+            aria-describedby={pwMismatch ? "setup-pw-mismatch" : undefined}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Passwort bestätigen"
-            className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent"
+            placeholder={t("reset.confirmPw")}
+            className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/60"
           />
           {pwTooShort && (
-            <p className="text-xs text-amber-400">
-              Passwort muss mindestens 8 Zeichen lang sein.
+            <p id="setup-pw-short" className="text-xs text-amber-400">
+              {t("reset.tooShort")}
             </p>
           )}
           {pwMismatch && (
-            <p className="text-xs text-amber-400">
-              Passwörter stimmen nicht überein.
+            <p id="setup-pw-mismatch" className="text-xs text-amber-400">
+              {t("reset.mismatch")}
             </p>
           )}
         </div>
 
         {/* Server data */}
         <div className="mb-2 mt-6 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-          <Server size={14} className="text-accent" /> Server-Daten
+          <Server size={14} className="text-accent" /> {t("setup.server")}
         </div>
         <div className="space-y-3">
           <input
+            aria-label={t("setup.instance")}
+            autoComplete="organization"
             value={appName}
             onChange={(e) => setAppNameField(e.target.value)}
-            placeholder="Instanz-Name (z. B. Musterfirma Chat)"
-            className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent"
+            placeholder={t("setup.instancePh")}
+            className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/60"
           />
 
           {/* Optional first-run branding — same fields as the later Marke tab */}
           <div className="flex flex-wrap items-center gap-2">
-            <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border-dark px-3 py-2 text-sm transition hover:bg-white/5">
-              <Upload size={14} /> {logoUrl ? "Logo ersetzen" : "Logo (optional)"}
+            <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border-dark px-3 py-2 text-sm transition hover:bg-white/5 focus-within:ring-2 focus-within:ring-accent/60">
+              <Upload size={14} /> {t(logoUrl ? "setup.logoReplace" : "setup.logo")}
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/svg+xml"
@@ -236,10 +263,10 @@ export default function SetupPage() {
                   try {
                     setLogoUrl(await resizeLogoToDataUrl(f, 512));
                   } catch (err) {
-                    setError(err instanceof Error ? err.message : "Bild ungültig.");
+                    setError(err instanceof Error ? err.message : t("setup.badImage"));
                   }
                 }}
-                className="hidden"
+                className="sr-only"
               />
             </label>
             {logoUrl && (
@@ -248,11 +275,12 @@ export default function SetupPage() {
             )}
             <label
               className="ml-auto flex items-center gap-1.5 text-sm text-neutral-400"
-              title="Akzentfarbe"
+              title={t("setup.accent")}
             >
               <Paintbrush size={14} />
               <input
                 type="color"
+                aria-label={t("setup.accent")}
                 value={normalizeHex(accentColor)}
                 onChange={(e) => setAccentColor(e.target.value)}
                 className="h-8 w-10 cursor-pointer rounded-lg border border-border-dark bg-transparent"
@@ -261,20 +289,21 @@ export default function SetupPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            {(["ollama", "openai"] as ProviderType[]).map((t) => (
+            {(["ollama", "openai"] as ProviderType[]).map((pt) => (
               <button
-                key={t}
+                key={pt}
                 type="button"
-                onClick={() => chooseType(t)}
+                aria-pressed={providerType === pt}
+                onClick={() => chooseType(pt)}
                 className={
                   "flex items-center justify-center gap-2 rounded-lg border py-2 text-sm font-medium transition " +
-                  (providerType === t
+                  (providerType === pt
                     ? "border-accent bg-accent/15 text-accent"
                     : "border-border-dark text-neutral-300 hover:bg-white/5")
                 }
               >
-                {providerType === t && <Check size={14} />}
-                {t === "ollama" ? "Ollama (lokal)" : "OpenAI-kompatibel"}
+                {providerType === pt && <Check size={14} />}
+                {t(pt === "ollama" ? "setup.ollama" : "setup.openai")}
               </button>
             ))}
           </div>
@@ -285,8 +314,11 @@ export default function SetupPage() {
               setUrlTouched(true);
               setBaseUrl(e.target.value);
             }}
+            aria-label="Base URL"
+            autoComplete="off"
+            required
             placeholder="Base URL"
-            className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 font-mono text-sm outline-none focus:border-accent"
+            className="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 font-mono text-sm outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/60"
           />
 
           {providerType === "openai" && (
@@ -297,23 +329,27 @@ export default function SetupPage() {
               />
               <input
                 type="password"
+                aria-label={t("setup.apiKey")}
+                autoComplete="off"
+                required
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="API-Key"
-                className="w-full rounded-lg border border-border-dark bg-transparent py-2 pl-9 pr-3 outline-none focus:border-accent"
+                placeholder={t("setup.apiKey")}
+                className="w-full rounded-lg border border-border-dark bg-transparent py-2 pl-9 pr-3 outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/60"
               />
             </div>
           )}
         </div>
 
         <button
-          onClick={submit}
+          type="submit"
           disabled={!canSubmit || busy}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2.5 font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
         >
           {busy ? <Loader2 size={16} className="animate-spin" /> : <Rocket size={16} />}
-          Einrichtung abschließen
+          {t("setup.finish")}
         </button>
+        </form>
       </div>
     </div>
   );

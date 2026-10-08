@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   PanelLeftOpen,
@@ -33,6 +33,7 @@ import CodePanel from "./CodePanel";
 import ChatInfoPanel from "./ChatInfoPanel";
 import NotesPanel from "./NotesPanel";
 import ShatterOverlay from "./ShatterOverlay";
+import Modal from "./Modal";
 import { errorForChat, rawText } from "@/lib/errorMessage";
 import { CodePanelContext } from "./codePanelContext";
 import { SidekickAvatar } from "./SidekickIcon";
@@ -110,11 +111,11 @@ function lastAssistantIdx(messages: Message[]): number {
 }
 
 const STARTERS = [
-  { icon: Code2, title: "Python-Skript schreiben", prompt: "Schreibe ein Python-Skript, das " },
-  { icon: Languages, title: "Text übersetzen", prompt: "Übersetze den folgenden Text ins Englische:\n\n" },
-  { icon: Mail, title: "E-Mail formulieren", prompt: "Formuliere eine professionelle E-Mail an einen Kunden über " },
-  { icon: Sparkles, title: "Text analysieren", prompt: "Analysiere den folgenden Text und fasse die Kernaussagen zusammen:\n\n" },
-];
+  { icon: Code2, title: "chat.starter.python", prompt: "chat.starter.pythonPrompt" },
+  { icon: Languages, title: "chat.starter.translate", prompt: "chat.starter.translatePrompt" },
+  { icon: Mail, title: "chat.starter.email", prompt: "chat.starter.emailPrompt" },
+  { icon: Sparkles, title: "chat.starter.analyze", prompt: "chat.starter.analyzePrompt" },
+] as const;
 
 export default function ChatWindow() {
   const router = useRouter();
@@ -189,32 +190,70 @@ export default function ChatWindow() {
   const [ghostMenu, setGhostMenu] = useState(false);
   // Running the incognito-delete gesture; the chat is removed when it ends.
   const [shattering, setShattering] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // Screen-reader notice when a reply finishes — once per reply, not per token.
+  const [doneNotice, setDoneNotice] = useState(false);
+  const wasStreaming = useRef(false);
+  useEffect(() => {
+    if (streamingId) {
+      wasStreaming.current = true;
+      setDoneNotice(false);
+    } else if (wasStreaming.current) {
+      wasStreaming.current = false;
+      setDoneNotice(true);
+    }
+  }, [streamingId]);
   const ghostRef = useRef<HTMLDivElement>(null);
   // Last rendered side-panel node — retained during the slide-out so the
   // closing panel keeps its content while it animates off-screen.
   const panelNodeRef = useRef<React.ReactNode>(null);
 
-  const startResize = (e: React.MouseEvent) => {
+  // Panel width bounds: 320px min, leave the chat column at least 300px.
+  const [maxPanelWidth, setMaxPanelWidth] = useState(1200);
+  useEffect(() => {
+    const sync = () => setMaxPanelWidth(window.innerWidth - 300);
+    sync();
+    window.addEventListener("resize", sync);
+    return () => window.removeEventListener("resize", sync);
+  }, []);
+  const clampWidth = (w: number) =>
+    Math.min(Math.max(w, 320), window.innerWidth - 300);
+
+  // Pointer Events + capture: one path for mouse, pen and touch.
+  const startResize = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
     e.preventDefault();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
     setResizing(true);
     let last = panelWidth;
-    const move = (ev: MouseEvent) => {
-      last = Math.min(
-        Math.max(window.innerWidth - ev.clientX, 320),
-        window.innerWidth - 300
-      );
+    const move = (ev: PointerEvent) => {
+      last = clampWidth(window.innerWidth - ev.clientX);
       setPanelWidth(last);
     };
-    const up = () => {
-      document.removeEventListener("mousemove", move);
-      document.removeEventListener("mouseup", up);
+    const end = () => {
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", end);
+      el.removeEventListener("pointercancel", end);
+      el.removeEventListener("lostpointercapture", end);
       document.body.style.userSelect = "";
       setResizing(false);
       setCodeSplitWidth(last); // persist final width
     };
     document.body.style.userSelect = "none";
-    document.addEventListener("mousemove", move);
-    document.addEventListener("mouseup", up);
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", end);
+    el.addEventListener("pointercancel", end);
+    el.addEventListener("lostpointercapture", end);
+  };
+  const resizeByKey = (e: React.KeyboardEvent) => {
+    const delta =
+      e.key === "ArrowLeft" ? 24 : e.key === "ArrowRight" ? -24 : 0;
+    if (!delta) return;
+    e.preventDefault();
+    const w = clampWidth(panelWidth + delta);
+    setPanelWidth(w);
+    setCodeSplitWidth(w);
   };
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -325,10 +364,10 @@ export default function ChatWindow() {
 
   /** Resolve the provider + model for a given model key. */
   const resolveModel = (key: string | null) => {
-    if (!key) throw new Error("Kein Modell ausgewählt.");
+    if (!key) throw new Error(t("chat.noModel"));
     const { providerId, model } = parseModelKey(key);
     const provider = providers.find((p) => p.id === providerId);
-    if (!provider) throw new Error("Provider nicht gefunden.");
+    if (!provider) throw new Error(t("chat.providerMissing"));
     return { provider, model };
   };
 
@@ -530,7 +569,7 @@ export default function ChatWindow() {
     if (plan.steps.length === 0 && effectiveKey)
       plan.steps = [{ role: "text", key: effectiveKey }];
     if (plan.steps.length === 0) {
-      const msg = "Kein Modell ausgewählt.";
+      const msg = t("chat.noModel");
       setError(msg);
       setMessageContent(chatId, assistantId, `⚠️ ${msg}`);
       return;
@@ -1189,6 +1228,18 @@ export default function ChatWindow() {
     const assistantId = addMessage(activeChatId, "assistant", "");
     await generate(activeChatId, assistantId);
   };
+  // Stable identities for the memoized ChatMessage; the ref always calls the
+  // latest closures.
+  const handlersRef = useRef({ handleRegenerate, handleEditUser });
+  handlersRef.current = { handleRegenerate, handleEditUser };
+  const onRegenerate = useCallback(
+    (id: string) => handlersRef.current.handleRegenerate(id),
+    []
+  );
+  const onEditUser = useCallback(
+    (id: string, text: string) => handlersRef.current.handleEditUser(id, text),
+    []
+  );
 
   const doShareLink = async () => {
     if (!chat) return;
@@ -1229,24 +1280,30 @@ export default function ChatWindow() {
   // Random, name-aware greeting per chat. Uses the stored first name (falling
   // back through display name to the login id) so people are addressed the way
   // they'd expect, not by a raw account name like "a.muster@firma.de".
-  const greeting = useMemo(() => {
-    const name = firstNameOf(authUser);
-    const suffix = name ? `, ${name}` : "";
-    const h = new Date().getHours();
-    const daypart = h < 11 ? "Morgen" : h < 18 ? "Tag" : "Abend";
-    const options = [
-      `Guten ${daypart}${suffix}! Was kann ich heute für dich tun?`,
-      `Hallo${suffix}, bereit für neue Projekte?`,
-      `Wie kann ich dir heute helfen${suffix}?`,
-      `Schön dich zu sehen${suffix}. Womit legen wir los?`,
-      `Womit kann ich dir heute helfen${suffix}?`,
-    ];
-    return options[Math.floor(Math.random() * options.length)];
+  // The pick is memoized per chat; the wording follows the UI language.
+  const greetIdx = useMemo(
+    () => Math.floor(Math.random() * 5) as 0 | 1 | 2 | 3 | 4,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeChatId, authUser?.firstName, authUser?.displayName, authUser?.username]);
+    [activeChatId, authUser?.firstName, authUser?.displayName, authUser?.username]
+  );
+  const greetName = firstNameOf(authUser);
+  const greetHour = new Date().getHours();
+  const greeting = t(`chat.greet.${greetIdx}`, {
+    suffix: greetName ? `, ${greetName}` : "",
+    daypart: t(
+      greetHour < 11
+        ? "chat.daypart.morning"
+        : greetHour < 18
+        ? "chat.daypart.day"
+        : "chat.daypart.evening"
+    ),
+  });
 
   return (
     <div className="flex h-full overflow-hidden">
+      <div aria-live="polite" className="sr-only">
+        {doneNotice ? t("chat.done") : ""}
+      </div>
       <CodePanelContext.Provider value={codeCtx}>
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
       {/* Top bar */}
@@ -1254,24 +1311,25 @@ export default function ChatWindow() {
         {!sidebarOpen && (
           <button
             onClick={() => setSidebarOpen(true)}
-            className="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/5"
-            title="Sidebar öffnen"
+            className="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:hover:bg-white/5"
+            title={t("chat.openSidebar")}
+            aria-label={t("chat.openSidebar")}
           >
             <PanelLeftOpen size={18} />
           </button>
         )}
         {activeSidekick && (
-          <span className="flex items-center gap-1.5 rounded-lg bg-accent/15 px-2 py-1 text-sm font-medium text-accent">
+          <span className="flex min-w-0 items-center gap-1.5 rounded-lg bg-accent/15 px-2 py-1 text-sm font-medium text-accent">
             <SidekickAvatar
               icon={activeSidekick.icon}
               color={activeSidekick.color}
               size={20}
             />
-            {activeSidekick.name}
+            <span className="truncate">{activeSidekick.name}</span>
           </span>
         )}
         {/* Modell-Selektor + Parameter als edle Kombipille */}
-        <div className="flex items-center rounded-xl border border-black/[0.06] bg-black/[0.03] backdrop-blur-md dark:border-white/[0.05] dark:bg-zinc-950/40">
+        <div className="flex min-w-0 items-center rounded-xl border border-black/[0.06] bg-black/[0.03] backdrop-blur-md dark:border-white/[0.05] dark:bg-zinc-950/40">
           <ModelSwitcher />
           <div className="border-l border-black/10 dark:border-white/10">
             <ParamsPopover />
@@ -1279,16 +1337,16 @@ export default function ChatWindow() {
         </div>
 
         {isTemp && (
-          <span className="ml-1 flex items-center gap-1 rounded-full bg-neutral-200 px-2 py-1 text-xs font-medium text-neutral-600 dark:bg-white/10 dark:text-neutral-300">
-            <Ghost size={13} /> Temporär
+          <span className="ml-1 flex shrink-0 items-center gap-1 rounded-full bg-neutral-200 px-2 py-1 text-xs font-medium text-neutral-600 dark:bg-white/10 dark:text-neutral-300">
+            <Ghost size={13} /> <span className="max-md:sr-only">{t("chat.temporary")}</span>
           </span>
         )}
 
         {/* Guests get no advanced header controls (files, notes, share, incognito). */}
         {!guestMode && (
-        <div className="ml-auto flex items-center">
+        <div className="ml-auto flex shrink-0 items-center">
           {/* Gruppe 1 — Chat-Modus (Sicherheit) */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 md:gap-3">
             <div className="relative" ref={ghostRef}>
               <button
                 onClick={() => {
@@ -1301,13 +1359,13 @@ export default function ChatWindow() {
                     else router.push("/"); // fresh temp chat
                   }
                 }}
-                title={
-                  isTemp
-                    ? "Temporären Chat verwalten"
-                    : "Inkognito-Modus einschalten (temporärer Chat)"
-                }
+                title={t(isTemp ? "chat.manageTemp" : "chat.incognitoOn")}
+                aria-label={t(isTemp ? "chat.manageTemp" : "chat.incognitoOn")}
+                aria-pressed={isTemp ? undefined : incognito}
+                aria-haspopup={isTemp ? "menu" : undefined}
+                aria-expanded={isTemp ? ghostMenu : undefined}
                 className={clsx(
-                  "rounded-lg p-2 transition-colors duration-150",
+                  "rounded-lg p-2 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                   isTemp || incognito
                     ? "bg-accent/15 text-accent"
                     : "text-zinc-400 hover:bg-neutral-200 hover:text-neutral-900 dark:hover:bg-white/5 dark:hover:text-zinc-100"
@@ -1325,34 +1383,36 @@ export default function ChatWindow() {
                       router.push(`/c/${chat.id}`);
                     }}
                   >
-                    <Check size={15} /> Chat behalten & speichern
+                    <Check size={15} /> {t("chat.keep")}
                   </MenuItem>
                   <MenuItem
                     onClick={() => {
                       setGhostMenu(false);
-                      setShattering(true); // delete runs when the gesture ends
+                      setConfirmDiscard(true); // shatter + delete after confirm
                     }}
                   >
-                    <Trash2 size={15} /> Chat jetzt löschen
+                    <Trash2 size={15} /> {t("chat.deleteNow")}
                   </MenuItem>
                 </div>
               )}
             </div>
           </div>
 
-          <span aria-hidden className="mx-2 h-4 w-[1px] bg-black/10 dark:bg-white/10" />
+          <span aria-hidden className="mx-1 md:mx-2 h-4 w-[1px] bg-black/10 dark:bg-white/10" />
 
           {/* Gruppe 2 — Kontext & Ressourcen */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 md:gap-3">
             <button
               onClick={() => {
                 setInfoOpen((v) => !v);
                 setGlobalNotesOpen(false);
               }}
               disabled={!chat}
-              title="Zu diesem Chat — Dateien, Markiertes, Notizen"
+              title={t("chat.info")}
+              aria-label={t("chat.info")}
+              aria-expanded={infoOpen}
               className={clsx(
-                "relative rounded-lg p-2 transition-colors duration-150 disabled:pointer-events-none disabled:opacity-40",
+                "relative rounded-lg p-2 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-40",
                 infoOpen
                   ? "bg-accent/15 text-accent"
                   : "text-zinc-400 hover:bg-neutral-200 hover:text-neutral-900 dark:hover:bg-white/5 dark:hover:text-zinc-100"
@@ -1367,17 +1427,20 @@ export default function ChatWindow() {
             </button>
           </div>
 
-          <span aria-hidden className="mx-2 h-4 w-[1px] bg-black/10 dark:bg-white/10" />
+          <span aria-hidden className="mx-1 md:mx-2 h-4 w-[1px] bg-black/10 dark:bg-white/10" />
 
           {/* Gruppe 3 — Kollaboration & Teilen */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 md:gap-3">
             {activeChatId && <ParticipantsManager chatId={activeChatId} />}
             <div className="relative" ref={shareRef}>
               <button
                 onClick={() => setShareOpen((v) => !v)}
                 disabled={!hasMessages}
-                title="Chat teilen / exportieren"
-                className="rounded-lg p-2 text-zinc-400 transition-colors duration-150 hover:bg-neutral-200 hover:text-neutral-900 disabled:opacity-30 dark:hover:bg-white/5 dark:hover:text-zinc-100"
+                title={t("chat.share")}
+                aria-label={t("chat.share")}
+                aria-haspopup="menu"
+                aria-expanded={shareOpen}
+                className="rounded-lg p-2 text-zinc-400 transition-colors duration-150 hover:bg-neutral-200 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-30 dark:hover:bg-white/5 dark:hover:text-zinc-100"
               >
                 <Share2 size={18} strokeWidth={1.5} />
               </button>
@@ -1385,10 +1448,10 @@ export default function ChatWindow() {
               <div className="absolute right-0 top-full z-40 mt-1 w-56 menu-panel p-1">
                 <MenuItem onClick={doShareLink}>
                   {copied ? <Check size={15} /> : <LinkIcon size={15} />}
-                  {copied ? "Link kopiert!" : "Share-Link kopieren"}
+                  {t(copied ? "chat.linkCopied" : "chat.copyShareLink")}
                 </MenuItem>
                 <MenuItem onClick={doExportMd}>
-                  <FileDown size={15} /> Als Markdown
+                  <FileDown size={15} /> {t("chat.asMarkdown")}
                 </MenuItem>
                 <MenuItem
                   onClick={() => {
@@ -1396,21 +1459,21 @@ export default function ChatWindow() {
                     window.print();
                   }}
                 >
-                  <Printer size={15} /> Drucken / PDF
+                  <Printer size={15} /> {t("chat.print")}
                 </MenuItem>
                 <button
                   disabled
-                  title="In Kürze verfügbar"
+                  title={t("chat.comingSoon")}
                   className="flex w-full cursor-not-allowed items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-400"
                 >
-                  <FileDown size={15} /> Als PDF exportieren
+                  <FileDown size={15} /> {t("chat.exportPdf")}
                   <span className="ml-auto rounded bg-neutral-200 px-1.5 text-[10px] dark:bg-white/10">
-                    bald
+                    {t("chat.soon")}
                   </span>
                 </button>
                 {isTemp && (
                   <p className="px-3 py-1.5 text-xs text-neutral-400">
-                    Hinweis: Temporäre Chats werden nicht gespeichert.
+                    {t("chat.tempNotSaved")}
                   </p>
                 )}
               </div>
@@ -1428,7 +1491,7 @@ export default function ChatWindow() {
             {isTemp && (
               <div className="mx-auto mb-6 flex w-fit items-center gap-2 rounded-full border border-border-light bg-bubble-light px-4 py-1.5 text-sm text-neutral-600 dark:border-border-dark dark:bg-bubble-dark dark:text-neutral-300">
                 <Ghost size={15} />
-                Temporärer Chat — nichts wird gespeichert.
+                {t("chat.tempStart")}
               </div>
             )}
 
@@ -1438,8 +1501,8 @@ export default function ChatWindow() {
               </h1>
               <p className="mt-3 text-sm text-neutral-500">
                 {modelLabel
-                  ? `${labelSk ? "Sidekick" : "Modell"}: ${modelLabel}`
-                  : "Wähle oben ein Modell, um zu starten."}
+                  ? `${labelSk ? "Sidekick" : t("chat.model")}: ${modelLabel}`
+                  : t("chat.pickModel")}
               </p>
             </div>
 
@@ -1459,11 +1522,11 @@ export default function ChatWindow() {
               {STARTERS.map((s) => (
                 <button
                   key={s.title}
-                  onClick={() => inputRef.current?.setText(s.prompt)}
+                  onClick={() => inputRef.current?.setText(t(s.prompt))}
                   className="flex items-start gap-3 rounded-xl border border-border-light p-4 text-left transition-all duration-150 ease-out hover:scale-[1.01] hover:bg-neutral-100 hover:shadow-sm active:scale-[0.98] dark:border-border-dark dark:hover:bg-white/5"
                 >
                   <s.icon size={18} className="mt-0.5 shrink-0 text-accent" />
-                  <span className="text-sm font-medium">{s.title}</span>
+                  <span className="text-sm font-medium">{t(s.title)}</span>
                 </button>
               ))}
             </div>
@@ -1484,8 +1547,7 @@ export default function ChatWindow() {
             {isTemp && (
               <div className="mx-auto mt-4 flex max-w-3xl items-center gap-2 rounded-lg border border-border-light bg-bubble-light px-4 py-2 text-sm text-neutral-600 dark:border-border-dark dark:bg-bubble-dark dark:text-neutral-300">
                 <Ghost size={16} />
-                Temporärer Chat — wird nicht im Verlauf gespeichert und
-                verschwindet beim Schließen.
+                {t("chat.tempBanner")}
               </div>
             )}
             <div ref={contentRef} className="pb-6">
@@ -1495,8 +1557,8 @@ export default function ChatWindow() {
                   chatId={chat!.id}
                   message={m}
                   streaming={m.id === streamingId}
-                  onRegenerate={handleRegenerate}
-                  onEditUser={handleEditUser}
+                  onRegenerate={onRegenerate}
+                  onEditUser={onEditUser}
                 />
               ))}
             </div>
@@ -1505,7 +1567,9 @@ export default function ChatWindow() {
           {/* Error banner */}
           {error && (
             <div className="mx-auto mb-2 w-full max-w-3xl px-4">
-              <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+              <div
+                role="alert"
+                className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
                 {error}
               </div>
             </div>
@@ -1519,7 +1583,7 @@ export default function ChatWindow() {
                 onClick={stop}
                 className="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-red-700"
               >
-                <Square size={16} /> Diskussion pausieren
+                <Square size={16} /> {t("chat.pauseDiscussion")}
               </button>
             </div>
           )}
@@ -1578,11 +1642,18 @@ export default function ChatWindow() {
         }
         return (
           <div
-            className="relative flex shrink-0 overflow-hidden transition-[width] duration-300 ease-expo motion-reduce:transition-none"
+            inert={!open}
+            className={clsx(
+              "relative flex shrink-0 overflow-hidden duration-300 ease-expo motion-reduce:transition-none",
+              // Below md: full-screen overlay above the chat instead of a split.
+              "max-md:fixed max-md:inset-0 max-md:z-40 max-md:!w-full max-md:!max-w-none",
+              !open && "pointer-events-none",
+              !resizing && "transition-[width]" // no width lag while dragging
+            )}
             style={{ width: open ? panelWidth : 0, maxWidth: "85vw" }}
           >
             <div
-              className="relative flex h-full shrink-0 transition-transform duration-300 ease-expo motion-reduce:transition-none"
+              className="relative flex h-full shrink-0 transition-transform duration-300 ease-expo motion-reduce:transition-none max-md:!w-full"
               style={{
                 width: panelWidth,
                 transform: open ? "translateX(0)" : "translateX(100%)",
@@ -1590,16 +1661,24 @@ export default function ChatWindow() {
             >
               {/* Draggable divider — wide hit area, visible line, accent while dragging */}
               <div
-                onMouseDown={startResize}
-                className="group absolute left-0 top-0 z-20 flex h-full w-3 -translate-x-1/2 cursor-col-resize items-center justify-center"
-                title="Breite ziehen"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={t("chat.panelWidth")}
+                aria-valuenow={panelWidth}
+                aria-valuemin={320}
+                aria-valuemax={maxPanelWidth}
+                tabIndex={0}
+                onPointerDown={startResize}
+                onKeyDown={resizeByKey}
+                className="group absolute left-0 top-0 z-20 flex h-full w-3 -translate-x-1/2 touch-none cursor-col-resize items-center justify-center focus-visible:outline-none max-md:hidden"
+                title={t("chat.dragWidth")}
               >
                 <div
                   className={clsx(
                     "h-full w-px transition-all",
                     resizing
                       ? "w-1 bg-accent"
-                      : "bg-border-light group-hover:w-1 group-hover:bg-accent/60 dark:bg-border-dark"
+                      : "bg-border-light group-hover:w-1 group-hover:bg-accent/60 group-focus-visible:w-1 group-focus-visible:bg-accent dark:bg-border-dark"
                   )}
                 />
               </div>
@@ -1608,6 +1687,32 @@ export default function ChatWindow() {
           </div>
         );
       })()}
+
+      {confirmDiscard && (
+        <Modal onClose={() => setConfirmDiscard(false)}>
+          <h2 className="text-lg font-bold">{t("chat.discardTitle")}</h2>
+          <p className="mt-2 text-sm text-neutral-500">
+            {t("chat.discardBody")}
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              onClick={() => setConfirmDiscard(false)}
+              className="rounded-lg border border-border-light px-4 py-2 text-sm font-medium transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              onClick={() => {
+                setConfirmDiscard(false);
+                setShattering(true); // delete runs when the gesture ends
+              }}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
+            >
+              {t("common.delete")}
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {shattering && chat && (
         <ShatterOverlay

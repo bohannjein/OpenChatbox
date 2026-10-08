@@ -170,7 +170,7 @@ export default function AdminTerminal({ baseUrl }: { baseUrl?: string }) {
             autoCapitalize="off"
             autoComplete="off"
             placeholder='z. B. "ollama list"'
-            className="min-w-0 flex-1 bg-transparent text-neutral-100 outline-none placeholder:text-neutral-600"
+            className="min-w-0 flex-1 bg-transparent text-neutral-100 outline-none placeholder:text-neutral-500"
           />
           {busy ? (
             <button

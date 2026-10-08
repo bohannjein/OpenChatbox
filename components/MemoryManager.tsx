@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Trash2, Brain } from "lucide-react";
 import { useStore } from "@/lib/store";
+import ConfirmDialog from "./ConfirmDialog";
 
 export default function MemoryManager() {
   const memory = useStore((s) => s.memory);
@@ -13,6 +14,7 @@ export default function MemoryManager() {
   const removeMemory = useStore((s) => s.removeMemory);
   const clearMemory = useStore((s) => s.clearMemory);
   const [draft, setDraft] = useState("");
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const add = () => {
     if (!draft.trim()) return;
@@ -53,6 +55,7 @@ export default function MemoryManager() {
         <button
           onClick={add}
           disabled={!draft.trim()}
+          aria-label="Fakt hinzufügen"
           className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-40"
         >
           <Plus size={15} />
@@ -71,26 +74,40 @@ export default function MemoryManager() {
               <input
                 value={m.text}
                 onChange={(e) => updateMemory(m.id, e.target.value)}
+                aria-label="Gedächtnis-Eintrag"
                 className="min-w-0 flex-1 bg-transparent text-sm outline-none"
               />
               <button
                 onClick={() => removeMemory(m.id)}
                 className="shrink-0 rounded-lg p-1.5 text-neutral-400 hover:text-red-500"
                 title="Löschen"
+                aria-label="Eintrag löschen"
               >
                 <Trash2 size={15} />
               </button>
             </div>
           ))}
           <button
-            onClick={() => {
-              if (confirm("Gesamtes Gedächtnis löschen?")) clearMemory();
-            }}
+            onClick={() => setConfirmClear(true)}
             className="text-sm text-red-500 hover:underline"
           >
             Alles löschen
           </button>
         </div>
+      )}
+
+      {confirmClear && (
+        <ConfirmDialog
+          title="Gesamtes Gedächtnis löschen?"
+          message="Alle gespeicherten Fakten werden entfernt."
+          confirmLabel="Alles löschen"
+          danger
+          onConfirm={() => {
+            clearMemory();
+            setConfirmClear(false);
+          }}
+          onCancel={() => setConfirmClear(false)}
+        />
       )}
     </section>
   );

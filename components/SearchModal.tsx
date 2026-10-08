@@ -5,17 +5,25 @@ import { useRouter } from "next/navigation";
 import { Search, MessageSquare, Pin, CornerDownLeft } from "lucide-react";
 import clsx from "clsx";
 import { useStore } from "@/lib/store";
+import { useDialog } from "@/lib/useDialog";
+import type { Chat } from "@/lib/types";
+import { useT } from "@/lib/i18n";
+
+const NO_CHATS: Chat[] = [];
 
 export default function SearchModal() {
   const open = useStore((s) => s.searchOpen);
   const setOpen = useStore((s) => s.setSearchOpen);
-  const chats = useStore((s) => s.chats);
+  // Closed most of the time: don't re-render (and re-sort) on every streamed token.
+  const chats = useStore((s) => (s.searchOpen ? s.chats : NO_CHATS));
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
   const router = useRouter();
+  const t = useT();
 
   const [q, setQ] = useState("");
   const [idx, setIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useDialog(open, () => setOpen(false));
 
   // reset + focus on open
   useEffect(() => {
@@ -59,8 +67,6 @@ export default function SearchModal() {
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (results[idx]) go(results[idx].id);
-    } else if (e.key === "Escape") {
-      setOpen(false);
     }
   };
 
@@ -70,8 +76,13 @@ export default function SearchModal() {
       onMouseDown={() => setOpen(false)}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("sidebar.searchLabel")}
+        tabIndex={-1}
         onMouseDown={(e) => e.stopPropagation()}
-        className="flex max-h-[70vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-border-light bg-white shadow-2xl dark:border-border-dark dark:bg-sidebar-dark"
+        className="flex max-h-[70vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl outline-none border border-border-light bg-white shadow-2xl dark:border-border-dark dark:bg-sidebar-dark"
       >
         <div className="flex items-center gap-3 border-b border-border-light px-4 py-3 dark:border-border-dark">
           <Search size={20} className="shrink-0 text-neutral-400" />
@@ -80,7 +91,8 @@ export default function SearchModal() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Chats durchsuchen…"
+            placeholder={t("sidebar.search")}
+            aria-label={t("sidebar.searchLabel")}
             className="min-w-0 flex-1 bg-transparent text-lg outline-none placeholder:text-neutral-400"
           />
           <kbd className="shrink-0 rounded border border-border-light px-1.5 py-0.5 text-xs text-neutral-400 dark:border-border-dark">
@@ -91,13 +103,13 @@ export default function SearchModal() {
         <div className="overflow-y-auto p-2">
           {results.length === 0 ? (
             <p className="px-3 py-6 text-center text-sm text-neutral-500">
-              {q ? "Keine Treffer." : "Noch keine Chats."}
+              {t(q ? "search.noResults" : "sidebar.noChats")}
             </p>
           ) : (
             <>
               {!q && (
                 <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
-                  Zuletzt aktiv
+                  {t("search.recent")}
                 </div>
               )}
               {results.map((c, i) => (

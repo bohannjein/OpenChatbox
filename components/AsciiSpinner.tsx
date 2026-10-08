@@ -31,10 +31,12 @@ export default function AsciiSpinner() {
   }, []);
   return (
     <span
-      aria-label="Titel wird generiert…"
+      role="status"
       className="animate-pulse select-none font-mono text-xs tabular-nums text-accent"
     >
-      {FRAMES[i]}
+      {/* Frames are decorative; screen readers get the static text only. */}
+      <span aria-hidden>{FRAMES[i]}</span>
+      <span className="sr-only">Titel wird generiert…</span>
     </span>
   );
 }
