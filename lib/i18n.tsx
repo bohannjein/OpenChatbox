@@ -16,7 +16,8 @@ type Entry = { de: string; en: string };
 /**
  * UI strings. German is the source wording — change it only on purpose.
  * `{name}` placeholders are filled from the `vars` argument of `t()`.
- * Admin-only panels are not translated yet and keep their German literals.
+ * Every user-visible UI string lives here, admin panels included. Model-facing
+ * prompts, stored data (e.g. default brand texts) and server error details stay German.
  */
 const STRINGS = {
   // ── shared ────────────────────────────────────────────────────────────
@@ -132,7 +133,7 @@ const STRINGS = {
   "chat.starter.translate": { de: "Text übersetzen", en: "Translate text" },
   "chat.starter.translatePrompt": {
     de: "Übersetze den folgenden Text ins Englische:\n\n",
-    en: "Translate the following text into English:\n\n",
+    en: "Translate the following text into German:\n\n",
   },
   "chat.starter.email": { de: "E-Mail formulieren", en: "Draft an email" },
   "chat.starter.emailPrompt": {
@@ -286,6 +287,25 @@ const STRINGS = {
     de: "Serverspeicherung fehlgeschlagen — Änderungen evtl. nur lokal (Speicherplatz voll?).",
     en: "Couldn't save to the server — your changes may only be stored locally (is the disk full?).",
   },
+  "app.retry": { de: "Erneut versuchen", en: "Try again" },
+  "app.offline": {
+    de: "Keine Verbindung. Änderungen werden gespeichert, sobald du wieder online bist.",
+    en: "You're offline. Changes will be saved once you're back online.",
+  },
+  "app.copied": { de: "Antwort kopiert", en: "Response copied" },
+  "chat.imageReady": { de: "Hier ist dein generiertes Bild:", en: "Here's your generated image:" },
+  "chat.docReady": { de: "Hier ist dein fertiges Dokument. 📄", en: "Here's your finished document. 📄" },
+  "input.pastedName": { de: "eingefügter_text", en: "pasted_text" },
+  "input.fileOnly": { de: "(Datei angehängt)", en: "(File attached)" },
+  "chat.scrollToLatest": { de: "Zur neuesten Nachricht", en: "Jump to latest message" },
+  "shortcuts.title": { de: "Tastenkürzel", en: "Keyboard shortcuts" },
+  "shortcuts.newChat": { de: "Neuer Chat", en: "New chat" },
+  "shortcuts.search": { de: "Chats durchsuchen", en: "Search chats" },
+  "shortcuts.toggleSidebar": { de: "Seitenleiste ein-/ausblenden", en: "Toggle sidebar" },
+  "shortcuts.focusInput": { de: "Ins Eingabefeld springen", en: "Focus chat input" },
+  "shortcuts.copyLast": { de: "Letzte Antwort kopieren", en: "Copy last response" },
+  "shortcuts.newline": { de: "Neue Zeile", en: "New line" },
+  "shortcuts.show": { de: "Tastenkürzel anzeigen", en: "Show shortcuts" },
 
   // ── settings shell ────────────────────────────────────────────────────
   "settings.newUpdates": { de: "Neue Updates", en: "New updates" },
@@ -539,6 +559,1115 @@ const STRINGS = {
     de: "Einrichtung fehlgeschlagen. Prüfe die Angaben und versuche es erneut.",
     en: "Setup failed. Check your entries and try again.",
   },
+
+  // ── shared (fork A) ───────────────────────────────────────────────────
+  "common.error": { de: "Fehler", en: "Something went wrong." },
+
+  // ── admin: users ──────────────────────────────────────────────────────
+  "admin.users.kind.user": { de: "Konto", en: "Account" },
+  "admin.users.kind.guest": { de: "Gast", en: "Guest" },
+  "admin.users.kind.assistant": { de: "Assistent", en: "Assistant" },
+  "admin.users.since.now": { de: "jetzt", en: "now" },
+  "admin.users.since.s": { de: "vor {n} s", en: "{n}s ago" },
+  "admin.users.since.min": { de: "vor {n} Min", en: "{n} min ago" },
+  "admin.users.since.h": { de: "vor {n} Std", en: "{n} h ago" },
+  "admin.users.since.d": { de: "vor {n} Tg", en: "{n} d ago" },
+  "admin.users.uaUnknown": { de: "unbekannt", en: "unknown" },
+  "admin.users.uaOther": { de: "anderer", en: "other" },
+  "admin.users.err.names": { de: "Vor- und Nachname erforderlich.", en: "First and last name are required." },
+  "admin.users.err.credentials": {
+    de: "Benutzername und Passwort (min. 6 Zeichen) nötig.",
+    en: "Enter a username and a password with at least 6 characters.",
+  },
+  "admin.users.err.pwShort": {
+    de: "Passwort muss mindestens 6 Zeichen haben.",
+    en: "Password not reset: it needs at least 6 characters.",
+  },
+  "admin.users.resetPrompt": {
+    de: "Neues Passwort für \"{name}\" (min. 6 Zeichen):",
+    en: "New password for \"{name}\" (min. 6 characters):",
+  },
+  "admin.users.deleteTitle": { de: "Benutzer „{name}“ löschen?", en: "Delete user “{name}”?" },
+  "admin.users.deleteMsg": { de: "Das Konto wird dauerhaft entfernt.", en: "The account will be removed permanently." },
+  "admin.users.sessions": { de: "Aktive Sitzungen", en: "Active sessions" },
+  "admin.users.sessionsTip": {
+    de: "Wer in den letzten zwei Minuten eine Anfrage gestellt hat. Diese Angaben liegen ausschließlich im Arbeitsspeicher dieses Servers, werden nicht in data/ geschrieben und sind nach einem Neustart weg. Eine Zeile je Gerät bzw. Browser.",
+    en: "Who made a request in the last two minutes. This is kept only in this server's memory, never written to data/, and is gone after a restart. One row per device or browser.",
+  },
+  "admin.users.sessionsEmpty": {
+    de: "Gerade niemand aktiv. Angemeldete Clients melden sich alle 20 Sekunden.",
+    en: "Nobody is active right now. Signed-in clients check in every 20 seconds.",
+  },
+  "admin.users.title": { de: "Benutzer", en: "Users" },
+  "admin.users.intro": {
+    de: "Rollen vergeben, Konten sperren, Passwörter zurücksetzen oder löschen.",
+    en: "Assign roles, block accounts, reset passwords or delete users.",
+  },
+  "admin.users.firstName": { de: "Vorname", en: "First name" },
+  "admin.users.lastName": { de: "Nachname", en: "Last name" },
+  "admin.users.emailPh": { de: "E-Mail (optional, für Passwort-Reset)", en: "Email (optional, for password reset)" },
+  "admin.users.create": { de: "Anlegen", en: "Create" },
+  "admin.users.searchPh": {
+    de: "Nach Name, Benutzername oder E-Mail suchen…",
+    en: "Search by name, username or email…",
+  },
+  "admin.users.none": { de: "Keine Benutzer gefunden.", en: "No users found." },
+  "admin.users.activeNow": { de: "gerade aktiv", en: "active now" },
+  "admin.users.lastSeen": { de: "zuletzt {when}", en: "last seen {when}" },
+  "admin.users.notSeen": { de: "seit dem letzten Neustart nicht gesehen", en: "not seen since the last restart" },
+  "admin.users.blocked": { de: "gesperrt", en: "blocked" },
+  "admin.users.role": { de: "Rolle", en: "Role" },
+  "admin.users.editTitle": {
+    de: "Name, Benutzername und E-Mail bearbeiten",
+    en: "Edit name, username and email",
+  },
+  "admin.users.editNamed": { de: "{name} bearbeiten", en: "Edit {name}" },
+  "admin.users.2faTitle": { de: "2FA für „{name}“ abschalten?", en: "Turn off 2FA for “{name}”?" },
+  "admin.users.2faMsg": {
+    de: "Nötig, wenn der Authenticator verloren ist.",
+    en: "Needed when the authenticator has been lost.",
+  },
+  "admin.users.2faOff": { de: "Abschalten", en: "Turn off" },
+  "admin.users.2faActive": { de: "2FA aktiv — zum Zurücksetzen klicken", en: "2FA on — click to reset" },
+  "admin.users.2faReset": { de: "2FA für {name} zurücksetzen", en: "Reset 2FA for {name}" },
+  "admin.users.resetPwNamed": { de: "Passwort von {name} zurücksetzen", en: "Reset password for {name}" },
+  "admin.users.block": { de: "Sperren", en: "Block" },
+  "admin.users.unblock": { de: "Entsperren", en: "Unblock" },
+  "admin.users.blockNamed": { de: "{name} sperren", en: "Block {name}" },
+  "admin.users.unblockNamed": { de: "{name} entsperren", en: "Unblock {name}" },
+  "admin.users.kbAll": { de: "Wissenszugriff: alle Kategorien (Admin)", en: "Knowledge access: all categories (admin)" },
+  "admin.users.kb": { de: "Wissenszugriff:", en: "Knowledge access:" },
+  "admin.users.editAccount": { de: "Konto bearbeiten", en: "Edit account" },
+  "admin.users.firstNameHint": {
+    de: "Der Vorname bestimmt, wie die App den Nutzer anspricht.",
+    en: "The first name is how the app addresses this user.",
+  },
+  "admin.users.managed": {
+    de: "Konto aus dem Firmenverzeichnis: Änderungen hier werden bei der nächsten Anmeldung von dort überschrieben.",
+    en: "Account from the company directory: changes made here are overwritten from there at the next sign-in.",
+  },
+  "admin.users.displayName": { de: "Anzeigename", en: "Display name" },
+  "admin.users.displayNameTip": {
+    de: "Optional. Leer lassen — dann wird er aus Vor- und Nachnamen gebildet und bleibt automatisch aktuell.",
+    en: "Optional. Leave empty to build it from the first and last name and keep it up to date automatically.",
+  },
+  "admin.users.builtinTip": {
+    de: "Der Built-in-Administrator kann nicht umbenannt werden — er ist der garantierte Wiederherstellungszugang.",
+    en: "The built-in administrator can't be renamed — it's the guaranteed recovery account.",
+  },
+  "admin.users.emailTip": {
+    de: "Wird für den Passwort-Reset per E-Mail benötigt. Leer = entfernen.",
+    en: "Needed for password reset by email. Empty = remove.",
+  },
+
+  // ── admin: access ─────────────────────────────────────────────────────
+  "admin.access.title": { de: "Registrierung & Gastzugang", en: "Registration & guest access" },
+  "admin.access.intro": {
+    de: "Welche Anmeldearten verfügbar sind, wer sich registrieren darf, und ob nicht angemeldete Gäste den Chatbot testen können.",
+    en: "Which sign-in methods are available, who may register, and whether guests can try the chatbot without signing in.",
+  },
+  "admin.access.methods": { de: "Anmeldearten", en: "Sign-in methods" },
+  "admin.access.password": {
+    de: "Passwort-Anmeldung erlauben (Benutzername & Passwort)",
+    en: "Allow password sign-in (username & password)",
+  },
+  "admin.access.passwordTip": {
+    de: "Erlaubt die klassische Anmeldung mit Benutzername und Passwort. Ausschalten für reinen SSO-Betrieb — der Administrator kann sich dann weiterhin per Passwort anmelden.",
+    en: "Allows classic sign-in with username and password. Turn off for SSO-only — the administrator can still sign in with a password.",
+  },
+  "admin.access.passwordOff": {
+    de: "Nutzer melden sich nur mit dem Microsoft-Geschäftskonto an. Der Administrator kann sich weiterhin per Passwort anmelden (Wiederherstellung).",
+    en: "Users sign in only with their Microsoft work account. The administrator can still sign in with a password (recovery).",
+  },
+  "admin.access.sso": {
+    de: "Anmeldung mit Microsoft-Geschäftskonto (Entra ID / SSO) erlauben",
+    en: "Allow sign-in with a Microsoft work account (Entra ID / SSO)",
+  },
+  "admin.access.ssoTip": {
+    de: "Zeigt den Anmelde-Button für das Microsoft-Geschäftskonto. Die Zugangsdaten (Entra ID oder ein anderer OIDC-Server wie ADFS/Keycloak) richtest du im Abschnitt „Microsoft-Anmeldung (SSO)“ weiter unten ein; dort lässt sich auch die Beschriftung ändern.",
+    en: "Shows the sign-in button for Microsoft work accounts. Set up the credentials (Entra ID or another OIDC server such as ADFS/Keycloak) in the “Microsoft sign-in (SSO)” section below; you can also change the button label there.",
+  },
+  "admin.access.ssoMissing": {
+    de: "SSO ist noch nicht konfiguriert — der Button bleibt inaktiv, bis du die Zugangsdaten unter „Microsoft-Anmeldung (SSO)“ hinterlegst.",
+    en: "SSO isn't set up yet — the button stays inactive until you enter the credentials under “Microsoft sign-in (SSO)”.",
+  },
+  "admin.access.noMethod": {
+    de: "Achtung: Keine Anmeldeart aktiv. Nur der Administrator kann sich noch (per Passwort) anmelden.",
+    en: "Warning: no sign-in method is on. Only the administrator can still sign in (with a password).",
+  },
+  "admin.access.reset": {
+    de: "„Passwort vergessen?“ im Login anzeigen (Self-Service-Reset)",
+    en: "Show “Forgot password?” on the sign-in page (self-service reset)",
+  },
+  "admin.access.resetTip": {
+    de: "Zeigt auf der Anmeldeseite einen „Passwort vergessen?“-Link. Nutzer bekommen dann per E-Mail einen Link, um ihr Passwort selbst zurückzusetzen. Setzt einen konfigurierten E-Mail-Versand und eine hinterlegte E-Mail-Adresse beim Nutzer voraus.",
+    en: "Shows a “Forgot password?” link on the sign-in page. Users then get an email link to reset their password themselves. Requires outgoing email to be set up and an email address on the user's account.",
+  },
+  "admin.access.smtpMissing": {
+    de: "Noch kein E-Mail-Versand konfiguriert — der Link erscheint auf der Anmeldeseite erst, wenn unter „Anmeldung & E-Mail“ → „E-Mail-Versand“ die Zugangsdaten hinterlegt sind.",
+    en: "Outgoing email isn't set up yet — the link only appears on the sign-in page once credentials are entered under “Sign-in & email” → “Outgoing email”.",
+  },
+  "admin.access.selfReg": {
+    de: "Selbstregistrierung erlauben (zeigt „Registrieren“ auf der Login-Seite)",
+    en: "Allow self-registration (shows “Register” on the sign-in page)",
+  },
+  "admin.access.selfRegTip": {
+    de: "Erlaubt Besuchern, sich selbst ein Konto anzulegen. Aus = nur der Admin legt Konten an (Benutzerverwaltung oben).",
+    en: "Lets visitors create their own account. Off = only the admin creates accounts (user management above).",
+  },
+  "admin.access.domains": {
+    de: "Erlaubte E-Mail-Domains (optional, eine pro Zeile). Leer = alle Domains.",
+    en: "Allowed email domains (optional, one per line). Empty = all domains.",
+  },
+  "admin.access.domainsTip": {
+    de: "Beschränkt die Selbstregistrierung auf bestimmte E-Mail-Domains (z. B. firma.de). Der Benutzername muss dann eine E-Mail dieser Domain sein.",
+    en: "Limits self-registration to specific email domains (e.g. company.com). The username must then be an email address on one of these domains.",
+  },
+  "admin.access.domainsPh": { de: "firma.de\nfirma.com", en: "company.com\ncompany.co.uk" },
+  "admin.access.guest": {
+    de: "Gast-Zugang erlauben (Nutzung ohne Anmeldung)",
+    en: "Allow guest access (use without signing in)",
+  },
+  "admin.access.guestTip": {
+    de: "Nicht angemeldete Besucher dürfen den Chatbot mit genau einem festgelegten Modell testen. Ideal zum Ausprobieren ohne Konto.",
+    en: "Visitors who aren't signed in may try the chatbot with exactly one fixed model. Ideal for trying it out without an account.",
+  },
+  "admin.access.guestModel": {
+    de: "Gast-Modell (das einzige Modell, das Gäste nutzen dürfen)",
+    en: "Guest model (the only model guests may use)",
+  },
+  "admin.access.pickModel": { de: "— Modell wählen —", en: "— Choose model —" },
+  "admin.access.reloadModels": { de: "Modelle neu laden", en: "Reload models" },
+  "admin.access.guestNoModel": {
+    de: "Ohne gewähltes Gast-Modell bleibt der Gast-Zugang inaktiv.",
+    en: "Guest access stays inactive until you choose a guest model.",
+  },
+
+  // ── admin: roles ──────────────────────────────────────────────────────
+  "roles.title": { de: "Rollen & Rechte", en: "Roles & permissions" },
+  "roles.intro": {
+    de: "Eigene Rollen anlegen und Rechte per Checkbox vergeben.",
+    en: "Create custom roles and grant permissions with checkboxes.",
+  },
+  "roles.delete": { de: "Rolle löschen", en: "Delete role" },
+  "roles.new": { de: "Neue Rolle", en: "New role" },
+  "roles.namePh": { de: "Rollenname…", en: "Role name…" },
+  "roles.save": { de: "Rolle speichern", en: "Save role" },
+  "roles.create": { de: "Rolle erstellen", en: "Create role" },
+  // Keys mirror lib/permissions.ts PERMISSIONS[].key — keep them in sync.
+  "roles.perm.models.pull": { de: "Darf Modelle pullen", en: "Can pull models" },
+  "roles.perm.models.pull.desc": { de: "Neue Modelle vom Ollama-Server laden.", en: "Download new models to the Ollama server." },
+  "roles.perm.models.delete": { de: "Darf Modelle löschen", en: "Can delete models" },
+  "roles.perm.models.delete.desc": {
+    de: "Installierte Modelle vom Server entfernen.",
+    en: "Remove installed models from the server.",
+  },
+  "roles.perm.workspaces.create": { de: "Darf Workspaces erstellen", en: "Can create workspaces" },
+  "roles.perm.workspaces.create.desc": { de: "Neue Kollaborationsräume anlegen.", en: "Set up new collaboration spaces." },
+  "roles.perm.workspaces.delete": { de: "Darf Workspaces löschen", en: "Can delete workspaces" },
+  "roles.perm.workspaces.delete.desc": {
+    de: "Workspaces samt Zuordnung entfernen.",
+    en: "Remove workspaces along with their assignments.",
+  },
+  "roles.perm.files.share": { de: "Darf Dokumente teilen", en: "Can share documents" },
+  "roles.perm.files.share.desc": {
+    de: "Dateien in Workspaces mit anderen teilen.",
+    en: "Share files with others in workspaces.",
+  },
+  "roles.perm.chats.share": { de: "Darf Chats teilen", en: "Can share chats" },
+  "roles.perm.chats.share.desc": { de: "Öffentliche Chat-Freigabe-Links erzeugen.", en: "Create public chat share links." },
+  "roles.perm.users.manage": { de: "Darf Benutzer verwalten", en: "Can manage users" },
+  "roles.perm.users.manage.desc": {
+    de: "Konten anlegen, sperren, Rollen zuweisen.",
+    en: "Create and block accounts, assign roles.",
+  },
+  "roles.perm.roles.manage": { de: "Darf Rollen verwalten", en: "Can manage roles" },
+  "roles.perm.roles.manage.desc": {
+    de: "Eigene Rollen erstellen und Rechte vergeben.",
+    en: "Create custom roles and grant permissions.",
+  },
+  "roles.perm.terminal.access": { de: "Darf Server-Terminal nutzen", en: "Can use the server terminal" },
+  "roles.perm.terminal.access.desc": {
+    de: "Admin-Terminal / Ollama-Befehle ausführen.",
+    en: "Run admin terminal / Ollama commands.",
+  },
+
+  // ── chat participants ─────────────────────────────────────────────────
+  "participants.button": { de: "Nutzer einladen / Teilnehmer verwalten", en: "Invite / manage participants" },
+  "participants.title": { de: "Teilnehmer verwalten", en: "Manage participants" },
+  "participants.intro": {
+    de: "Lade mehrere Sidekicks in diesen Chat ein. Bei mehr als einem wird der Chat zum Konferenzraum.",
+    en: "Invite several sidekicks to this chat. With more than one, the chat becomes a conference room.",
+  },
+  "participants.empty": {
+    de: "Noch keine Sidekicks. Lege welche unter Einstellungen → KI-Personalisierung an.",
+    en: "No sidekicks yet. Create some under Settings → AI personalisation.",
+  },
+  "participants.moderation": { de: "Automatische Moderation", en: "Automatic moderation" },
+  "participants.moderationHint": {
+    de: "Ein Moderator-Modell wählt vor jedem Beitrag den passendsten Sidekick (statt fester Reihenfolge).",
+    en: "A moderator model picks the best-suited sidekick before each turn (instead of a fixed order).",
+  },
+
+  // ── shared (fork B) ───────────────────────────────────────────────────
+  "common.failed": { de: "Fehlgeschlagen.", en: "That didn't work. Try again." },
+  "common.errorRetry": { de: "Fehler.", en: "Something went wrong. Try again." },
+  "common.reload": { de: "Neu laden", en: "Reload" },
+
+  // ── admin: embedded assistants ────────────────────────────────────────
+  "admin.assistants.never": { de: "nie", en: "never" },
+  "admin.assistants.justNow": { de: "gerade", en: "just now" },
+  "admin.assistants.minAgo": { de: "vor {n} Min", en: "{n} min ago" },
+  "admin.assistants.hoursAgo": { de: "vor {n} Std", en: "{n} h ago" },
+  "admin.assistants.daysAgo": { de: "vor {n} Tg", en: "{n} d ago" },
+  "admin.assistants.defaultName": { de: "Neuer Assistent", en: "New assistant" },
+  "admin.assistants.intro": {
+    de: "Ein Assistent ist ein Zugang für fremde Seiten: festes Modell, eigener System-Prompt und genau die Wissensbereiche, die du freigibst. Assistenten sind keine Benutzerkonten — Chats, Profile und die Verwaltung bleiben ihnen verschlossen.",
+    en: "An assistant is an access point for other websites: a pinned model, its own system prompt and exactly the knowledge areas you share. Assistants are not user accounts — chats, profiles and administration stay closed to them.",
+  },
+  "admin.assistants.active": { de: "aktiv", en: "active" },
+  "admin.assistants.inactive": { de: "deaktiviert", en: "disabled" },
+  "admin.assistants.create": { de: "Assistent anlegen", en: "Create assistant" },
+  "admin.assistants.empty": { de: "Noch kein Assistent angelegt.", en: "No assistants yet." },
+  "admin.assistants.name": { de: "Name", en: "Name" },
+  "admin.assistants.model": { de: "Modell (fest)", en: "Model (pinned)" },
+  "admin.assistants.modelInfo": {
+    de: "Der Aufrufer kann das Modell nicht wählen. Ein im Request mitgeschicktes „model“ wird ignoriert.",
+    en: "The caller can't choose the model. A “model” sent with the request is ignored.",
+  },
+  "admin.assistants.choose": { de: "— wählen —", en: "— choose —" },
+  "admin.assistants.reloadModels": { de: "Modelle neu laden", en: "Reload models" },
+  "admin.assistants.systemPrompt": { de: "System-Prompt", en: "System prompt" },
+  "admin.assistants.systemPromptInfo": {
+    de: "Rolle und Tonfall des Assistenten. Der interne App-Prompt gilt hier absichtlich nicht.",
+    en: "The assistant's role and tone. The app's internal prompt deliberately doesn't apply here.",
+  },
+  "admin.assistants.systemPromptPlaceholder": {
+    de: "Du bist der Support-Assistent der Musterfirma. Antworte knapp und belege jede Aussage mit der Quelle.",
+    en: "You are the support assistant of Example Corp. Answer briefly and back every statement with its source.",
+  },
+  "admin.assistants.greeting": { de: "Begrüßung im Widget", en: "Widget greeting" },
+  "admin.assistants.greetingPlaceholder": {
+    de: "Hallo! Frag mich etwas zu unseren Produkten.",
+    en: "Hi! Ask me anything about our products.",
+  },
+  "admin.assistants.knowledge": { de: "Wissen", en: "Knowledge" },
+  "admin.assistants.knowledgeHint": {
+    de: "Ohne Auswahl hat der Assistent keinen Zugriff auf Dokumente — das ist die Voreinstellung.",
+    en: "With nothing selected the assistant has no access to documents — that's the default.",
+  },
+  "admin.assistants.noCategories": {
+    de: "Noch keine Kategorien in der Wissensdatenbank.",
+    en: "No categories in the knowledge base yet.",
+  },
+  "admin.assistants.bookstack": { de: "BookStack-Wiki nutzen", en: "Use BookStack wiki" },
+  "admin.assistants.bookstackInfo": {
+    de: "Nur die unten gewählten Bücher werden durchsucht. Ohne Buchauswahl findet der Assistent nichts.",
+    en: "Only the books selected below are searched. With no books selected the assistant finds nothing.",
+  },
+  "admin.assistants.noBooks": {
+    de: "Keine Bücher gefunden (BookStack nicht erreichbar?).",
+    en: "No books found. Check that BookStack is reachable.",
+  },
+  "admin.assistants.webSearch": { de: "Web-Suche erlauben", en: "Allow web search" },
+  "admin.assistants.webSearchInfo": {
+    de: "Jede fremde Anfrage kann dann Credits beim Suchanbieter kosten.",
+    en: "Every outside request may then use credits with the search provider.",
+  },
+  "admin.assistants.showSources": { de: "Quellen anzeigen", en: "Show sources" },
+  "admin.assistants.enabled": { de: "Aktiv", en: "Active" },
+  "admin.assistants.enabledInfo": {
+    de: "Deaktiviert lehnt der Assistent jeden Aufruf ab, ohne dass Schlüssel widerrufen werden müssen.",
+    en: "When disabled the assistant rejects every call, without having to revoke keys.",
+  },
+  "admin.assistants.perMinute": { de: "Anfragen / Minute", en: "Requests / minute" },
+  "admin.assistants.perDayPerIp": { de: "Anfragen / Tag / IP", en: "Requests / day / IP" },
+  "admin.assistants.perDay": { de: "Anfragen / Tag (gesamt)", en: "Requests / day (total)" },
+  "admin.assistants.maxInputChars": { de: "Max. Zeichen je Anfrage", en: "Max. characters per request" },
+  "admin.assistants.maxHistory": { de: "Verlaufstiefe", en: "History depth" },
+  "admin.assistants.maxTokens": { de: "Max. Tokens je Antwort", en: "Max. tokens per response" },
+  "admin.assistants.origins": { de: "Erlaubte Herkunft (eine je Zeile)", en: "Allowed origins (one per line)" },
+  "admin.assistants.originsInfo": {
+    de: "Gilt nur für Widget-Schlüssel. Genau die Adresse der einbettenden Seite, z. B. https://intranet.firma.de — ohne Pfad.",
+    en: "Applies to widget keys only. The exact address of the embedding site, e.g. https://intranet.example.com — without a path.",
+  },
+  "admin.assistants.keys": { de: "Schlüssel", en: "Keys" },
+  "admin.assistants.keysHint": {
+    de: "Der geheime Schlüssel gehört in ein fremdes Backend, der Widget-Schlüssel in eine Webseite. Beide werden nur als Hash gespeichert — der Klartext erscheint genau einmal.",
+    en: "The secret key belongs in another backend, the widget key in a web page. Both are stored only as a hash — the plain text is shown exactly once.",
+  },
+  "admin.assistants.freshKey": {
+    de: "Neuer Schlüssel — jetzt kopieren, er wird nicht wieder angezeigt:",
+    en: "New key — copy it now, it won't be shown again:",
+  },
+  "admin.assistants.noKeys": { de: "Noch kein Schlüssel.", en: "No keys yet." },
+  "admin.assistants.keySecret": { de: "Geheim", en: "Secret" },
+  "admin.assistants.keyWidget": { de: "Widget", en: "Widget" },
+  "admin.assistants.lastUsed": { de: "zuletzt {when}", en: "last used {when}" },
+  "admin.assistants.revoked": { de: "widerrufen", en: "revoked" },
+  "admin.assistants.revoke": { de: "Widerrufen", en: "Revoke" },
+  "admin.assistants.mintSecret": { de: "Geheimen Schlüssel erzeugen", en: "Create secret key" },
+  "admin.assistants.mintPublic": { de: "Widget-Schlüssel erzeugen", en: "Create widget key" },
+  "admin.assistants.embed": { de: "Einbettung", en: "Embed code" },
+  "admin.assistants.noAppUrl": {
+    de: "Setze die öffentliche App-URL unter Marke, damit hier die echte Adresse steht.",
+    en: "Set the public app URL under Brand so the real address appears here.",
+  },
+  "admin.assistants.usage": {
+    de: "{requests} Anfragen insgesamt · {today} heute · {denied} abgewiesen · zuletzt {when}",
+    en: "{requests} requests in total · {today} today · {denied} rejected · last {when}",
+  },
+  "admin.assistants.usagePrivacy": {
+    de: "Es werden ausschließlich Zähler gespeichert, keine Gesprächsinhalte.",
+    en: "Only counters are stored, never conversation content.",
+  },
+  "admin.assistants.confirmDelete": { de: "„{name}\" löschen?", en: "Delete “{name}”?" },
+  "admin.assistants.confirmDeleteBody": {
+    de: "Alle Schlüssel dieses Assistenten werden ungültig. Eingebettete Seiten hören sofort auf zu funktionieren.",
+    en: "All keys of this assistant become invalid. Embedded pages stop working immediately.",
+  },
+
+  // ── admin: server terminal ────────────────────────────────────────────
+  "admin.terminal.welcome": { de: "{app} Admin-Terminal — tippe \"help\".", en: "{app} admin terminal — type \"help\"." },
+  "admin.terminal.aborted": { de: "^C abgebrochen", en: "^C cancelled" },
+  "admin.terminal.title": { de: "Server-Terminal", en: "Server terminal" },
+  "admin.terminal.badge": { de: "nur Admin · nur Ollama", en: "admin only · Ollama only" },
+  "admin.terminal.clear": { de: "Leeren", en: "Clear" },
+  "admin.terminal.placeholder": { de: "z. B. \"ollama list\"", en: "e.g. \"ollama list\"" },
+  "admin.terminal.abort": { de: "Abbrechen (^C)", en: "Cancel (^C)" },
+  "admin.terminal.run": { de: "Ausführen (⏎)", en: "Run (⏎)" },
+  "admin.terminal.noServer": {
+    de: "Kein Ollama-Server gewählt — ollama-Befehle brauchen einen Server.",
+    en: "No Ollama server selected — ollama commands need a server. Choose one above.",
+  },
+
+  // ── admin: Ollama models (pull, aliases, favourites) ──────────────────
+  "admin.ollama.purpose.fast": { de: "Schnell", en: "Fast" },
+  "admin.ollama.purpose.thorough": { de: "Gründlich", en: "Thorough" },
+  "admin.ollama.purpose.vision": { de: "Versteht Bilder", en: "Understands images" },
+  "admin.ollama.purpose.code": { de: "Programmieren", en: "Coding" },
+  "admin.ollama.purpose.translate": { de: "Übersetzen", en: "Translation" },
+  "admin.ollama.starting": { de: "Starte…", en: "Starting…" },
+  "admin.ollama.done": { de: "Fertig ✓", en: "Done ✓" },
+  "admin.ollama.cancelled": { de: "Abgebrochen", en: "Cancelled" },
+  "admin.ollama.noProvider": {
+    de: "Kein Ollama-Anbieter konfiguriert. Trage oben unter „Anbieter & Endpunkte\" einen Ollama-Anbieter ein, um Modelle zu verwalten.",
+    en: "No Ollama provider configured. Add one above under “Providers & endpoints” to manage models.",
+  },
+  "admin.ollama.server": { de: "Ollama-Server", en: "Ollama server" },
+  "admin.ollama.pullTitle": { de: "Modelle laden", en: "Download models" },
+  "admin.ollama.pullHint": {
+    de: "Modellname aus der Ollama-Bibliothek eingeben (z. B.",
+    en: "Enter a model name from the Ollama library (e.g.",
+  },
+  "admin.ollama.pullTarget": { de: "Lädt auf {url}.", en: "Downloads to {url}." },
+  "admin.ollama.pullPlaceholder": { de: "z. B. phi3", en: "e.g. phi3" },
+  "admin.ollama.pull": { de: "Laden", en: "Download" },
+  "admin.ollama.aliasTitle": { de: "Anzeigenamen & Favoriten", en: "Display names & favourites" },
+  "admin.ollama.aliasHint": {
+    de: "Der Anzeigename ersetzt die Modell-ID überall in der App. Nutzer ohne technischen Hintergrund können mit „gemma4:e4b\" nichts anfangen — ein Name nach Zweck schon.",
+    en: "The display name replaces the model ID everywhere in the app. Non-technical users can't make sense of “gemma4:e4b” — a name that says what it's for, they can.",
+  },
+  "admin.ollama.noModels": { de: "Keine Modelle gefunden.", en: "No models found." },
+  "admin.ollama.unfavorite": { de: "Favorit entfernen", en: "Remove from favourites" },
+  "admin.ollama.favorite": { de: "Favorisieren", en: "Add to favourites" },
+  "admin.ollama.aliasPlaceholder": { de: "Anzeigename (Alias)…", en: "Display name (alias)…" },
+
+  // ── shared (from fork C; dedupe on merge) ─────────────────────────────
+  "common.discard": { de: "Verwerfen", en: "Discard" },
+  "common.export": { de: "Exportieren", en: "Export" },
+  "common.import": { de: "Importieren", en: "Import" },
+  "common.unsaved": { de: "Nicht gespeicherte Änderungen", en: "Unsaved changes" },
+  "common.chooseFile": { de: "Datei wählen", en: "Choose file" },
+  "common.secretStored": { de: "•••••••• (gespeichert)", en: "•••••••• (stored)" },
+
+  // ── admin: branding ───────────────────────────────────────────────────
+  "admin.branding.logoDark": { de: "Logo (dunkler Hintergrund)", en: "Logo (dark background)" },
+  "admin.branding.logoDarkHint": {
+    de: "PNG mit Transparenz oder SVG. Ersetzt den Namen in der Seitenleiste.",
+    en: "PNG with transparency or SVG. Replaces the name in the sidebar.",
+  },
+  "admin.branding.logoLight": { de: "Logo (heller Hintergrund)", en: "Logo (light background)" },
+  "admin.branding.logoLightHint": {
+    de: "Optional — nur nötig, wenn das Hauptlogo im hellen Design untergeht.",
+    en: "Optional — only needed if the main logo gets lost in light mode.",
+  },
+  "admin.branding.favicon": { de: "Favicon", en: "Favicon" },
+  "admin.branding.faviconHint": {
+    de: "Optional — ohne Angabe wird das Logo bzw. ein Icon in Akzentfarbe genutzt.",
+    en: "Optional — if empty, the logo or an icon in the accent colour is used.",
+  },
+  "admin.branding.errLoad": {
+    de: "Konfiguration konnte nicht geladen werden.",
+    en: "Couldn't load the configuration. Reload the page to try again.",
+  },
+  "admin.branding.errAdminOnly": { de: "Nur Administratoren.", en: "Administrators only." },
+  "admin.branding.errSave": {
+    de: "Speichern fehlgeschlagen.",
+    en: "Couldn't save. Check your connection and try again.",
+  },
+  "admin.branding.errImage": {
+    de: "Bild konnte nicht gelesen werden.",
+    en: "Couldn't read the image. Try a PNG, JPEG, WebP or SVG file.",
+  },
+  "admin.branding.errNoLogo": { de: "Erst ein Logo hochladen.", en: "Upload a logo first." },
+  "admin.branding.errNoColor": {
+    de: "Im Logo keine eindeutige Farbe gefunden.",
+    en: "No distinct colour found in the logo. Pick the accent colour manually.",
+  },
+  "admin.branding.errImport": {
+    de: "Datei ist keine gültige Marken-JSON.",
+    en: "This file isn't a valid brand JSON. Choose a file exported from this panel.",
+  },
+  "admin.branding.loading": { de: "Marke wird geladen…", en: "Loading brand…" },
+  "admin.branding.preview": { de: "Vorschau", en: "Preview" },
+  "admin.branding.previewHint": {
+    de: "So sieht die Marke aus, sobald du speicherst. Vorher sieht sie niemand sonst.",
+    en: "This is how the brand will look once you save. Nobody else sees it before then.",
+  },
+  "admin.branding.browserTab": { de: "{name} — Browser-Tab", en: "{name} — browser tab" },
+  "admin.branding.name": { de: "Name", en: "Name" },
+  "admin.branding.nameHint": {
+    de: "Erscheint in Seitenleiste, Anmeldeseite, Browser-Tab, E-Mails und in der Authenticator-App.",
+    en: "Shown in the sidebar, sign-in page, browser tab, emails and the authenticator app.",
+  },
+  "admin.branding.appName": { de: "Instanz-/Firmenname", en: "Instance / company name" },
+  "admin.branding.tagline": { de: "Unterzeile (optional)", en: "Tagline (optional)" },
+  "admin.branding.taglinePh": { de: "KI-Assistent der Musterfirma", en: "AI assistant of Example Corp" },
+  "admin.branding.assets": { de: "Logo & Favicon", en: "Logo & favicon" },
+  "admin.branding.assetsHint": {
+    de: "Datei hochladen (PNG/SVG/WebP) oder eine URL eintragen. Uploads werden verkleinert und in der Instanz-Konfiguration gespeichert.",
+    en: "Upload a file (PNG/SVG/WebP) or enter a URL. Uploads are downscaled and stored in the instance configuration.",
+  },
+  "admin.branding.empty": { de: "leer", en: "empty" },
+  "admin.branding.uploadedFile": { de: "hochgeladene Datei", en: "uploaded file" },
+  "admin.branding.accent": { de: "Akzentfarbe", en: "Accent colour" },
+  "admin.branding.accentHint": {
+    de: "Wird für Buttons, Links und Hervorhebungen verwendet.",
+    en: "Used for buttons, links and highlights.",
+  },
+  "admin.branding.pickAccent": { de: "Akzentfarbe wählen", en: "Choose accent colour" },
+  "admin.branding.deriveAccent": { de: "Aus Logo ableiten", en: "Derive from logo" },
+  "admin.branding.resetAccent": { de: "Zurücksetzen (Indigo)", en: "Reset (indigo)" },
+  "admin.branding.legal": { de: "Rechtliches & Support", en: "Legal & support" },
+  "admin.branding.legalHint": {
+    de: "Wird unter der Anmeldemaske, im Info-Tab und unter dem Chat verlinkt. Leere Felder erscheinen nicht.",
+    en: "Linked below the sign-in form, in the About tab and below the chat. Empty fields are hidden.",
+  },
+  "admin.branding.imprint": { de: "Impressum (URL)", en: "Imprint (URL)" },
+  "admin.branding.privacy": { de: "Datenschutz (URL)", en: "Privacy policy (URL)" },
+  "admin.branding.supportEmail": { de: "Support-E-Mail", en: "Support email" },
+  "admin.branding.supportUrl": { de: "Support-Portal (URL)", en: "Support portal (URL)" },
+  "admin.branding.supportUrlInfo": {
+    de: "Wenn gesetzt, verweist der Support-Link hierauf statt auf die E-Mail-Adresse.",
+    en: "If set, the support link points here instead of the email address.",
+  },
+  "admin.branding.publicUrl": { de: "Öffentliche Adresse", en: "Public address" },
+  "admin.branding.publicUrlHint": {
+    de: "Basis für absolute Links in E-Mails und SSO-Rücksprüngen.",
+    en: "Base for absolute links in emails and SSO redirects.",
+  },
+  "admin.branding.appUrl": { de: "Öffentliche App-URL (HTTPS)", en: "Public app URL (HTTPS)" },
+  "admin.branding.appUrlInfo": {
+    de: "Die von außen erreichbare Adresse dieser Instanz, z. B. https://chat.firma.de. Wird für absolute Links in E-Mails (z. B. Passwort-Reset) verwendet. Ohne diese Angabe rät die App die Adresse aus der Anfrage — hinter einem Reverse-Proxy / bei Bind auf 0.0.0.0 ergibt das eine unbrauchbare URL.",
+    en: "The externally reachable address of this instance, e.g. https://chat.example.com. Used for absolute links in emails (e.g. password reset). Without it the app guesses the address from the request — behind a reverse proxy or when bound to 0.0.0.0 that yields an unusable URL.",
+  },
+  "admin.branding.transfer": { de: "Übertragen", en: "Transfer" },
+  "admin.branding.transferHint": {
+    de: "Marke als Datei sichern und auf einer anderen Instanz einlesen. Import landet im Entwurf — gespeichert wird erst unten.",
+    en: "Back up the brand as a file and load it on another instance. Imports go into the draft — nothing is saved until you click Save below.",
+  },
+  "admin.branding.resetDefault": { de: "Auf Standard zurücksetzen", en: "Reset to default" },
+
+  // ── admin: single sign-on ─────────────────────────────────────────────
+  "admin.sso.title": { de: "Single Sign-On", en: "Single sign-on" },
+  "admin.sso.titleInfo": {
+    de: "Single Sign-On: Nutzer melden sich mit ihrem Microsoft-Geschäftskonto an (Entra ID) oder über einen anderen OIDC-Server wie ADFS/Keycloak — statt mit einem lokalen Passwort.",
+    en: "Single sign-on: users sign in with their Microsoft work account (Entra ID) or through another OIDC server such as ADFS/Keycloak — instead of a local password.",
+  },
+  "admin.sso.intro": {
+    de: "Anmeldung über Microsoft Entra ID oder einen AD/OIDC-Server konfigurieren.",
+    en: "Configure sign-in through Microsoft Entra ID or an AD/OIDC server.",
+  },
+  "admin.sso.envActive": {
+    de: "Aktuell aktiv über Umgebungsvariablen. Speichern hier überschreibt das.",
+    en: "Currently active via environment variables. Saving here overrides them.",
+  },
+  "admin.sso.enable": { de: "SSO aktivieren", en: "Enable SSO" },
+  "admin.sso.enableInfo": {
+    de: "Muss aktiv sein, damit der Anmelde-Button erscheint. Zusätzlich muss die Anmeldeart SSO unter „Registrierung & Zugang“ erlaubt sein.",
+    en: "Must be on for the sign-in button to appear. SSO must also be allowed as a sign-in method under “Registration & access”.",
+  },
+  "admin.sso.provider": { de: "Anbieter", en: "Provider" },
+  "admin.sso.providerInfo": {
+    de: "Entra ID leitet die Endpunkte automatisch aus der Tenant-ID ab. AD / Generisches OIDC (z. B. ADFS, Keycloak) benötigt die Endpunkt-URLs manuell.",
+    en: "Entra ID derives the endpoints from the tenant ID automatically. AD / generic OIDC (e.g. ADFS, Keycloak) needs the endpoint URLs entered manually.",
+  },
+  "admin.sso.providerAd": { de: "Active Directory / Generisches OIDC", en: "Active Directory / generic OIDC" },
+  "admin.sso.redirect": { de: "Redirect-URI (beim Anbieter eintragen)", en: "Redirect URI (register with the provider)" },
+  "admin.sso.redirectInfo": {
+    de: "Diese Rücksprung-Adresse musst du in der App-Registrierung des Anbieters als „Redirect URI“ hinterlegen, sonst weist er die Anmeldung ab. Sie leitet sich aus der öffentlichen App-URL (Branding-Einstellungen) ab — setze diese auf deine HTTPS-Adresse, damit hier keine http-/0.0.0.0-URL erscheint.",
+    en: "Register this address as a “Redirect URI” in the provider's app registration, otherwise it rejects the sign-in. It is derived from the public app URL (brand settings) — set that to your HTTPS address so no http/0.0.0.0 URL appears here.",
+  },
+  "admin.sso.clientId": { de: "Client-ID", en: "Client ID" },
+  "admin.sso.clientIdInfo": {
+    de: "Die Anwendungs-(Client-)ID aus der App-Registrierung beim Identity-Provider.",
+    en: "The application (client) ID from the app registration at the identity provider.",
+  },
+  "admin.sso.secret": { de: "Client-Secret", en: "Client secret" },
+  "admin.sso.secretInfo": {
+    de: "Das Client-Geheimnis aus der App-Registrierung. Verschlüsselt gespeichert, nie zurückgegeben. Leer lassen = gespeichertes behalten.",
+    en: "The client secret from the app registration. Stored encrypted, never returned. Leave empty to keep the stored one.",
+  },
+  "admin.sso.tenant": { de: "Tenant-ID", en: "Tenant ID" },
+  "admin.sso.tenantInfo": {
+    de: "Die Verzeichnis-(Tenant-)ID deiner Entra-Organisation. Legt die Endpunkte fest UND beschränkt die Anmeldung auf diese Organisation.",
+    en: "The directory (tenant) ID of your Entra organisation. Sets the endpoints AND restricts sign-in to this organisation.",
+  },
+  "admin.sso.tenantPh": {
+    de: "tenant-id (z. B. contoso.onmicrosoft.com oder GUID)",
+    en: "tenant-id (e.g. contoso.onmicrosoft.com or GUID)",
+  },
+  "admin.sso.authorizeUrl": { de: "Authorize-URL", en: "Authorize URL" },
+  "admin.sso.authorizeUrlInfo": {
+    de: "OIDC-Authorization-Endpoint des Servers, z. B. https://adfs.firma.de/adfs/oauth2/authorize.",
+    en: "The server's OIDC authorization endpoint, e.g. https://adfs.example.com/adfs/oauth2/authorize.",
+  },
+  "admin.sso.tokenUrl": { de: "Token-URL", en: "Token URL" },
+  "admin.sso.tokenUrlInfo": {
+    de: "OIDC-Token-Endpoint des Servers, z. B. https://adfs.firma.de/adfs/oauth2/token.",
+    en: "The server's OIDC token endpoint, e.g. https://adfs.example.com/adfs/oauth2/token.",
+  },
+  "admin.sso.buttonLabel": { de: "Beschriftung des Anmelde-Buttons", en: "Sign-in button label" },
+  "admin.sso.buttonLabelInfo": {
+    de: "Text auf der Schaltfläche auf der Anmeldeseite. Leer lassen für „Mit Microsoft-Geschäftskonto anmelden“ — bei einem anderen Anbieter (ADFS, Keycloak) hier passend umbenennen.",
+    en: "Text on the button on the sign-in page. Leave empty for “Sign in with your Microsoft work account” — rename it to match another provider (ADFS, Keycloak).",
+  },
+
+  // ── admin: outgoing email (SMTP) ──────────────────────────────────────
+  "admin.smtp.okTest": { de: "Verbindung erfolgreich.", en: "Connection successful." },
+  "admin.smtp.errTest": {
+    de: "Verbindung fehlgeschlagen.",
+    en: "Connection failed. Check host, port and credentials and try again.",
+  },
+  "admin.smtp.title": { de: "E-Mail-Versand", en: "Outgoing email" },
+  "admin.smtp.titleInfo": {
+    de: "Postausgangsserver, über den die App E-Mails verschickt — aktuell für „Passwort vergessen“-Links. Ohne konfiguriertes SMTP ist der Self-Service-Reset inaktiv.",
+    en: "Outgoing mail server the app sends email through — currently for “Forgot password” links. Without SMTP configured, self-service reset is disabled.",
+  },
+  "admin.smtp.intro": {
+    de: "Nötig, damit Nutzer ihr Passwort per E-Mail-Link selbst zurücksetzen können.",
+    en: "Required so users can reset their own password via an email link.",
+  },
+  "admin.smtp.enable": { de: "E-Mail-Versand aktivieren", en: "Enable outgoing email" },
+  "admin.smtp.host": { de: "Host", en: "Host" },
+  "admin.smtp.hostInfo": {
+    de: "Adresse des Postausgangsservers, z. B. smtp.firma.de oder smtp.office365.com.",
+    en: "Address of the outgoing mail server, e.g. smtp.example.com or smtp.office365.com.",
+  },
+  "admin.smtp.port": { de: "Port", en: "Port" },
+  "admin.smtp.portInfo": {
+    de: "465 für implizite TLS-Verschlüsselung, 587 für STARTTLS (üblich), 25 unverschlüsselt.",
+    en: "465 for implicit TLS, 587 for STARTTLS (common), 25 unencrypted.",
+  },
+  "admin.smtp.tls": { de: "Implizites TLS", en: "Implicit TLS" },
+  "admin.smtp.tlsInfo": {
+    de: "An = direkte TLS-Verbindung (Port 465). Aus = STARTTLS (Port 587/25). Im Zweifel: 587 + aus.",
+    en: "On = direct TLS connection (port 465). Off = STARTTLS (port 587/25). If unsure: 587 + off.",
+  },
+  "admin.smtp.user": { de: "Benutzer", en: "User" },
+  "admin.smtp.userInfo": {
+    de: "Login-Name beim Mailserver — meist die vollständige E-Mail-Adresse des Absenderkontos.",
+    en: "Login name at the mail server — usually the full email address of the sending account.",
+  },
+  "admin.smtp.passwordInfo": {
+    de: "Passwort des Absenderkontos. Wird verschlüsselt gespeichert und nie zurückgegeben. Leer lassen = gespeichertes Passwort behalten.",
+    en: "Password of the sending account. Stored encrypted and never returned. Leave empty to keep the stored password.",
+  },
+  "admin.smtp.from": { de: "Absender (From)", en: "Sender (From)" },
+  "admin.smtp.fromInfo": {
+    de: "Die im Postfach angezeigte Absenderadresse. Eine reine Adresse (noreply@firma.de) bekommt automatisch „{app}“ als Anzeigenamen; ein eigener Anzeigename wird übernommen. Leer = SMTP-Benutzer.",
+    en: "The sender address shown in the inbox. A bare address (noreply@example.com) automatically gets “{app}” as display name; a custom display name is kept. Empty = SMTP user.",
+  },
+  "admin.smtp.linkNote": {
+    de: "Der Link in der Reset-Mail nutzt die öffentliche App-URL aus den Branding-Einstellungen. Ist dort nichts gesetzt, rät die App die Adresse aus der Anfrage (hinter Proxy / bei Bind auf 0.0.0.0 evtl. unbrauchbar).",
+    en: "The link in the reset email uses the public app URL from the brand settings. If none is set, the app guesses the address from the request (may be unusable behind a proxy or when bound to 0.0.0.0).",
+  },
+  "admin.smtp.saveTest": { de: "Speichern & testen", en: "Save & test" },
+
+  // ── shared (fork D) ───────────────────────────────────────────────────
+  "common.saved": { de: "Gespeichert", en: "Saved" },
+  "common.testConnection": { de: "Verbindung testen", en: "Test connection" },
+  "common.apiKey": { de: "API-Key", en: "API key" },
+
+  // ── admin: providers ──────────────────────────────────────────────────
+  "admin.providers.title": { de: "Anbieter & Endpunkte", en: "Providers & endpoints" },
+  "admin.providers.desc": {
+    de: "Ollama (lokal) oder OpenAI-kompatible/Anthropic-APIs. Global, serverseitig gespeichert (Keys verlassen den Server nicht).",
+    en: "Ollama (local) or OpenAI-compatible/Anthropic APIs. Global and stored on the server (keys never leave it).",
+  },
+  "admin.providers.addTitle": { de: "Anbieter aus Vorlage hinzufügen", en: "Add a provider from a template" },
+  "admin.providers.add": { de: "+ Anbieter hinzufügen…", en: "+ Add provider…" },
+  "admin.providers.displayName": { de: "Anzeigename", en: "Display name" },
+  "admin.providers.openaiCompat": { de: "OpenAI-kompatibel", en: "OpenAI-compatible" },
+  "admin.providers.remove": { de: "Provider entfernen", en: "Remove provider" },
+  "admin.providers.baseUrl": { de: "Base-URL", en: "Base URL" },
+  "admin.providers.apiKeyPlaceholder": { de: "sk-… / API-Key des Anbieters", en: "sk-… / provider API key" },
+  "admin.providers.manualModels": {
+    de: "Modelle manuell (optional, Komma-getrennt)",
+    en: "Manual models (optional, comma-separated)",
+  },
+  "admin.providers.manualModelsPlaceholder": { de: "z. B. gpt-4o, claude-sonnet-4-5", en: "e.g. gpt-4o, claude-sonnet-4-5" },
+  "admin.providers.testing": { de: "teste…", en: "testing…" },
+  "admin.providers.modelCount": { de: "{n} Modelle", en: "{n} models" },
+  "admin.providers.save": { de: "Anbieter speichern", en: "Save providers" },
+
+  // ── admin: default models ─────────────────────────────────────────────
+  "admin.defaultModels.title": { de: "Standardmodelle", en: "Default models" },
+  "admin.defaultModels.desc": {
+    de: "Weise jeder Aufgabe ein konkretes Modell zu. Im „Auto\"-Modus prüft der Chat, was gebraucht wird, und lädt genau das hier festgelegte Modell. Ohne Zuweisung greift das Standard-Chat-Modell.",
+    en: "Assign a specific model to each task. In “Auto” mode the chat works out what's needed and loads exactly the model set here. Without an assignment, the standard chat model is used.",
+  },
+  "admin.defaultModels.reloadTitle": { de: "Modell-Liste neu laden", en: "Reload model list" },
+  "admin.defaultModels.reload": { de: "Aktualisieren", en: "Refresh" },
+  "admin.defaultModels.none": {
+    de: "Keine Modelle gefunden. Prüfe oben unter „Anbieter & Endpunkte\", ob ein Anbieter erreichbar ist.",
+    en: "No models found. Check under “Providers & endpoints” above that a provider is reachable.",
+  },
+  "admin.defaultModels.default": { de: "— Standard —", en: "— Default —" },
+  "admin.defaultModels.role.standard": { de: "Standard-Chat", en: "Standard chat" },
+  "admin.defaultModels.role.standardHint": {
+    de: "Allrounder für normale Anfragen (auch Antwort-Stufe der OCR-Kette).",
+    en: "All-rounder for everyday requests (also the answer step of the OCR chain).",
+  },
+  "admin.defaultModels.role.coding": { de: "Coding-Modell", en: "Coding model" },
+  "admin.defaultModels.role.codingHint": { de: "Code, Skripte, Debugging.", en: "Code, scripts, debugging." },
+  "admin.defaultModels.role.reasoning": { de: "Reasoning / Mathematik", en: "Reasoning / maths" },
+  "admin.defaultModels.role.reasoningHint": {
+    de: "Logik, Rechnen, mehrstufige Herleitungen.",
+    en: "Logic, calculations, multi-step derivations.",
+  },
+  "admin.defaultModels.role.vision": { de: "OCR-Modell", en: "OCR model" },
+  "admin.defaultModels.role.visionHint": {
+    de: "Liest Bilder & Scans (Stufe 1 der OCR-Kette).",
+    en: "Reads images & scans (step 1 of the OCR chain).",
+  },
+  "admin.defaultModels.role.title": { de: "Thread-Benennung", en: "Thread naming" },
+  "admin.defaultModels.role.titleHint": { de: "Automatischer Chat-Titel.", en: "Automatic chat title." },
+  "admin.defaultModels.role.search": { de: "Suchbegriff-Konstruktion", en: "Search query building" },
+  "admin.defaultModels.role.searchHint": { de: "Baut die Query für die Web-Suche.", en: "Builds the query for web search." },
+
+  // ── admin: image generation ───────────────────────────────────────────
+  "admin.imagegen.desc": {
+    de: "Backend für „generiere ein Bild …\". Key bleibt serverseitig.",
+    en: "Backend for “generate an image …”. The key stays on the server.",
+  },
+  "admin.imagegen.enable": { de: "Bildgenerierung aktivieren", en: "Enable image generation" },
+  "admin.imagegen.openaiCompat": {
+    de: "OpenAI-kompatibel (/images/generations)",
+    en: "OpenAI-compatible (/images/generations)",
+  },
+  "admin.imagegen.comfyui": { de: "ComfyUI (noch nicht unterstützt)", en: "ComfyUI (not supported yet)" },
+  "admin.imagegen.size": { de: "Bildgröße", en: "Image size" },
+  "admin.imagegen.emptyIsOpenai": { de: "(leer = OpenAI)", en: "(empty = OpenAI)" },
+  "admin.imagegen.model": { de: "Modell", en: "Model" },
+
+  // ── settings: web search providers ────────────────────────────────────
+  "settings.websearch.providers": { de: "Suchanbieter", en: "Search providers" },
+  "settings.websearch.providersDesc": {
+    de: "API-Keys werden serverseitig gespeichert. Verwendet wird der erste aktivierte Anbieter mit Key.",
+    en: "API keys are stored on the server. The first enabled provider with a key is used.",
+  },
+  "settings.websearch.active": { de: "Aktiv:", en: "Active:" },
+  "settings.websearch.endpointPlaceholder": {
+    de: "Endpoint-URL (optional, überschreibt Standard)",
+    en: "Endpoint URL (optional, overrides the default)",
+  },
+  "settings.websearch.hint.tavily": { de: "LLM-optimiert · Key tvly-…", en: "LLM-optimised · key tvly-…" },
+  "settings.websearch.hint.bing": { de: "Azure Ocp-Apim-Subscription-Key", en: "Azure Ocp-Apim-Subscription-Key" },
+  "settings.websearch.hint.bocha": { de: "Bearer-Key", en: "Bearer key" },
+  "settings.websearch.hint.qureit": { de: "Bearer-Key (Best-Effort-Anbindung)", en: "Bearer key (best-effort integration)" },
+
+  // ── admin: plugins / services ─────────────────────────────────────────
+  "admin.plugins.title": { de: "Dienste", en: "Services" },
+  "admin.plugins.desc": {
+    de: "Globale Ein/Aus-Schalter für serverseitige Hintergrund-Dienste. Wirkt für alle Nutzer.",
+    en: "Global on/off switches for server-side background services. Applies to all users.",
+  },
+  "admin.plugins.errLoad": {
+    de: "Konnte Dienste nicht laden.",
+    en: "Couldn't load services. Reload the page to try again.",
+  },
+  "admin.plugins.errToggle": {
+    de: "Fehler",
+    en: "Couldn't change the service. Try again.",
+  },
+  "admin.plugins.on": { de: "Aktiv", en: "On" },
+  "admin.plugins.off": { de: "Deaktiviert", en: "Off" },
+  "admin.plugins.officeParser": { de: "Office-Datei-Parser (Word/Excel/CSV)", en: "Office file parser (Word/Excel/CSV)" },
+  "admin.plugins.officeParserDesc": {
+    de: "Liest .docx/.xlsx/.pptx/.csv beim Upload serverseitig aus.",
+    en: "Extracts .docx/.xlsx/.pptx/.csv on the server when uploaded.",
+  },
+  "admin.plugins.ocrEngine": { de: "Erweiterte OCR-Engine (Bilder/PDFs)", en: "Advanced OCR engine (images/PDFs)" },
+  "admin.plugins.ocrEngineDesc": {
+    de: "Auto-Modus zieht Text aus Bildern/Dokumenten.",
+    en: "Auto mode pulls text out of images/documents.",
+  },
+  "admin.plugins.docGenerator": {
+    de: "Dokumenten-Generator (PDF/Excel-Export)",
+    en: "Document generator (PDF/Excel export)",
+  },
+  "admin.plugins.docGeneratorDesc": {
+    de: "Erkennt Erstell-Befehle im Chat und generiert echte Dateien.",
+    en: "Detects create commands in chat and generates real files.",
+  },
+  "admin.plugins.bs.title": { de: "BookStack-Wiki (Integration)", en: "BookStack wiki (integration)" },
+  "admin.plugins.bs.desc": {
+    de: "Verbindet die KI über die BookStack-REST-API. Sie kann dann autonom das Wiki durchsuchen, lesen und — bei erlaubtem Schreibzugriff — Seiten anlegen, ändern und löschen. Der API-Token wird verschlüsselt gespeichert.",
+    en: "Connects the AI through the BookStack REST API. It can then search and read the wiki on its own and — if write access is allowed — create, edit and delete pages. The API token is stored encrypted.",
+  },
+  "admin.plugins.bs.errLoad": {
+    de: "Konnte BookStack-Einstellungen nicht laden.",
+    en: "Couldn't load the BookStack settings. Reload the page to try again.",
+  },
+  "admin.plugins.bs.errSave": {
+    de: "Speichern fehlgeschlagen.",
+    en: "Couldn't save. Check your entries and try again.",
+  },
+  "admin.plugins.bs.enable": { de: "Integration aktivieren", en: "Enable integration" },
+  "admin.plugins.bs.enableDesc": {
+    de: "Stellt der KI die BookStack-Werkzeuge im Chat bereit.",
+    en: "Gives the AI the BookStack tools in chat.",
+  },
+  "admin.plugins.bs.write": { de: "Schreibzugriff erlauben", en: "Allow write access" },
+  "admin.plugins.bs.writeDesc": {
+    de: "Ohne diese Option stehen nur Lese-/Such-Werkzeuge zur Verfügung — die KI kann keine Seiten erstellen, ändern oder löschen.",
+    en: "Without this, only read/search tools are available — the AI can't create, edit or delete pages.",
+  },
+  "admin.plugins.bs.insecure": { de: "TLS-Zertifikat ignorieren", en: "Ignore TLS certificate" },
+  "admin.plugins.bs.insecureDesc1": {
+    de: "Nur für Homelabs: erlaubt selbst-signierte Zertifikate bzw.",
+    en: "Homelabs only: allows self-signed certificates and",
+  },
+  "admin.plugins.bs.insecureDesc2": {
+    de: "-Domains. Gilt ausschließlich für BookStack-Anfragen.",
+    en: " domains. Applies to BookStack requests only.",
+  },
+  "admin.plugins.bs.url": { de: "BookStack-URL", en: "BookStack URL" },
+  "admin.plugins.bs.tokenIdPlaceholder": { de: "z. B. 3xL9…", en: "e.g. 3xL9…" },
+  "admin.plugins.bs.secretSaved": { de: "(gespeichert)", en: "(saved)" },
+  "admin.plugins.bs.secretKeep": { de: "•••••••• (leer = beibehalten)", en: "•••••••• (empty = keep)" },
+  "admin.plugins.bs.save": { de: "BookStack speichern", en: "Save BookStack" },
+  "admin.plugins.bs.testTitle": {
+    de: "Sendet GET /api/books an die BookStack-Instanz",
+    en: "Sends GET /api/books to the BookStack instance",
+  },
+  "admin.plugins.bs.testOkOne": {
+    de: "Verbindung erfolgreich! {n} Buch gefunden.",
+    en: "Connection successful! {n} book found.",
+  },
+  "admin.plugins.bs.testOkMany": {
+    de: "Verbindung erfolgreich! {n} Bücher gefunden.",
+    en: "Connection successful! {n} books found.",
+  },
+
+  // ── knowledge base ────────────────────────────────────────────────────
+  "kb.title": { de: "Kategorien & Dokumente", en: "Categories & documents" },
+  "kb.desc": {
+    de: "Eigene Kategorien + Dokumente (PDF, TXT, DOCX, MD, CSV, PPTX, XLSX). Bei aktivierter Nutzung durchsucht der Chat vorab die Datenbank und belegt Antworten mit Quellen.",
+    en: "Your own categories + documents (PDF, TXT, DOCX, MD, CSV, PPTX, XLSX). When enabled, the chat searches the database first and backs answers with sources.",
+  },
+  "kb.useInChat": { de: "Wissensdatenbank im Chat verwenden", en: "Use knowledge base in chat" },
+  "kb.embModel": { de: "Embedding-Modell (Ollama, global)", en: "Embedding model (Ollama, global)" },
+  "kb.nouns": { de: "Eigennamen-Wörterbuch (Fuzzy-Suche)", en: "Proper-noun dictionary (fuzzy search)" },
+  "kb.nounsDesc": {
+    de: "Firmen- und Personen-Eigennamen (einer pro Zeile). Tippfehler in der Suche werden per Levenshtein-Distanz automatisch auf den korrekten Namen korrigiert — z. B. „Msuter GmbH“ → „Muster GmbH“.",
+    en: "Company and person names (one per line). Typos in searches are corrected to the right name automatically using Levenshtein distance — e.g. “Msuter GmbH” → “Muster GmbH”.",
+  },
+  "kb.nounsSaved": { de: "Gespeichert ✓", en: "Saved ✓" },
+  "kb.nounsSave": { de: "Wörterbuch speichern", en: "Save dictionary" },
+  "kb.newCategory": { de: "Neue Kategorie…", en: "New category…" },
+  "kb.category": { de: "Kategorie", en: "Category" },
+  "kb.emptyManage": {
+    de: "Noch keine Kategorien. Lege eine an, um Dokumente hochzuladen.",
+    en: "No categories yet. Create one to upload documents.",
+  },
+  "kb.emptyRead": {
+    de: "Dir wurden noch keine Wissenskategorien freigeschaltet.",
+    en: "No knowledge categories have been shared with you yet.",
+  },
+  "kb.file": { de: "Datei", en: "File" },
+  "kb.deleteCategory": { de: "Kategorie löschen", en: "Delete category" },
+  "kb.deleteDocument": { de: "Dokument löschen", en: "Delete document" },
+  "kb.removeDocument": { de: "Dokument entfernen", en: "Remove document" },
+  "kb.chunks": { de: "{n} Abschnitte", en: "{n} sections" },
+  "kb.errNoText": {
+    de: "Kein Text aus „{name}\" extrahiert.",
+    en: "No text could be extracted from “{name}”. Check the file isn't empty or a scanned image, then try again.",
+  },
+  "kb.errIndex": {
+    de: "Indexierung von „{name}\" fehlgeschlagen.",
+    en: "Indexing “{name}” failed. Try uploading it again.",
+  },
+  "kb.confirmCategoryPre": { de: "„{name}\" und ", en: "Permanently delete “{name}” and " },
+  "kb.confirmCategoryBold": { de: "alle enthaltenen Dokumente", en: "all documents in it" },
+  "kb.confirmCategoryPost": {
+    de: " endgültig aus der Wissensdatenbank löschen? Das kann nicht rückgängig gemacht werden.",
+    en: " from the knowledge base? This can't be undone.",
+  },
+  "kb.confirmDocument": {
+    de: "„{name}\" endgültig aus der Wissensdatenbank löschen? Das kann nicht rückgängig gemacht werden.",
+    en: "Permanently delete “{name}” from the knowledge base? This can't be undone.",
+  },
+
+  // ── settings tabs ─────────────────────────────────────────────────────
+  "settings.done": { de: "Fertig", en: "Done" },
+  "settings.appearance.theme": { de: "Design", en: "Theme" },
+  "settings.appearance.themeHint": { de: "Farbschema der gesamten Oberfläche.", en: "Colour scheme for the whole interface." },
+  "settings.appearance.light": { de: "Hell", en: "Light" },
+  "settings.appearance.dark": { de: "Dunkel", en: "Dark" },
+  "settings.appearance.language": { de: "Sprache", en: "Language" },
+  "settings.appearance.languageHint": { de: "Sprache der Bedienoberfläche.", en: "Language of the interface." },
+  "settings.chat.layout": { de: "Layout", en: "Layout" },
+  "settings.chat.layoutHint": { de: "Grundform des Chatverlaufs.", en: "Basic look of the chat view." },
+  "settings.chat.classic": { de: "Klassisch", en: "Classic" },
+  "settings.chat.classicHint": { de: "Flaches Design", en: "Flat design" },
+  "settings.chat.bubble": { de: "Bubble-Layout", en: "Bubbles" },
+  "settings.chat.bubbleHint": { de: "Sprechblasen (KI links, du rechts)", en: "Speech bubbles (AI left, you right)" },
+  "settings.chat.display": { de: "Anzeige", en: "Display" },
+  "settings.chat.displayHint": { de: "Was neben jeder Nachricht eingeblendet wird.", en: "What appears next to each message." },
+  "settings.chat.showAvatar": { de: "Avatar neben Nachrichten", en: "Avatar next to messages" },
+  "settings.chat.showTimestamps": { de: "Zeitstempel anzeigen", en: "Show timestamps" },
+  "settings.chat.showStats": { de: "Statistiken (Wörter & ~Tokens)", en: "Statistics (words & ~tokens)" },
+  "settings.chat.images": { de: "Bilder", en: "Images" },
+  "settings.chat.imagesHint": {
+    de: "Profilbild des Assistenten und Hintergrund des Verlaufs.",
+    en: "The assistant's profile picture and the chat background.",
+  },
+  "settings.chat.assistantAvatar": { de: "Assistenten-Profilbild", en: "Assistant profile picture" },
+  "settings.chat.avatarAlt": { de: "Avatar", en: "Avatar" },
+  "settings.chat.pickImage": { de: "Bild wählen", en: "Choose image" },
+  "settings.chat.removeAvatar": { de: "Assistenten-Avatar entfernen", en: "Remove assistant avatar" },
+  "settings.chat.background": { de: "Chathintergrund", en: "Chat background" },
+  "settings.chat.backgroundAlt": { de: "Hintergrund", en: "Background" },
+  "settings.chat.removeBackground": { de: "Chat-Hintergrund entfernen", en: "Remove chat background" },
+  "settings.chat.codePanel": { de: "Code-Panel", en: "Code panel" },
+  "settings.chat.codePanelHint": {
+    de: "Lange Codeblöcke öffnen sich automatisch in einem Panel rechts.",
+    en: "Long code blocks open automatically in a panel on the right.",
+  },
+  "settings.chat.codePanelOn": { de: "Aktiviert", en: "Enabled" },
+  "settings.chat.codeFrom": { de: "Ab", en: "From" },
+  "settings.chat.codeLines": { de: "Zeilen", en: "lines" },
+  "settings.assistant.instructions": { de: "Anweisungen", en: "Instructions" },
+  "settings.assistant.instructionsHint": {
+    de: "Dauerhafte Rolle/Regeln für das Modell — wird jeder Unterhaltung als System-Prompt vorangestellt.",
+    en: "A lasting role or rules for the model — added to every conversation as the system prompt.",
+  },
+  "settings.assistant.instructionsPh": {
+    de: "z. B. Antworte immer auf Deutsch und fasse dich kurz.",
+    en: "e.g. Always answer in English and keep it short.",
+  },
+  "settings.assistant.templates": { de: "Vorlagen", en: "Templates" },
+  "settings.assistant.templatesHint": {
+    de: "Prompt-Bibliothek — im Chat per „/\" aufrufbar.",
+    en: "Prompt library — open it in chat with “/”.",
+  },
+  "settings.assistant.newTemplate": { de: "Neue Vorlage", en: "New template" },
+  "settings.assistant.add": { de: "Hinzufügen", en: "Add" },
+  "settings.assistant.templateTitle": { de: "Titel", en: "Title" },
+  "settings.assistant.templateShortcut": { de: "/kürzel", en: "/shortcut" },
+  "settings.assistant.removeTemplate": { de: "Vorlage entfernen", en: "Remove template" },
+  "settings.assistant.templateText": { de: "Prompt-Text…", en: "Prompt text…" },
+  "settings.websearch.hint": {
+    de: "Erlaubt dem Modell, für aktuelle Fragen das Web zu durchsuchen. Die Suchanfrage formuliert das Modell „Suchbegriff-Konstruktion\" (siehe Modelle → Standardmodelle); die Treffer werden dem Antwortmodell als Kontext übergeben.",
+    en: "Lets the model search the web for current questions. The query is written by the “search query” model (see Models → Default models); the results are passed to the answering model as context.",
+  },
+  "settings.websearch.enable": { de: "Websuche aktivieren", en: "Turn on web search" },
+  "settings.websearch.configure": { de: "Suchanbieter konfigurieren →", en: "Configure search providers →" },
+  "settings.data.clearAll": { de: "Alle Chats löschen", en: "Delete all chats" },
+  "settings.data.clearAllHint": {
+    de: "Entfernt alle Unterhaltungen dieses Kontos. Nicht umkehrbar.",
+    en: "Removes every conversation in this account. This can't be undone.",
+  },
+  "settings.data.clearConfirmTitle": { de: "Alle Chats löschen?", en: "Delete all chats?" },
+  "settings.data.clearConfirmBody": {
+    de: "Sämtliche Unterhaltungen dieses Kontos werden entfernt — mit allen Prompts, Antworten und angehängten Dateien. Das lässt sich nicht rückgängig machen.",
+    en: "Every conversation in this account will be removed — with all prompts, responses and attached files. This can't be undone.",
+  },
+  "settings.data.clearConfirm": { de: "Alle löschen", en: "Delete all" },
+  "settings.perf.title": { de: "VRAM-Verwaltung", en: "VRAM management" },
+  "settings.perf.hint": {
+    de: "Steuert, wie schnell Ollama Modelle aus dem VRAM entlädt (GPU im Multi-User-Betrieb teilen). Alleinnutzung? Einfach aus lassen.",
+    en: "Controls how quickly Ollama unloads models from VRAM (to share the GPU between users). Only one user? Just leave it off.",
+  },
+  "settings.perf.enable": { de: "VRAM-Management aktiv", en: "VRAM management on" },
+  "settings.perf.keepAlive": { de: "Modell entladen nach (keep_alive)", en: "Unload model after (keep_alive)" },
+  "settings.perf.values": { de: "Werte:", en: "Values:" },
+  "settings.perf.now": { de: "(sofort)", en: "(immediately)" },
+  "settings.perf.forever": { de: "(dauerhaft)", en: "(never)" },
+  "settings.perf.permanent": { de: "Dauerhaft (RAM-Cache)", en: "Keep loaded (RAM cache)" },
+  "settings.perf.note": {
+    de: "Aus = Ollama-Default (Modell bleibt geladen). Max. Tokens (num_predict) pro Chat über die Parameter. Server-seitig optional:",
+    en: "Off = Ollama default (the model stays loaded). Set max tokens (num_predict) per chat in the parameters. Optional on the server:",
+  },
+
+  // ── memory / sidekicks / about / archive ──────────────────────────────
+  "memory.title": { de: "Gedächtnis", en: "Memory" },
+  "memory.hint": {
+    de: "Dauerhafte Fakten über dich. Werden bei jedem Chat unsichtbar als Hintergrundwissen an das Modell gehängt. Automatisch aus deinen Nachrichten extrahiert — hier editier- und löschbar.",
+    en: "Lasting facts about you. They're quietly given to the model as background in every chat. Extracted automatically from your messages — edit or delete them here.",
+  },
+  "memory.enable": { de: "Gedächtnis aktiv (Extraktion + Nutzung)", en: "Memory on (extract + use)" },
+  "memory.addPh": {
+    de: "Fakt hinzufügen, z. B. Arbeitet in der Marketing-Abteilung",
+    en: "Add a fact, e.g. Works in the marketing department",
+  },
+  "memory.add": { de: "Fakt hinzufügen", en: "Add fact" },
+  "memory.empty": { de: "Noch keine Einträge.", en: "No entries yet." },
+  "memory.entry": { de: "Gedächtnis-Eintrag", en: "Memory entry" },
+  "memory.deleteEntry": { de: "Eintrag löschen", en: "Delete entry" },
+  "memory.clearAll": { de: "Alles löschen", en: "Delete all" },
+  "memory.clearTitle": { de: "Gesamtes Gedächtnis löschen?", en: "Delete all memory?" },
+  "memory.clearBody": { de: "Alle gespeicherten Fakten werden entfernt.", en: "All saved facts will be removed." },
+  "sidekicks.newName": { de: "Neuer Sidekick", en: "New sidekick" },
+  "sidekicks.hint": {
+    de: "Spezialisierte Profile mit eigenem Modell + System-Prompt. Erscheinen in der Sidebar unter „Meine Sidekicks\". Max. {max}.",
+    en: "Specialised profiles with their own model + system prompt. They appear in the sidebar under “My sidekicks”. Max. {max}.",
+  },
+  "sidekicks.max": { de: "Maximal {max} Sidekicks", en: "Up to {max} sidekicks" },
+  "sidekicks.empty": { de: "Noch keine Sidekicks.", en: "No sidekicks yet." },
+  "sidekicks.namePh": { de: "Name (z. B. IT-Recht-Anwalt)", en: "Name (e.g. IT law expert)" },
+  "sidekicks.currentModel": { de: "Aktuelles Modell", en: "Current model" },
+  "sidekicks.promptPh": {
+    de: "System-Prompt, z. B. Du bist ein erfahrener IT-Recht-Anwalt und antwortest präzise auf Deutsch…",
+    en: "System prompt, e.g. You are an experienced IT lawyer and answer precisely in English…",
+  },
+  "sidekicks.pickIcon": { de: "Symbol wählen", en: "Choose icon" },
+  "about.whatsNew": { de: "Was gibt’s Neues?", en: "What's new?" },
+  "about.whatsNewHint": { de: "Die neuesten Funktionen und Verbesserungen.", en: "The latest features and improvements." },
+  "about.current": { de: "aktuell", en: "current" },
+  "archive.empty": { de: "Noch keine Dateien in diesem Chat.", en: "No files in this chat yet." },
+  "archive.jump": { de: "Zur Nachricht springen", en: "Jump to message" },
+
+  // ── shared (fork F) ───────────────────────────────────────────────────
+  "common.copied": { de: "Kopiert", en: "Copied" },
+  "common.reset": { de: "Zurücksetzen", en: "Reset" },
+  "common.you": { de: "Du", en: "You" },
+
+  // ── answer style popover ──────────────────────────────────────────────
+  "params.title": { de: "Antwortstil", en: "Response style" },
+  "params.reset": { de: "Reset", en: "Reset" },
+  "params.precise": { de: "Präzise", en: "Precise" },
+  "params.balanced": { de: "Ausgewogen", en: "Balanced" },
+  "params.creative": { de: "Kreativ", en: "Creative" },
+  "params.short": { de: "Kurz", en: "Short" },
+  "params.normal": { de: "Normal", en: "Normal" },
+  "params.long": { de: "Ausführlich", en: "Detailed" },
+  "params.customStyle": { de: "Eigene Einstellung", en: "Custom setting" },
+  "params.length": { de: "Länge", en: "Length" },
+  "params.customLength": { de: "Eigene Länge", en: "Custom length" },
+  "params.advanced": { de: "Erweitert", en: "Advanced" },
+  "params.temperature": { de: "Temperatur", en: "Temperature" },
+  "params.temperatureHint": { de: "Kreativität", en: "Creativity" },
+  "params.temperatureInfo": {
+    de: "Steuert die Zufälligkeit der Antworten. Niedrig (0–0.3) = fokussiert und vorhersehbar, hoch (0.8–2) = kreativer, aber sprunghafter.",
+    en: "Controls how random responses are. Low (0–0.3) = focused and predictable, high (0.8–2) = more creative but less consistent.",
+  },
+  "params.topPHint": { de: "Nukleus-Sampling", en: "Nucleus sampling" },
+  "params.topPInfo": {
+    de: "Begrenzt die Wortauswahl auf die wahrscheinlichsten Tokens, deren Wahrscheinlichkeit zusammen P ergibt. 1.0 = alle erlaubt, niedriger = konservativer. Meist nur Temperatur ODER Top_P anpassen.",
+    en: "Limits word choice to the most likely tokens whose combined probability adds up to P. 1.0 = all allowed, lower = more conservative. Usually adjust either temperature OR Top_P, not both.",
+  },
+  "params.maxTokens": { de: "Max Tokens", en: "Max tokens" },
+  "params.maxTokensHint": { de: "Antwortlänge", en: "Response length" },
+  "params.maxTokensInfo": {
+    de: "Obergrenze für die Länge der Antwort in Tokens (~¾ Wort pro Token). Höher erlaubt längere Antworten, kostet aber mehr Rechenzeit.",
+    en: "Upper limit for the response length in tokens (~¾ of a word per token). Higher allows longer responses but takes more compute time.",
+  },
+  "params.explain": { de: "Erklärung anzeigen", en: "Show explanation" },
+
+  // ── workspaces ────────────────────────────────────────────────────────
+  "workspace.personal": { de: "Persönlich", en: "Personal" },
+  "workspace.label": { de: "Workspace", en: "Workspace" },
+  "workspace.manage": { de: "Workspaces verwalten", en: "Manage workspaces" },
+  "workspace.noTeam": {
+    de: "Noch kein Team-Workspace — lege einen an, um zu teilen.",
+    en: "No team workspace yet — create one to share.",
+  },
+  "workspace.share": { de: "Workspace teilen", en: "Share workspace" },
+  "workspace.shareNamed": { de: "Workspace „{name}“ teilen", en: "Share workspace “{name}”" },
+  "workspace.deleteHint": {
+    de: "Workspace löschen (Inhalte wandern nach „Persönlich“)",
+    en: "Delete workspace (its content moves to “Personal”)",
+  },
+  "workspace.deleteNamed": { de: "Workspace „{name}“ löschen", en: "Delete workspace “{name}”" },
+  "workspace.name": { de: "Workspace-Name", en: "Workspace name" },
+  "workspace.namePlaceholder": { de: "Workspace-Name…", en: "Workspace name…" },
+  "workspace.shareBody": {
+    de: "Sende diesen Link an Teammitglieder — wer eingeloggt ist und ihn öffnet, wird Mitglied von „{name}\".",
+    en: "Send this link to your teammates — anyone signed in who opens it becomes a member of “{name}”.",
+  },
+
+  // ── join workspace page ───────────────────────────────────────────────
+  "join.noToken": { de: "Kein Einladungs-Token.", en: "No invite token. Ask for a new invite link." },
+  "join.failed": {
+    de: "Beitritt fehlgeschlagen.",
+    en: "Couldn't join the workspace. Ask for a new invite link and try again.",
+  },
+  "join.joining": { de: "Trete Workspace bei…", en: "Joining workspace…" },
+  "join.joined": { de: "Beigetreten", en: "Joined" },
+  "join.joinedBody": {
+    de: "Du bist jetzt Mitglied von „{name}\". Weiterleitung…",
+    en: "You're now a member of “{name}”. Redirecting…",
+  },
+  "join.failedTitle": { de: "Fehlgeschlagen", en: "Couldn't join" },
+
+  // ── notes / chat info ─────────────────────────────────────────────────
+  "notes.title": { de: "Notizen", en: "Notes" },
+  "notes.saved": { de: "gespeichert", en: "saved" },
+  "notes.placeholder": {
+    de: "Deine Notizen — automatisch gespeichert, chatübergreifend…",
+    en: "Your notes — saved automatically, across all chats…",
+  },
+  "chatInfo.title": { de: "Zu diesem Chat", en: "About this chat" },
+  "chatInfo.files": { de: "Dateien", en: "Files" },
+  "chatInfo.starred": { de: "Markiert", en: "Starred" },
+  "chatInfo.noStarred": {
+    de: "Noch nichts markiert. Der Stern unter einer Nachricht sammelt sie hier.",
+    en: "Nothing starred yet. The star below a message collects it here.",
+  },
+  "chatInfo.notesPlaceholder": { de: "Notizen zu diesem Chat…", en: "Notes on this chat…" },
+
+  // ── code blocks / code panel / SVG ────────────────────────────────────
+  "code.code": { de: "Code", en: "Code" },
+  "code.preview": { de: "Vorschau", en: "Preview" },
+  "code.docCreating": { de: "Dokument wird erstellt…", en: "Creating document…" },
+  "code.inSplit": { de: "Code im Splitscreen", en: "Code in split view" },
+  "code.showInChat": { de: "Im Chat anzeigen", en: "Show in chat" },
+  "code.openSplit": { de: "Im Splitscreen öffnen", en: "Open in split view" },
+  "code.split": { de: "Splitscreen", en: "Split view" },
+  "code.downloadExt": { de: "Herunterladen (.{ext})", en: "Download (.{ext})" },
+  "code.downloadShort": { de: "Download", en: "Download" },
+  "code.showPreview": { de: "Vorschau anzeigen", en: "Show preview" },
+  "code.showSource": { de: "Quellcode anzeigen", en: "Show source" },
+  "code.exportSvg": { de: "Als .svg exportieren", en: "Export as .svg" },
+  "code.export": { de: "Export", en: "Export" },
+  "code.svgPreview": { de: "SVG-Vorschau", en: "SVG preview" },
+
+  // ── brand footer / shared chat page ───────────────────────────────────
+  "brand.imprint": { de: "Impressum", en: "Legal notice" },
+  "brand.privacy": { de: "Datenschutz", en: "Privacy" },
+  "brand.support": { de: "Support", en: "Support" },
+  "share.toApp": { de: "Zur App", en: "Go to app" },
+  "share.title": { de: "Geteilter Chat", en: "Shared chat" },
+  "share.readOnly": { de: "Nur-Lese-Ansicht", en: "Read-only view" },
+  "share.invalid": {
+    de: "Kein gültiger geteilter Chat in der URL.",
+    en: "This link doesn't contain a valid shared chat. Ask the sender for a new link.",
+  },
+  "share.assistant": { de: "Assistant", en: "Assistant" },
 } satisfies Record<string, Entry>;
 
 export type StringKey = keyof typeof STRINGS;

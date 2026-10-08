@@ -14,6 +14,7 @@ import {
 import { useStore, useBrand } from "@/lib/store";
 import { loadAllModels, displayName, modelKey as mkKey } from "@/lib/providers";
 import type { ModelOption } from "@/lib/types";
+import { useT, type TFn } from "@/lib/i18n";
 import InfoTip from "./InfoTip";
 import Modal from "./Modal";
 
@@ -59,13 +60,13 @@ interface AssistantView {
   keys: KeyView[];
 }
 
-const rel = (ts: number): string => {
-  if (!ts) return "nie";
+const rel = (ts: number, t: TFn): string => {
+  if (!ts) return t("admin.assistants.never");
   const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return "gerade";
-  if (s < 3600) return `vor ${Math.floor(s / 60)} Min`;
-  if (s < 86400) return `vor ${Math.floor(s / 3600)} Std`;
-  return `vor ${Math.floor(s / 86400)} Tg`;
+  if (s < 60) return t("admin.assistants.justNow");
+  if (s < 3600) return t("admin.assistants.minAgo", { n: Math.floor(s / 60) });
+  if (s < 86400) return t("admin.assistants.hoursAgo", { n: Math.floor(s / 3600) });
+  return t("admin.assistants.daysAgo", { n: Math.floor(s / 86400) });
 };
 
 /** Labelled row used throughout the editor. */
@@ -125,6 +126,7 @@ export default function AssistantsPanel() {
   const bookstackAvailable = useStore((s) => s.bookstackAvailable);
   const searchAvailable = useStore((s) => s.searchAvailable);
   const brand = useBrand();
+  const t = useT();
 
   const [list, setList] = useState<AssistantView[]>([]);
   const [selId, setSelId] = useState<string | null>(null);
@@ -191,7 +193,7 @@ export default function AssistantsPanel() {
         body: JSON.stringify(body),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d?.error || "Fehlgeschlagen.");
+      if (!r.ok) throw new Error(d?.error || t("common.failed"));
       return d as { assistants: AssistantView[]; assistant?: AssistantView; key?: string };
     } finally {
       setBusy(false);
@@ -200,10 +202,10 @@ export default function AssistantsPanel() {
 
   const create = async () => {
     try {
-      const d = await post({ action: "create", name: "Neuer Assistent" });
+      const d = await post({ action: "create", name: t("admin.assistants.defaultName") });
       apply(d.assistants, d.assistant?.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Fehler.");
+      setError(e instanceof Error ? e.message : t("common.errorRetry"));
     }
   };
 
@@ -215,7 +217,7 @@ export default function AssistantsPanel() {
       setSaved(true);
       setTimeout(() => setSaved(false), 1800);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Fehler.");
+      setError(e instanceof Error ? e.message : t("common.errorRetry"));
     }
   };
 
@@ -225,7 +227,7 @@ export default function AssistantsPanel() {
       const d = await post({ action: "delete", id: a.id });
       apply(d.assistants, null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Fehler.");
+      setError(e instanceof Error ? e.message : t("common.errorRetry"));
     }
   };
 
@@ -236,7 +238,7 @@ export default function AssistantsPanel() {
       apply(d.assistants, draft.id);
       setFreshKey(d.key ?? null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Fehler.");
+      setError(e instanceof Error ? e.message : t("common.errorRetry"));
     }
   };
 
@@ -246,7 +248,7 @@ export default function AssistantsPanel() {
       const d = await post({ action: "revokeKey", id: draft.id, keyId });
       apply(d.assistants, draft.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Fehler.");
+      setError(e instanceof Error ? e.message : t("common.errorRetry"));
     }
   };
 
@@ -276,10 +278,7 @@ export default function AssistantsPanel() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-neutral-500">
-        Ein Assistent ist ein Zugang für fremde Seiten: festes Modell, eigener
-        System-Prompt und genau die Wissensbereiche, die du freigibst. Assistenten
-        sind keine Benutzerkonten — Chats, Profile und die Verwaltung bleiben ihnen
-        verschlossen.
+        {t("admin.assistants.intro")}
       </p>
 
       {error && (
@@ -309,7 +308,7 @@ export default function AssistantsPanel() {
               <Bot size={15} className="shrink-0" />
               <span className="min-w-0 flex-1 truncate">{a.name}</span>
               <span
-                title={a.enabled ? "aktiv" : "deaktiviert"}
+                title={a.enabled ? t("admin.assistants.active") : t("admin.assistants.inactive")}
                 className={
                   "h-1.5 w-1.5 shrink-0 rounded-full " +
                   (a.enabled ? "bg-emerald-500" : "bg-neutral-400")
@@ -322,19 +321,19 @@ export default function AssistantsPanel() {
             disabled={busy}
             className="flex w-full items-center gap-2 rounded-lg border border-dashed border-border-light px-3 py-2 text-sm text-neutral-500 transition hover:bg-neutral-100 disabled:opacity-50 dark:border-border-dark dark:hover:bg-white/5"
           >
-            <Plus size={15} /> Assistent anlegen
+            <Plus size={15} /> {t("admin.assistants.create")}
           </button>
         </div>
 
         {/* Editor */}
         {!draft ? (
           <div className="rounded-xl border border-dashed border-border-light p-6 text-sm text-neutral-500 dark:border-border-dark">
-            Noch kein Assistent angelegt.
+            {t("admin.assistants.empty")}
           </div>
         ) : (
           <div className="space-y-5">
             <div className="grid gap-3 sm:grid-cols-2">
-              <Row label="Name">
+              <Row label={t("admin.assistants.name")}>
                 <input
                   value={draft.name}
                   onChange={(e) => set({ name: e.target.value })}
@@ -342,8 +341,8 @@ export default function AssistantsPanel() {
                 />
               </Row>
               <Row
-                label="Modell (fest)"
-                info="Der Aufrufer kann das Modell nicht wählen. Ein im Request mitgeschicktes „model“ wird ignoriert."
+                label={t("admin.assistants.model")}
+                info={t("admin.assistants.modelInfo")}
               >
                 <div className="flex gap-2">
                   <select
@@ -351,7 +350,7 @@ export default function AssistantsPanel() {
                     onChange={(e) => set({ modelKey: e.target.value })}
                     className="min-w-0 flex-1 input-base"
                   >
-                    <option value="">— wählen —</option>
+                    <option value="">{t("admin.assistants.choose")}</option>
                     {options.map((o) => {
                       const k = mkKey(o.providerId, o.model);
                       return (
@@ -363,7 +362,7 @@ export default function AssistantsPanel() {
                   </select>
                   <button
                     onClick={loadModels}
-                    title="Modelle neu laden"
+                    title={t("admin.assistants.reloadModels")}
                     className="rounded-lg border border-border-light px-2 transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
                   >
                     {loadingModels ? (
@@ -377,37 +376,36 @@ export default function AssistantsPanel() {
             </div>
 
             <Row
-              label="System-Prompt"
-              info="Rolle und Tonfall des Assistenten. Der interne App-Prompt gilt hier absichtlich nicht."
+              label={t("admin.assistants.systemPrompt")}
+              info={t("admin.assistants.systemPromptInfo")}
             >
               <textarea
                 value={draft.systemPrompt}
                 onChange={(e) => set({ systemPrompt: e.target.value })}
                 rows={4}
-                placeholder="Du bist der Support-Assistent der Musterfirma. Antworte knapp und belege jede Aussage mit der Quelle."
+                placeholder={t("admin.assistants.systemPromptPlaceholder")}
                 className="w-full input-base"
               />
             </Row>
 
-            <Row label="Begrüßung im Widget">
+            <Row label={t("admin.assistants.greeting")}>
               <input
                 value={draft.greeting}
                 onChange={(e) => set({ greeting: e.target.value })}
-                placeholder="Hallo! Frag mich etwas zu unseren Produkten."
+                placeholder={t("admin.assistants.greetingPlaceholder")}
                 className="w-full input-base"
               />
             </Row>
 
             <div className="space-y-2">
-              <div className="text-sm font-medium">Wissen</div>
+              <div className="text-sm font-medium">{t("admin.assistants.knowledge")}</div>
               <p className="text-xs text-neutral-500">
-                Ohne Auswahl hat der Assistent keinen Zugriff auf Dokumente — das ist
-                die Voreinstellung.
+                {t("admin.assistants.knowledgeHint")}
               </p>
               <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                 {categories.length === 0 && (
                   <span className="text-xs text-neutral-500">
-                    Noch keine Kategorien in der Wissensdatenbank.
+                    {t("admin.assistants.noCategories")}
                   </span>
                 )}
                 {categories.map((c) => (
@@ -424,16 +422,16 @@ export default function AssistantsPanel() {
             {bookstackAvailable && (
               <div className="space-y-2">
                 <Toggle
-                  label="BookStack-Wiki nutzen"
+                  label={t("admin.assistants.bookstack")}
                   checked={draft.bookstack.enabled}
                   onChange={(enabled) => set({ bookstack: { ...draft.bookstack, enabled } })}
-                  info="Nur die unten gewählten Bücher werden durchsucht. Ohne Buchauswahl findet der Assistent nichts."
+                  info={t("admin.assistants.bookstackInfo")}
                 />
                 {draft.bookstack.enabled && (
                   <div className="flex flex-wrap gap-x-4 gap-y-1.5 pl-6">
                     {books.length === 0 && (
                       <span className="text-xs text-neutral-500">
-                        Keine Bücher gefunden (BookStack nicht erreichbar?).
+                        {t("admin.assistants.noBooks")}
                       </span>
                     )}
                     {books.map((b) => (
@@ -459,27 +457,27 @@ export default function AssistantsPanel() {
             <div className="flex flex-wrap gap-x-6 gap-y-2">
               {searchAvailable && (
                 <Toggle
-                  label="Web-Suche erlauben"
+                  label={t("admin.assistants.webSearch")}
                   checked={draft.webSearch}
                   onChange={(webSearch) => set({ webSearch })}
-                  info="Jede fremde Anfrage kann dann Credits beim Suchanbieter kosten."
+                  info={t("admin.assistants.webSearchInfo")}
                 />
               )}
               <Toggle
-                label="Quellen anzeigen"
+                label={t("admin.assistants.showSources")}
                 checked={draft.showSources}
                 onChange={(showSources) => set({ showSources })}
               />
               <Toggle
-                label="Aktiv"
+                label={t("admin.assistants.enabled")}
                 checked={draft.enabled}
                 onChange={(enabled) => set({ enabled })}
-                info="Deaktiviert lehnt der Assistent jeden Aufruf ab, ohne dass Schlüssel widerrufen werden müssen."
+                info={t("admin.assistants.enabledInfo")}
               />
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              <Row label="Anfragen / Minute">
+              <Row label={t("admin.assistants.perMinute")}>
                 <input
                   type="number"
                   min={1}
@@ -488,7 +486,7 @@ export default function AssistantsPanel() {
                   className="w-full input-base"
                 />
               </Row>
-              <Row label="Anfragen / Tag / IP">
+              <Row label={t("admin.assistants.perDayPerIp")}>
                 <input
                   type="number"
                   min={1}
@@ -497,7 +495,7 @@ export default function AssistantsPanel() {
                   className="w-full input-base"
                 />
               </Row>
-              <Row label="Anfragen / Tag (gesamt)">
+              <Row label={t("admin.assistants.perDay")}>
                 <input
                   type="number"
                   min={1}
@@ -506,7 +504,7 @@ export default function AssistantsPanel() {
                   className="w-full input-base"
                 />
               </Row>
-              <Row label="Max. Zeichen je Anfrage">
+              <Row label={t("admin.assistants.maxInputChars")}>
                 <input
                   type="number"
                   min={200}
@@ -515,7 +513,7 @@ export default function AssistantsPanel() {
                   className="w-full input-base"
                 />
               </Row>
-              <Row label="Verlaufstiefe">
+              <Row label={t("admin.assistants.maxHistory")}>
                 <input
                   type="number"
                   min={1}
@@ -524,7 +522,7 @@ export default function AssistantsPanel() {
                   className="w-full input-base"
                 />
               </Row>
-              <Row label="Max. Tokens je Antwort">
+              <Row label={t("admin.assistants.maxTokens")}>
                 <input
                   type="number"
                   min={64}
@@ -536,8 +534,8 @@ export default function AssistantsPanel() {
             </div>
 
             <Row
-              label="Erlaubte Herkunft (eine je Zeile)"
-              info="Gilt nur für Widget-Schlüssel. Genau die Adresse der einbettenden Seite, z. B. https://intranet.firma.de — ohne Pfad."
+              label={t("admin.assistants.origins")}
+              info={t("admin.assistants.originsInfo")}
             >
               <textarea
                 value={draft.allowedOrigins.join("\n")}
@@ -553,17 +551,15 @@ export default function AssistantsPanel() {
             {/* Keys */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium">
-                <KeyRound size={15} /> Schlüssel
+                <KeyRound size={15} /> {t("admin.assistants.keys")}
               </div>
               <p className="text-xs text-neutral-500">
-                Der geheime Schlüssel gehört in ein fremdes Backend, der
-                Widget-Schlüssel in eine Webseite. Beide werden nur als Hash
-                gespeichert — der Klartext erscheint genau einmal.
+                {t("admin.assistants.keysHint")}
               </p>
               {freshKey && (
                 <div className="rounded-lg border border-accent/40 bg-accent/10 p-3">
                   <div className="mb-1 text-xs font-medium">
-                    Neuer Schlüssel — jetzt kopieren, er wird nicht wieder angezeigt:
+                    {t("admin.assistants.freshKey")}
                   </div>
                   <div className="flex items-center gap-2">
                     <code className="min-w-0 flex-1 break-all font-mono text-xs">{freshKey}</code>
@@ -572,14 +568,14 @@ export default function AssistantsPanel() {
                       className="flex shrink-0 items-center gap-1 rounded-lg border border-border-light px-2 py-1 text-xs transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
                     >
                       {copied === "key" ? <Check size={12} /> : <Copy size={12} />}
-                      Kopieren
+                      {t("common.copy")}
                     </button>
                   </div>
                 </div>
               )}
               <div className="space-y-1">
                 {draft.keys.length === 0 && (
-                  <div className="text-xs text-neutral-500">Noch kein Schlüssel.</div>
+                  <div className="text-xs text-neutral-500">{t("admin.assistants.noKeys")}</div>
                 )}
                 {draft.keys.map((k) => (
                   <div
@@ -587,18 +583,18 @@ export default function AssistantsPanel() {
                     className="flex items-center gap-2 rounded-lg border border-border-light px-3 py-1.5 text-xs dark:border-border-dark"
                   >
                     <span className="font-medium">
-                      {k.kind === "secret" ? "Geheim" : "Widget"}
+                      {k.kind === "secret" ? t("admin.assistants.keySecret") : t("admin.assistants.keyWidget")}
                     </span>
                     <code className="font-mono text-neutral-500">…{k.last4}</code>
-                    <span className="text-neutral-500">zuletzt {rel(k.lastUsedAt)}</span>
+                    <span className="text-neutral-500">{t("admin.assistants.lastUsed", { when: rel(k.lastUsedAt, t) })}</span>
                     {k.revokedAt ? (
-                      <span className="ml-auto text-neutral-400">widerrufen</span>
+                      <span className="ml-auto text-neutral-400">{t("admin.assistants.revoked")}</span>
                     ) : (
                       <button
                         onClick={() => revoke(k.id)}
                         className="ml-auto rounded px-2 py-0.5 text-neutral-500 transition hover:bg-neutral-100 hover:text-red-500 dark:hover:bg-white/5"
                       >
-                        Widerrufen
+                        {t("admin.assistants.revoke")}
                       </button>
                     )}
                   </div>
@@ -610,20 +606,20 @@ export default function AssistantsPanel() {
                   disabled={busy}
                   className="rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 disabled:opacity-50 dark:border-border-dark dark:hover:bg-white/5"
                 >
-                  Geheimen Schlüssel erzeugen
+                  {t("admin.assistants.mintSecret")}
                 </button>
                 <button
                   onClick={() => mintKey("public")}
                   disabled={busy}
                   className="rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 disabled:opacity-50 dark:border-border-dark dark:hover:bg-white/5"
                 >
-                  Widget-Schlüssel erzeugen
+                  {t("admin.assistants.mintPublic")}
                 </button>
               </div>
             </div>
 
             {/* Embed snippet */}
-            <Row label="Einbettung">
+            <Row label={t("admin.assistants.embed")}>
               <div className="flex items-start gap-2">
                 <pre className="min-w-0 flex-1 overflow-x-auto rounded-lg border border-border-light p-2 font-mono text-[11px] dark:border-border-dark">
                   {embedSnippet}
@@ -637,27 +633,30 @@ export default function AssistantsPanel() {
               </div>
               {!brand.appUrl && (
                 <p className="mt-1 text-xs text-amber-500">
-                  Setze die öffentliche App-URL unter Marke, damit hier die echte
-                  Adresse steht.
+                  {t("admin.assistants.noAppUrl")}
                 </p>
               )}
             </Row>
 
             {/* Usage */}
             <div className="rounded-lg border border-border-light p-3 text-xs text-neutral-500 dark:border-border-dark">
-              {draft.usage.requests} Anfragen insgesamt · {draft.usage.dayRequests} heute ·{" "}
-              {draft.usage.denied} abgewiesen · zuletzt {rel(draft.usage.lastUsedAt)}
+              {t("admin.assistants.usage", {
+                requests: draft.usage.requests,
+                today: draft.usage.dayRequests,
+                denied: draft.usage.denied,
+                when: rel(draft.usage.lastUsedAt, t),
+              })}
               <br />
-              Es werden ausschließlich Zähler gespeichert, keine Gesprächsinhalte.
+              {t("admin.assistants.usagePrivacy")}
             </div>
 
             <div className="flex items-center justify-end gap-2 border-t border-border-light pt-3 dark:border-border-dark">
-              {saved && <span className="mr-auto text-xs text-accent">Gespeichert ✓</span>}
+              {saved && <span className="mr-auto text-xs text-accent">{t("account.saved")}</span>}
               <button
                 onClick={() => setConfirmDelete(draft)}
                 className="flex items-center gap-1.5 rounded-lg border border-border-light px-3 py-1.5 text-sm text-neutral-500 transition hover:bg-neutral-100 hover:text-red-500 dark:border-border-dark dark:hover:bg-white/5"
               >
-                <Trash2 size={14} /> Löschen
+                <Trash2 size={14} /> {t("common.delete")}
               </button>
               <button
                 onClick={save}
@@ -665,7 +664,7 @@ export default function AssistantsPanel() {
                 className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
               >
                 {busy && <Loader2 size={14} className="animate-spin" />}
-                Speichern
+                {t("common.save")}
               </button>
             </div>
           </div>
@@ -675,23 +674,22 @@ export default function AssistantsPanel() {
       {confirmDelete && (
         <Modal onClose={() => setConfirmDelete(null)}>
           <div>
-            <h4 className="font-medium">„{confirmDelete.name}" löschen?</h4>
+            <h4 className="font-medium">{t("admin.assistants.confirmDelete", { name: confirmDelete.name })}</h4>
             <p className="mt-1 text-sm text-neutral-500">
-              Alle Schlüssel dieses Assistenten werden ungültig. Eingebettete Seiten
-              hören sofort auf zu funktionieren.
+              {t("admin.assistants.confirmDeleteBody")}
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={() => setConfirmDelete(null)}
                 className="rounded-lg border border-border-light px-3 py-1.5 text-sm dark:border-border-dark"
               >
-                Abbrechen
+                {t("common.cancel")}
               </button>
               <button
                 onClick={() => remove(confirmDelete)}
                 className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700"
               >
-                Löschen
+                {t("common.delete")}
               </button>
             </div>
           </div>

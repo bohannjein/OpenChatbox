@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Building2, Copy, Check } from "lucide-react";
 import InfoTip from "./InfoTip";
+import { useT } from "@/lib/i18n";
 
 type Provider = "entra" | "ad";
 
@@ -23,6 +24,7 @@ interface OidcView {
  * environment variables. Client secret is write-only (encrypted at rest).
  */
 export default function SsoConfigPanel() {
+  const t = useT();
   const [enabled, setEnabled] = useState(false);
   const [provider, setProvider] = useState<Provider>("entra");
   const [clientId, setClientId] = useState("");
@@ -112,14 +114,14 @@ export default function SsoConfigPanel() {
     <div>
       <div className="mb-2 flex items-center gap-2">
         <Building2 size={16} className="text-accent" />
-        <h4 className="font-medium">Single Sign-On</h4>
-        <InfoTip text="Single Sign-On: Nutzer melden sich mit ihrem Microsoft-Geschäftskonto an (Entra ID) oder über einen anderen OIDC-Server wie ADFS/Keycloak — statt mit einem lokalen Passwort." />
+        <h4 className="font-medium">{t("admin.sso.title")}</h4>
+        <InfoTip text={t("admin.sso.titleInfo")} />
       </div>
       <p className="mb-3 text-sm text-neutral-500">
-        Anmeldung über Microsoft Entra ID oder einen AD/OIDC-Server konfigurieren.
+        {t("admin.sso.intro")}
         {source === "env" && (
           <span className="mt-1 block text-xs text-amber-600 dark:text-amber-500">
-            Aktuell aktiv über Umgebungsvariablen. Speichern hier überschreibt das.
+            {t("admin.sso.envActive")}
           </span>
         )}
       </p>
@@ -132,16 +134,16 @@ export default function SsoConfigPanel() {
           className="h-4 w-4 accent-[rgb(var(--accent))]"
         />
         <span className="flex items-center gap-1.5">
-          SSO aktivieren
-          <InfoTip text="Muss aktiv sein, damit der Anmelde-Button erscheint. Zusätzlich muss die Anmeldeart SSO unter „Registrierung & Zugang“ erlaubt sein." />
+          {t("admin.sso.enable")}
+          <InfoTip text={t("admin.sso.enableInfo")} />
         </span>
       </label>
 
       <div className="mt-3 space-y-3">
         <div>
           <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-            Anbieter
-            <InfoTip text="Entra ID leitet die Endpunkte automatisch aus der Tenant-ID ab. AD / Generisches OIDC (z. B. ADFS, Keycloak) benötigt die Endpunkt-URLs manuell." />
+            {t("admin.sso.provider")}
+            <InfoTip text={t("admin.sso.providerInfo")} />
           </label>
           <select
             value={provider}
@@ -149,15 +151,15 @@ export default function SsoConfigPanel() {
             className="w-full input-base py-1.5 text-sm dark:bg-sidebar-dark"
           >
             <option value="entra">Microsoft Entra ID</option>
-            <option value="ad">Active Directory / Generisches OIDC</option>
+            <option value="ad">{t("admin.sso.providerAd")}</option>
           </select>
         </div>
 
         {/* Redirect URI to register at the provider */}
         <div>
           <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-            Redirect-URI (beim Anbieter eintragen)
-            <InfoTip text="Diese Rücksprung-Adresse musst du in der App-Registrierung des Anbieters als „Redirect URI“ hinterlegen, sonst weist er die Anmeldung ab. Sie leitet sich aus der öffentlichen App-URL (Branding-Einstellungen) ab — setze diese auf deine HTTPS-Adresse, damit hier keine http-/0.0.0.0-URL erscheint." />
+            {t("admin.sso.redirect")}
+            <InfoTip text={t("admin.sso.redirectInfo")} />
           </label>
           <div className="flex items-center gap-2">
             <input
@@ -167,7 +169,8 @@ export default function SsoConfigPanel() {
             />
             <button
               onClick={copyRedirect}
-              title="Kopieren"
+              title={t("common.copy")}
+              aria-label={t("common.copy")}
               className="shrink-0 rounded-lg border border-border-light p-2 transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
             >
               {copied ? <Check size={14} className="text-accent" /> : <Copy size={14} />}
@@ -178,8 +181,8 @@ export default function SsoConfigPanel() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-              Client-ID
-              <InfoTip text="Die Anwendungs-(Client-)ID aus der App-Registrierung beim Identity-Provider." />
+              {t("admin.sso.clientId")}
+              <InfoTip text={t("admin.sso.clientIdInfo")} />
             </label>
             <input
               value={clientId}
@@ -190,14 +193,14 @@ export default function SsoConfigPanel() {
           </div>
           <div>
             <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-              Client-Secret
-              <InfoTip text="Das Client-Geheimnis aus der App-Registrierung. Verschlüsselt gespeichert, nie zurückgegeben. Leer lassen = gespeichertes behalten." />
+              {t("admin.sso.secret")}
+              <InfoTip text={t("admin.sso.secretInfo")} />
             </label>
             <input
               type="password"
               value={clientSecret}
               onChange={(e) => setClientSecret(e.target.value)}
-              placeholder={hasSecret ? "•••••••• (gespeichert)" : "Client-Secret"}
+              placeholder={hasSecret ? t("common.secretStored") : t("admin.sso.secret")}
               className="w-full input-base py-1.5 text-sm"
             />
           </div>
@@ -206,13 +209,13 @@ export default function SsoConfigPanel() {
         {provider === "entra" ? (
           <div>
             <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-              Tenant-ID
-              <InfoTip text="Die Verzeichnis-(Tenant-)ID deiner Entra-Organisation. Legt die Endpunkte fest UND beschränkt die Anmeldung auf diese Organisation." />
+              {t("admin.sso.tenant")}
+              <InfoTip text={t("admin.sso.tenantInfo")} />
             </label>
             <input
               value={tenantId}
               onChange={(e) => setTenantId(e.target.value)}
-              placeholder="tenant-id (z. B. contoso.onmicrosoft.com oder GUID)"
+              placeholder={t("admin.sso.tenantPh")}
               className="w-full input-base py-1.5 font-mono text-xs"
             />
           </div>
@@ -220,8 +223,8 @@ export default function SsoConfigPanel() {
           <div className="grid grid-cols-1 gap-3">
             <div>
               <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-                Authorize-URL
-                <InfoTip text="OIDC-Authorization-Endpoint des Servers, z. B. https://adfs.firma.de/adfs/oauth2/authorize." />
+                {t("admin.sso.authorizeUrl")}
+                <InfoTip text={t("admin.sso.authorizeUrlInfo")} />
               </label>
               <input
                 value={authorizeUrl}
@@ -232,8 +235,8 @@ export default function SsoConfigPanel() {
             </div>
             <div>
               <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-                Token-URL
-                <InfoTip text="OIDC-Token-Endpoint des Servers, z. B. https://adfs.firma.de/adfs/oauth2/token." />
+                {t("admin.sso.tokenUrl")}
+                <InfoTip text={t("admin.sso.tokenUrlInfo")} />
               </label>
               <input
                 value={tokenUrl}
@@ -247,13 +250,13 @@ export default function SsoConfigPanel() {
 
         <div>
           <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-            Beschriftung des Anmelde-Buttons
-            <InfoTip text="Text auf der Schaltfläche auf der Anmeldeseite. Leer lassen für „Mit Microsoft-Geschäftskonto anmelden“ — bei einem anderen Anbieter (ADFS, Keycloak) hier passend umbenennen." />
+            {t("admin.sso.buttonLabel")}
+            <InfoTip text={t("admin.sso.buttonLabelInfo")} />
           </label>
           <input
             value={buttonLabel}
             onChange={(e) => setButtonLabel(e.target.value)}
-            placeholder="Mit Microsoft-Geschäftskonto anmelden"
+            placeholder={t("login.ssoFallback")}
             maxLength={60}
             className="w-full input-base py-1.5 text-sm"
           />
@@ -261,12 +264,12 @@ export default function SsoConfigPanel() {
       </div>
 
       <div className="mt-4 flex items-center justify-end gap-2">
-        {saved && <span className="text-xs text-accent">Gespeichert ✓</span>}
+        {saved && <span className="text-xs text-accent">{t("account.saved")}</span>}
         <button
           onClick={save}
           className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover"
         >
-          Speichern
+          {t("common.save")}
         </button>
       </div>
     </div>

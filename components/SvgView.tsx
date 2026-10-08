@@ -5,6 +5,7 @@ import { Check, Copy, Download, Code2, Image as ImageIcon } from "lucide-react";
 import { buildPreviewDoc } from "@/lib/preview";
 import { copyText } from "@/lib/clipboard";
 import { download } from "@/lib/share";
+import { useT } from "@/lib/i18n";
 
 /**
  * Renders a model-generated SVG as a live, interactive image instead of raw XML.
@@ -13,6 +14,7 @@ import { download } from "@/lib/share";
  * origin. The user can copy the XML, export a .svg file, or peek at the source.
  */
 export default function SvgView({ code }: { code: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const [showCode, setShowCode] = useState(false);
 
@@ -34,16 +36,16 @@ export default function SvgView({ code }: { code: string }) {
           <button
             onClick={() => setShowCode((v) => !v)}
             className="flex items-center gap-1 rounded px-1.5 py-0.5 transition hover:text-neutral-800 dark:hover:text-neutral-200"
-            title={showCode ? "Vorschau anzeigen" : "Quellcode anzeigen"}
+            title={t(showCode ? "code.showPreview" : "code.showSource")}
           >
-            <Code2 size={13} /> {showCode ? "Vorschau" : "Code"}
+            <Code2 size={13} /> {t(showCode ? "code.preview" : "code.code")}
           </button>
           <button
             onClick={save}
-            title="Als .svg exportieren"
+            title={t("code.exportSvg")}
             className="flex items-center gap-1 rounded px-1.5 py-0.5 transition hover:text-neutral-800 dark:hover:text-neutral-200"
           >
-            <Download size={13} /> Export
+            <Download size={13} /> {t("code.export")}
           </button>
           <button
             onClick={copy}
@@ -51,11 +53,11 @@ export default function SvgView({ code }: { code: string }) {
           >
             {copied ? (
               <>
-                <Check size={13} /> Kopiert
+                <Check size={13} /> {t("common.copied")}
               </>
             ) : (
               <>
-                <Copy size={13} /> Kopieren
+                <Copy size={13} /> {t("common.copy")}
               </>
             )}
           </button>
@@ -67,7 +69,7 @@ export default function SvgView({ code }: { code: string }) {
         </pre>
       ) : (
         <iframe
-          title="SVG-Vorschau"
+          title={t("code.svgPreview")}
           sandbox=""
           srcDoc={buildPreviewDoc(code, "svg")}
           className="h-72 w-full border-0 bg-white"

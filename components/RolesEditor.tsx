@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { Shield, Plus, Trash2, Loader2, Save } from "lucide-react";
 import clsx from "clsx";
 import { PERMISSIONS, type Role } from "@/lib/permissions";
+import { useT, type StringKey } from "@/lib/i18n";
 
 /** Admin UI to create/edit custom roles and toggle per-permission checkboxes. */
 export default function RolesEditor() {
+  const t = useT();
   const [roles, setRoles] = useState<Role[]>([]);
   const [selId, setSelId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -20,7 +22,7 @@ export default function RolesEditor() {
     try {
       const r = await fetch("/api/admin/roles");
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Fehler");
+      if (!r.ok) throw new Error(d.error || t("common.error"));
       setRoles(d.roles);
       if (!selId && d.roles[0]) select(d.roles[0]);
     } catch (e) {
@@ -62,7 +64,7 @@ export default function RolesEditor() {
         body: JSON.stringify({ id: selId ?? undefined, name, permissions: [...perms] }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Fehler");
+      if (!r.ok) throw new Error(d.error || t("common.error"));
       await load();
       setSelId(d.role.id);
     } catch (e) {
@@ -85,10 +87,10 @@ export default function RolesEditor() {
     <div>
       <div className="mb-2 flex items-center gap-2">
         <Shield size={16} className="text-accent" />
-        <h3 className="font-medium">Rollen & Rechte</h3>
+        <h3 className="font-medium">{t("roles.title")}</h3>
       </div>
       <p className="mb-3 text-sm text-neutral-500">
-        Eigene Rollen anlegen und Rechte per Checkbox vergeben.
+        {t("roles.intro")}
       </p>
 
       {err && <div className="mb-2 text-sm text-red-500">⚠ {err}</div>}
@@ -117,8 +119,8 @@ export default function RolesEditor() {
                 <button
                   onClick={() => del(r)}
                   className="shrink-0 rounded p-1 text-neutral-400 opacity-0 transition hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
-                  title="Rolle löschen"
-                  aria-label="Rolle löschen"
+                  title={t("roles.delete")}
+                  aria-label={t("roles.delete")}
                 >
                   <Trash2 size={13} />
                 </button>
@@ -129,7 +131,7 @@ export default function RolesEditor() {
             onClick={newRole}
             className="mt-1 flex w-full items-center gap-1.5 rounded-lg border border-dashed border-border-light px-2 py-1.5 text-sm text-neutral-500 transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
           >
-            <Plus size={14} /> Neue Rolle
+            <Plus size={14} /> {t("roles.new")}
           </button>
         </div>
 
@@ -138,7 +140,7 @@ export default function RolesEditor() {
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Rollenname…"
+            placeholder={t("roles.namePh")}
             className="mb-3 w-full input-base"
           />
           <div className="space-y-1.5">
@@ -154,8 +156,8 @@ export default function RolesEditor() {
                   className="mt-0.5 accent-[rgb(var(--accent))]"
                 />
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium">{p.label}</span>
-                  <span className="block text-xs text-neutral-500">{p.desc}</span>
+                  <span className="block text-sm font-medium">{t(`roles.perm.${p.key}` as StringKey)}</span>
+                  <span className="block text-xs text-neutral-500">{t(`roles.perm.${p.key}.desc` as StringKey)}</span>
                 </span>
               </label>
             ))}
@@ -166,7 +168,7 @@ export default function RolesEditor() {
             className="mt-3 flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-40"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            {selected ? "Rolle speichern" : "Rolle erstellen"}
+            {selected ? t("roles.save") : t("roles.create")}
           </button>
         </div>
       </div>

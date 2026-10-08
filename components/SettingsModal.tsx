@@ -316,8 +316,8 @@ export default function SettingsModal() {
                 <>
                   <Section>
                     <SectionTitle
-                      title="Design"
-                      hint="Farbschema der gesamten Oberfläche."
+                      title={t("settings.appearance.theme")}
+                      hint={t("settings.appearance.themeHint")}
                     />
                     <div className="flex flex-wrap items-center gap-2">
                       <button
@@ -329,7 +329,7 @@ export default function SettingsModal() {
                             : "border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
                         )}
                       >
-                        <Sun size={15} /> Hell
+                        <Sun size={15} /> {t("settings.appearance.light")}
                       </button>
                       <button
                         onClick={() => setTheme("dark")}
@@ -340,7 +340,7 @@ export default function SettingsModal() {
                             : "border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
                         )}
                       >
-                        <Moon size={15} /> Dunkel
+                        <Moon size={15} /> {t("settings.appearance.dark")}
                       </button>
                       {draculaUnlocked && (
                         <button
@@ -360,8 +360,8 @@ export default function SettingsModal() {
 
                   <Section>
                     <SectionTitle
-                      title="Sprache"
-                      hint="Sprache der Bedienoberfläche."
+                      title={t("settings.appearance.language")}
+                      hint={t("settings.appearance.languageHint")}
                     />
                     <select
                       value={lang ?? "de"}
@@ -379,17 +379,17 @@ export default function SettingsModal() {
                 <>
                   <Section>
                     <SectionTitle
-                      title="Layout"
-                      hint="Grundform des Chatverlaufs."
+                      title={t("settings.chat.layout")}
+                      hint={t("settings.chat.layoutHint")}
                     />
                     <div className="flex gap-2">
                       {(
                         [
-                          ["classic", "Klassisch", "Flaches Design"],
+                          ["classic", t("settings.chat.classic"), t("settings.chat.classicHint")],
                           [
                             "bubble",
-                            "Bubble-Layout",
-                            "Sprechblasen (KI links, du rechts)",
+                            t("settings.chat.bubble"),
+                            t("settings.chat.bubbleHint"),
                           ],
                         ] as const
                       ).map(([val, label, hint]) => (
@@ -412,27 +412,27 @@ export default function SettingsModal() {
 
                   <Section>
                     <SectionTitle
-                      title="Anzeige"
-                      hint="Was neben jeder Nachricht eingeblendet wird."
+                      title={t("settings.chat.display")}
+                      hint={t("settings.chat.displayHint")}
                     />
                     <div className="space-y-2">
                       {(
                         [
                           [
                             "avatar",
-                            "Avatar neben Nachrichten",
+                            t("settings.chat.showAvatar"),
                             chatShowAvatar,
                             setChatShowAvatar,
                           ],
                           [
                             "ts",
-                            "Zeitstempel anzeigen",
+                            t("settings.chat.showTimestamps"),
                             chatShowTimestamps,
                             setChatShowTimestamps,
                           ],
                           [
                             "stats",
-                            "Statistiken (Wörter & ~Tokens)",
+                            t("settings.chat.showStats"),
                             chatShowStats,
                             setChatShowStats,
                           ],
@@ -456,20 +456,20 @@ export default function SettingsModal() {
 
                   <Section>
                     <SectionTitle
-                      title="Bilder"
-                      hint="Profilbild des Assistenten und Hintergrund des Verlaufs."
+                      title={t("settings.chat.images")}
+                      hint={t("settings.chat.imagesHint")}
                     />
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div>
                         <label className="mb-1 block text-xs text-neutral-500">
-                          Assistenten-Profilbild
+                          {t("settings.chat.assistantAvatar")}
                         </label>
                         <div className="flex items-center gap-3">
                           {assistantAvatarUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={assistantAvatarUrl}
-                              alt="Avatar"
+                              alt={t("settings.chat.avatarAlt")}
                               className="h-12 w-12 rounded-full object-cover ring-1 ring-border-light dark:ring-border-dark"
                             />
                           ) : (
@@ -478,7 +478,7 @@ export default function SettingsModal() {
                             </div>
                           )}
                           <label className="cursor-pointer rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5">
-                            Bild wählen
+                            {t("settings.chat.pickImage")}
                             <input
                               type="file"
                               accept="image/*"
@@ -492,8 +492,8 @@ export default function SettingsModal() {
                             <button
                               onClick={() => setAssistantAvatarUrl("")}
                               className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
-                              title="Entfernen"
-                              aria-label="Assistenten-Avatar entfernen"
+                              title={t("common.remove")}
+                              aria-label={t("settings.chat.removeAvatar")}
                             >
                               <Trash2 size={16} />
                             </button>
@@ -502,21 +502,21 @@ export default function SettingsModal() {
                       </div>
                       <div>
                         <label className="mb-1 block text-xs text-neutral-500">
-                          Chathintergrund
+                          {t("settings.chat.background")}
                         </label>
                         <div className="flex items-center gap-3">
                           {chatBackgroundUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={chatBackgroundUrl}
-                              alt="Hintergrund"
+                              alt={t("settings.chat.backgroundAlt")}
                               className="h-12 w-20 rounded-lg object-cover ring-1 ring-border-light dark:ring-border-dark"
                             />
                           ) : (
                             <div className="h-12 w-20 rounded-lg bg-neutral-100 ring-1 ring-border-light dark:bg-white/5 dark:ring-border-dark" />
                           )}
                           <label className="cursor-pointer rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5">
-                            Bild wählen
+                            {t("settings.chat.pickImage")}
                             <input
                               type="file"
                               accept="image/*"
@@ -530,8 +530,8 @@ export default function SettingsModal() {
                             <button
                               onClick={() => setChatBackgroundUrl("")}
                               className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
-                              title="Entfernen"
-                              aria-label="Chat-Hintergrund entfernen"
+                              title={t("common.remove")}
+                              aria-label={t("settings.chat.removeBackground")}
                             >
                               <Trash2 size={16} />
                             </button>
@@ -543,8 +543,8 @@ export default function SettingsModal() {
 
                   <Section>
                     <SectionTitle
-                      title="Code-Panel"
-                      hint="Lange Codeblöcke öffnen sich automatisch in einem Panel rechts."
+                      title={t("settings.chat.codePanel")}
+                      hint={t("settings.chat.codePanelHint")}
                     />
                     <label className="flex cursor-pointer items-center gap-2 text-sm">
                       <input
@@ -553,10 +553,10 @@ export default function SettingsModal() {
                         onChange={(e) => setCodeSplitEnabled(e.target.checked)}
                         className="h-4 w-4 accent-[rgb(var(--accent))]"
                       />
-                      Aktiviert
+                      {t("settings.chat.codePanelOn")}
                     </label>
                     <div className="mt-2 flex items-center gap-2 text-sm">
-                      <span className="text-neutral-500">Ab</span>
+                      <span className="text-neutral-500">{t("settings.chat.codeFrom")}</span>
                       <input
                         type="number"
                         min={1}
@@ -566,7 +566,7 @@ export default function SettingsModal() {
                         }
                         className="w-20 input-base"
                       />
-                      <span className="text-neutral-500">Zeilen</span>
+                      <span className="text-neutral-500">{t("settings.chat.codeLines")}</span>
                     </div>
                   </Section>
                 </>
@@ -576,14 +576,14 @@ export default function SettingsModal() {
                 <>
                   <Section>
                     <SectionTitle
-                      title="Anweisungen"
-                      hint="Dauerhafte Rolle/Regeln für das Modell — wird jeder Unterhaltung als System-Prompt vorangestellt."
+                      title={t("settings.assistant.instructions")}
+                      hint={t("settings.assistant.instructionsHint")}
                     />
                     <textarea
                       value={customInstructions}
                       onChange={(e) => setCustomInstructions(e.target.value)}
                       rows={3}
-                      placeholder="z. B. Antworte immer auf Deutsch und fasse dich kurz."
+                      placeholder={t("settings.assistant.instructionsPh")}
                       className="input-base w-full resize-y px-3 py-2"
                     />
                   </Section>
@@ -591,23 +591,23 @@ export default function SettingsModal() {
                   <Section>
                     <div className="mb-3 flex items-center justify-between">
                       <div>
-                        <h4 className="font-medium">Vorlagen</h4>
+                        <h4 className="font-medium">{t("settings.assistant.templates")}</h4>
                         <p className="text-sm text-neutral-500">
-                          Prompt-Bibliothek — im Chat per „/" aufrufbar.
+                          {t("settings.assistant.templatesHint")}
                         </p>
                       </div>
                       <button
                         onClick={() =>
                           upsertPrompt({
                             id: uid(),
-                            title: "Neue Vorlage",
+                            title: t("settings.assistant.newTemplate"),
                             shortcut: "",
                             content: "",
                           })
                         }
                         className="flex shrink-0 items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover"
                       >
-                        <Plus size={15} /> Hinzufügen
+                        <Plus size={15} /> {t("settings.assistant.add")}
                       </button>
                     </div>
                     <div className="space-y-3">
@@ -622,7 +622,7 @@ export default function SettingsModal() {
                               onChange={(e) =>
                                 upsertPrompt({ ...p, title: e.target.value })
                               }
-                              placeholder="Titel"
+                              placeholder={t("settings.assistant.templateTitle")}
                               className="min-w-0 flex-1 input-base"
                             />
                             <input
@@ -630,14 +630,14 @@ export default function SettingsModal() {
                               onChange={(e) =>
                                 upsertPrompt({ ...p, shortcut: e.target.value })
                               }
-                              placeholder="/kürzel"
+                              placeholder={t("settings.assistant.templateShortcut")}
                               className="w-28 input-base font-mono"
                             />
                             <button
                               onClick={() => removePrompt(p.id)}
                               className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
-                              title="Vorlage entfernen"
-                              aria-label="Vorlage entfernen"
+                              title={t("settings.assistant.removeTemplate")}
+                              aria-label={t("settings.assistant.removeTemplate")}
                             >
                               <Trash2 size={16} />
                             </button>
@@ -648,7 +648,7 @@ export default function SettingsModal() {
                               upsertPrompt({ ...p, content: e.target.value })
                             }
                             rows={2}
-                            placeholder="Prompt-Text…"
+                            placeholder={t("settings.assistant.templateText")}
                             className="mt-2 w-full resize-y input-base"
                           />
                         </div>
@@ -669,16 +669,8 @@ export default function SettingsModal() {
               {activeTab === "websearch" && (
                 <Section>
                   <SectionTitle
-                    title="Websuche"
-                    hint={
-                      <>
-                        Erlaubt dem Modell, für aktuelle Fragen das Web zu
-                        durchsuchen. Die Suchanfrage formuliert das Modell
-                        „Suchbegriff-Konstruktion" (siehe Modelle →
-                        Standardmodelle); die Treffer werden dem Antwortmodell
-                        als Kontext übergeben.
-                      </>
-                    }
+                    title={t("settings.tab.websearch")}
+                    hint={t("settings.websearch.hint")}
                   />
                   <label className="flex cursor-pointer items-center gap-2 text-sm">
                     <input
@@ -687,14 +679,14 @@ export default function SettingsModal() {
                       onChange={() => toggleWebSearch()}
                       className="h-4 w-4 accent-[rgb(var(--accent))]"
                     />
-                    Websuche aktivieren
+                    {t("settings.websearch.enable")}
                   </label>
                   {isAdmin && (
                     <button
                       onClick={() => setTab("admin-integrations")}
                       className="mt-3 text-sm text-accent transition hover:underline"
                     >
-                      Suchanbieter konfigurieren →
+                      {t("settings.websearch.configure")}
                     </button>
                   )}
                 </Section>
@@ -709,16 +701,16 @@ export default function SettingsModal() {
               {activeTab === "data" && (
                 <Section>
                   <h4 className="font-medium text-red-600 dark:text-red-400">
-                    Alle Chats löschen
+                    {t("settings.data.clearAll")}
                   </h4>
                   <p className="mb-2 text-sm text-neutral-500">
-                    Entfernt alle Unterhaltungen dieses Kontos. Nicht umkehrbar.
+                    {t("settings.data.clearAllHint")}
                   </p>
                   <button
                     onClick={() => setConfirmClear(true)}
                     className="rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40"
                   >
-                    Alle Chats löschen
+                    {t("settings.data.clearAll")}
                   </button>
                 </Section>
               )}
@@ -787,8 +779,8 @@ export default function SettingsModal() {
               {activeTab === "admin-performance" && isAdmin && (
                 <Section>
                   <SectionTitle
-                    title="VRAM-Verwaltung"
-                    hint="Steuert, wie schnell Ollama Modelle aus dem VRAM entlädt (GPU im Multi-User-Betrieb teilen). Alleinnutzung? Einfach aus lassen."
+                    title={t("settings.perf.title")}
+                    hint={t("settings.perf.hint")}
                   />
                   <label className="flex cursor-pointer items-center gap-2 text-sm">
                     <input
@@ -797,13 +789,13 @@ export default function SettingsModal() {
                       onChange={(e) => setVramManaged(e.target.checked)}
                       className="h-4 w-4 accent-[rgb(var(--accent))]"
                     />
-                    VRAM-Management aktiv
+                    {t("settings.perf.enable")}
                   </label>
                   {vramManaged && (
                     <>
                       <div className="mt-2 flex items-center gap-2 text-sm">
                         <span className="text-neutral-500">
-                          Modell entladen nach (keep_alive)
+                          {t("settings.perf.keepAlive")}
                         </span>
                         <input
                           value={ollamaKeepAlive}
@@ -813,14 +805,14 @@ export default function SettingsModal() {
                         />
                       </div>
                       <p className="mt-1 text-xs text-neutral-400">
-                        Werte: <code>2m</code>, <code>30s</code>, <code>0</code>{" "}
-                        (sofort), <code>-1</code> (dauerhaft).
+                        {t("settings.perf.values")} <code>2m</code>, <code>30s</code>, <code>0</code>{" "}
+                        {t("settings.perf.now")}, <code>-1</code> {t("settings.perf.forever")}.
                       </p>
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {[
                           { v: "2m", l: "2m" },
                           { v: "30m", l: "30m" },
-                          { v: "-1", l: "Dauerhaft (RAM-Cache)" },
+                          { v: "-1", l: t("settings.perf.permanent") },
                         ].map((p) => (
                           <button
                             key={p.v}
@@ -839,9 +831,7 @@ export default function SettingsModal() {
                     </>
                   )}
                   <p className="mt-2 text-xs text-neutral-400">
-                    Aus = Ollama-Default (Modell bleibt geladen). Max. Tokens
-                    (num_predict) pro Chat über die Parameter. Server-seitig
-                    optional: <code>OLLAMA_NUM_PARALLEL=1</code>,{" "}
+                    {t("settings.perf.note")} <code>OLLAMA_NUM_PARALLEL=1</code>,{" "}
                     <code>OLLAMA_MAX_LOADED_MODELS=1</code>.
                   </p>
                 </Section>
@@ -861,16 +851,16 @@ export default function SettingsModal() {
             onClick={() => setOpen(false)}
             className="rounded-lg bg-neutral-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
           >
-            Fertig
+            {t("settings.done")}
           </button>
         </div>
       </div>
 
       {confirmClear && (
         <ConfirmDialog
-          title="Alle Chats löschen?"
-          message="Sämtliche Unterhaltungen dieses Kontos werden entfernt — mit allen Prompts, Antworten und angehängten Dateien. Das lässt sich nicht rückgängig machen."
-          confirmLabel="Alle löschen"
+          title={t("settings.data.clearConfirmTitle")}
+          message={t("settings.data.clearConfirmBody")}
+          confirmLabel={t("settings.data.clearConfirm")}
           danger
           onConfirm={() => {
             clearAllChats();

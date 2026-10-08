@@ -241,6 +241,19 @@ export function startProfileSync(): () => void {
   return unsub;
 }
 
+/** Re-send the profile and chats after a failed save (retry button, or the
+ *  browser coming back online). Forgets the last-sent baselines so the push
+ *  goes out even though nothing changed locally since the failure. */
+export function retrySync(): void {
+  if (!ready || useStore.getState().guestMode) return;
+  lastSnapshot = "";
+  schedulePush();
+  if (chatsLoaded) {
+    lastChats = "";
+    scheduleChatPush();
+  }
+}
+
 /**
  * Live sync across devices: periodically re-hydrate from the server so another
  * device's changes appear. Only runs when idle — no pending write-through

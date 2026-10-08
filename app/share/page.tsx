@@ -7,8 +7,10 @@ import Markdown from "@/components/Markdown";
 import BrandMark from "@/components/BrandMark";
 import { decodeSharedChat, type SharedChat } from "@/lib/share";
 import { usePublicBrand } from "@/lib/usePublicBrand";
+import { useT } from "@/lib/i18n";
 
 export default function SharePage() {
+  const t = useT();
   const brand = usePublicBrand();
   const [chat, setChat] = useState<SharedChat | null>(null);
   const [ready, setReady] = useState(false);
@@ -25,11 +27,11 @@ export default function SharePage() {
           localStorage.getItem("chatbot-ui-store") ||
           "{}"
       );
-      const t = s?.state?.theme;
-      if (t === "dark" || t === "dracula")
+      const theme = s?.state?.theme;
+      if (theme === "dark" || theme === "dracula")
         document.documentElement.classList.add("dark");
-      if (t === "dracula") document.documentElement.classList.add("dracula");
-      setDark(t !== "light");
+      if (theme === "dracula") document.documentElement.classList.add("dracula");
+      setDark(theme !== "light");
     } catch {
       /* ignore */
     }
@@ -46,13 +48,13 @@ export default function SharePage() {
           href="/"
           className="flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
         >
-          <ArrowLeft size={16} /> Zur App
+          <ArrowLeft size={16} /> {t("share.toApp")}
         </Link>
         <span className="truncate font-semibold">
-          {chat?.title ?? "Geteilter Chat"}
+          {chat?.title ?? t("share.title")}
         </span>
         <span className="ml-auto rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-600 dark:bg-white/10 dark:text-neutral-300">
-          Nur-Lese-Ansicht
+          {t("share.readOnly")}
         </span>
         {/* A shared link is often opened by people outside the app — brand it. */}
         <BrandMark brand={brand} size="sm" dark={dark} className="hidden sm:flex" />
@@ -60,7 +62,7 @@ export default function SharePage() {
 
       {!chat ? (
         <div className="mx-auto max-w-3xl px-4 py-16 text-center text-neutral-500">
-          Kein gültiger geteilter Chat in der URL.
+          {t("share.invalid")}
         </div>
       ) : (
         <div className="mx-auto max-w-3xl px-4 py-6">
@@ -77,7 +79,7 @@ export default function SharePage() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="mb-1 text-sm font-semibold">
-                  {m.role === "user" ? "Du" : "Assistant"}
+                  {m.role === "user" ? t("common.you") : t("share.assistant")}
                 </div>
                 {m.role === "user" ? (
                   <div className="whitespace-pre-wrap break-words leading-7">

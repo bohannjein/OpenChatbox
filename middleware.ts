@@ -18,6 +18,9 @@ const PUBLIC = [
   // key, never with a session cookie. Authorization happens in lib/server/apiAuth.
   /^\/api\/v1\//,
   /^\/embed\.js/,
+  // PWA: the service worker and its offline fallback must load without a session.
+  /^\/sw\.js$/,
+  /^\/offline\.html$/,
   /^\/share/,
   /^\/_next\//,
   /^\/favicon/,

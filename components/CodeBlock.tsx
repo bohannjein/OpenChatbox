@@ -9,6 +9,7 @@ import { isDocBlock } from "@/lib/docIntent";
 import { isSvgCode } from "@/lib/preview";
 import { copyText } from "@/lib/clipboard";
 import SvgView from "./SvgView";
+import { useT } from "@/lib/i18n";
 
 export default function CodeBlock({
   code,
@@ -19,6 +20,7 @@ export default function CodeBlock({
   language?: string;
   children: React.ReactNode;
 }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const panel = useCodePanel();
   // Render-lock: once this block is shown in the splitscreen, keep it locked
@@ -49,7 +51,7 @@ export default function CodeBlock({
     return (
       <div className="my-3 flex items-center gap-2 rounded-xl border border-border-light bg-neutral-100 px-4 py-3 text-sm text-neutral-500 dark:border-border-dark dark:bg-white/5">
         <Code2 size={15} className="shrink-0 animate-pulse text-accent" />
-        <span className="truncate">Dokument wird erstellt…</span>
+        <span className="truncate">{t("code.docCreating")}</span>
       </div>
     );
   }
@@ -68,14 +70,14 @@ export default function CodeBlock({
         <span className="flex min-w-0 items-center gap-2 text-neutral-500">
           <Code2 size={15} className="shrink-0 text-accent" />
           <span className="truncate">
-            Code im Splitscreen{language ? ` · ${language}` : ""}
+            {t("code.inSplit")}{language ? ` · ${language}` : ""}
           </span>
         </span>
         <button
           onClick={() => panel!.closePanel()}
           className="flex shrink-0 items-center gap-1 rounded-lg border border-border-light px-2 py-1 text-xs transition hover:bg-white dark:border-border-dark dark:hover:bg-white/10"
         >
-          <MessageSquare size={13} /> Im Chat anzeigen
+          <MessageSquare size={13} /> {t("code.showInChat")}
         </button>
       </div>
     );
@@ -90,17 +92,17 @@ export default function CodeBlock({
             <button
               onClick={() => panel.openInPanel(code, language || "text")}
               className="flex items-center gap-1 rounded px-1.5 py-0.5 transition hover:text-neutral-800 dark:hover:text-neutral-200"
-              title="Im Splitscreen öffnen"
+              title={t("code.openSplit")}
             >
-              <PanelRight size={13} /> Splitscreen
+              <PanelRight size={13} /> {t("code.split")}
             </button>
           )}
           <button
             onClick={saveFile}
-            title={`Herunterladen (.${langToExt(language || "text")})`}
+            title={t("code.downloadExt", { ext: langToExt(language || "text") })}
             className="flex items-center gap-1 rounded px-1.5 py-0.5 transition hover:text-neutral-800 dark:hover:text-neutral-200"
           >
-            <Download size={13} /> Download
+            <Download size={13} /> {t("code.downloadShort")}
           </button>
           <button
             onClick={copy}
@@ -108,11 +110,11 @@ export default function CodeBlock({
           >
             {copied ? (
               <>
-                <Check size={13} /> Kopiert
+                <Check size={13} /> {t("common.copied")}
               </>
             ) : (
               <>
-                <Copy size={13} /> Kopieren
+                <Copy size={13} /> {t("common.copy")}
               </>
             )}
           </button>

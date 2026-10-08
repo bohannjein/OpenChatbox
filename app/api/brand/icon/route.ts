@@ -37,7 +37,14 @@ export async function GET(req: Request) {
   const decoded = src ? decodeDataUrl(src) : null;
   const { mime, body } = decoded ?? {
     mime: "image/svg+xml",
-    body: Buffer.from(defaultIconSvg(b.accentColor), "utf8"),
+    // ?maskable: full-bleed square (no rounded corners) for the manifest's
+    // maskable entry; the glyph already sits inside the 80% safe zone.
+    body: Buffer.from(
+      new URL(req.url).searchParams.has("maskable")
+        ? defaultIconSvg(b.accentColor).replace(' rx="7"', "")
+        : defaultIconSvg(b.accentColor),
+      "utf8"
+    ),
   };
 
   // Short max-age + ETag: a brand change has to show up quickly, but the tab

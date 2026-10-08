@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Check } from "lucide-react";
 import { loadServerState } from "@/lib/serverSync";
+import { useT } from "@/lib/i18n";
 
 type ProviderKey = "bing" | "tavily" | "bocha" | "qureit";
 interface ProviderCfg {
@@ -13,11 +14,11 @@ interface ProviderCfg {
 type SearchCfg = Partial<Record<ProviderKey, ProviderCfg>>;
 
 // Selection order matches the server (lib/server/config SEARCH_PROVIDER_ORDER).
-const PROVIDERS: { key: ProviderKey; label: string; hint: string }[] = [
-  { key: "tavily", label: "Tavily", hint: "LLM-optimiert · Key tvly-…" },
-  { key: "bing", label: "Bing Search (Free)", hint: "Azure Ocp-Apim-Subscription-Key" },
-  { key: "bocha", label: "Bocha (博查)", hint: "Bearer-Key" },
-  { key: "qureit", label: "Qureit", hint: "Bearer-Key (Best-Effort-Anbindung)" },
+const PROVIDERS: { key: ProviderKey; label: string }[] = [
+  { key: "tavily", label: "Tavily" },
+  { key: "bing", label: "Bing Search (Free)" },
+  { key: "bocha", label: "Bocha (博查)" },
+  { key: "qureit", label: "Qureit" },
 ];
 
 /**
@@ -26,6 +27,7 @@ const PROVIDERS: { key: ProviderKey; label: string; hint: string }[] = [
  * enabled + keyed provider (in the order above) is used for searches.
  */
 export default function SearchProvidersPanel() {
+  const t = useT();
   const [cfg, setCfg] = useState<SearchCfg>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -65,14 +67,13 @@ export default function SearchProvidersPanel() {
     <div>
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <h4 className="font-medium">Suchanbieter</h4>
+          <h4 className="font-medium">{t("settings.websearch.providers")}</h4>
           <p className="text-sm text-neutral-500">
-            API-Keys werden serverseitig gespeichert. Verwendet wird der erste
-            aktivierte Anbieter mit Key.
+            {t("settings.websearch.providersDesc")}
             {active && (
               <>
                 {" "}
-                Aktiv: <span className="font-medium text-accent">{active.label}</span>.
+                {t("settings.websearch.active")} <span className="font-medium text-accent">{active.label}</span>.
               </>
             )}
           </p>
@@ -83,15 +84,15 @@ export default function SearchProvidersPanel() {
           className="flex shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : null}
-          {saved ? "Gespeichert" : "Speichern"}
+          {saved ? t("common.saved") : t("common.save")}
         </button>
       </div>
 
       {loading ? (
-        <p className="py-4 text-center text-sm text-neutral-400">Lädt…</p>
+        <p className="py-4 text-center text-sm text-neutral-400">{t("common.loading")}</p>
       ) : (
         <div className="space-y-3">
-          {PROVIDERS.map(({ key, label, hint }) => {
+          {PROVIDERS.map(({ key, label }) => {
             const p = cfg[key] ?? { enabled: false };
             return (
               <div
@@ -107,20 +108,20 @@ export default function SearchProvidersPanel() {
                   />
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium">{label}</div>
-                    <div className="truncate text-xs text-neutral-400">{hint}</div>
+                    <div className="truncate text-xs text-neutral-400">{t(`settings.websearch.hint.${key}` as const)}</div>
                   </div>
                 </div>
                 <input
                   type="password"
                   value={p.apiKey ?? ""}
                   onChange={(e) => patch(key, { apiKey: e.target.value })}
-                  placeholder="API-Key"
+                  placeholder={t("common.apiKey")}
                   className="mt-2 w-full input-base font-mono"
                 />
                 <input
                   value={p.baseUrl ?? ""}
                   onChange={(e) => patch(key, { baseUrl: e.target.value })}
-                  placeholder="Endpoint-URL (optional, überschreibt Standard)"
+                  placeholder={t("settings.websearch.endpointPlaceholder")}
                   className="mt-2 w-full input-base font-mono"
                 />
               </div>

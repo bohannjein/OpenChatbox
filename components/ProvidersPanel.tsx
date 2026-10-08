@@ -7,6 +7,7 @@ import { loadServerState } from "@/lib/serverSync";
 import { PRESETS } from "@/lib/presets";
 import { uid } from "@/lib/uid";
 import type { Provider, ProviderType } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 
 type TestState = { status: "idle" | "loading" | "ok" | "err"; msg?: string };
 
@@ -17,6 +18,7 @@ type TestState = { status: "idle" | "loading" | "ok" | "err"; msg?: string };
  * re-hydrates the store so the (key-stripped) runtime provider list updates.
  */
 export default function ProvidersPanel() {
+  const t = useT();
   const [provs, setProvs] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,10 +54,10 @@ export default function ProvidersPanel() {
   };
 
   const test = async (p: Provider) => {
-    setTests((t) => ({ ...t, [p.id]: { status: "loading" } }));
+    setTests((s) => ({ ...s, [p.id]: { status: "loading" } }));
     try {
       const models = await fetchModels(p);
-      setTests((t) => ({ ...t, [p.id]: { status: "ok", msg: `${models.length} Modelle` } }));
+      setTests((s) => ({ ...s, [p.id]: { status: "ok", msg: t("admin.providers.modelCount", { n: models.length }) } }));
     } catch (e) {
       setTests((t) => ({
         ...t,
@@ -84,10 +86,9 @@ export default function ProvidersPanel() {
   return (
     <div>
       <div className="mb-3">
-        <h4 className="font-medium">Anbieter & Endpunkte</h4>
+        <h4 className="font-medium">{t("admin.providers.title")}</h4>
         <p className="text-sm text-neutral-500">
-          Ollama (lokal) oder OpenAI-kompatible/Anthropic-APIs. Global,
-          serverseitig gespeichert (Keys verlassen den Server nicht).
+          {t("admin.providers.desc")}
         </p>
       </div>
 
@@ -99,9 +100,9 @@ export default function ProvidersPanel() {
           e.target.value = "";
         }}
         className="mb-3 w-full rounded-lg border border-border-light px-2 py-2 text-sm dark:border-border-dark dark:bg-sidebar-dark"
-        title="Anbieter aus Vorlage hinzufügen"
+        title={t("admin.providers.addTitle")}
       >
-        <option value="">+ Anbieter hinzufügen…</option>
+        <option value="">{t("admin.providers.add")}</option>
         {PRESETS.map((p, i) => (
           <option key={p.name} value={i}>
             {p.name}
@@ -110,11 +111,11 @@ export default function ProvidersPanel() {
       </select>
 
       {loading ? (
-        <p className="py-4 text-center text-sm text-neutral-400">Lädt…</p>
+        <p className="py-4 text-center text-sm text-neutral-400">{t("common.loading")}</p>
       ) : (
         <div className="space-y-3">
           {provs.map((p) => {
-            const t = tests[p.id] ?? { status: "idle" };
+            const st = tests[p.id] ?? { status: "idle" };
             return (
               <div key={p.id} className="rounded-xl border border-border-light p-3 dark:border-border-dark">
                 <div className="flex items-center gap-2">
@@ -127,7 +128,7 @@ export default function ProvidersPanel() {
                   <input
                     value={p.name}
                     onChange={(e) => update(p.id, { name: e.target.value })}
-                    placeholder="Anzeigename"
+                    placeholder={t("admin.providers.displayName")}
                     className="min-w-0 flex-1 input-base"
                   />
                   <select
@@ -136,20 +137,20 @@ export default function ProvidersPanel() {
                     className="input-base dark:bg-sidebar-dark"
                   >
                     <option value="ollama">Ollama</option>
-                    <option value="openai">OpenAI-kompatibel</option>
+                    <option value="openai">{t("admin.providers.openaiCompat")}</option>
                     <option value="anthropic">Anthropic</option>
                   </select>
                   <button
                     onClick={() => remove(p.id)}
                     className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
-                    title="Provider entfernen"
+                    title={t("admin.providers.remove")}
                   >
                     <Trash2 size={16} />
                   </button>
                 </div>
                 <div className="mt-2 grid gap-2">
                   <div>
-                    <label className="text-xs text-neutral-500">Base-URL</label>
+                    <label className="text-xs text-neutral-500">{t("admin.providers.baseUrl")}</label>
                     <input
                       value={p.baseUrl}
                       onChange={(e) => update(p.id, { baseUrl: e.target.value })}
@@ -159,19 +160,19 @@ export default function ProvidersPanel() {
                   </div>
                   {p.type !== "ollama" && (
                     <div>
-                      <label className="text-xs text-neutral-500">API-Key</label>
+                      <label className="text-xs text-neutral-500">{t("common.apiKey")}</label>
                       <input
                         type="password"
                         value={p.apiKey ?? ""}
                         onChange={(e) => update(p.id, { apiKey: e.target.value })}
-                        placeholder="sk-… / API-Key des Anbieters"
+                        placeholder={t("admin.providers.apiKeyPlaceholder")}
                         className="w-full input-base font-mono"
                       />
                     </div>
                   )}
                   <div>
                     <label className="text-xs text-neutral-500">
-                      Modelle manuell (optional, Komma-getrennt)
+                      {t("admin.providers.manualModels")}
                     </label>
                     <input
                       value={(p.manualModels ?? []).join(", ")}
@@ -183,7 +184,7 @@ export default function ProvidersPanel() {
                             .filter(Boolean),
                         })
                       }
-                      placeholder="z. B. gpt-4o, claude-sonnet-4-5"
+                      placeholder={t("admin.providers.manualModelsPlaceholder")}
                       className="w-full input-base font-mono"
                     />
                   </div>
@@ -193,21 +194,21 @@ export default function ProvidersPanel() {
                     onClick={() => test(p)}
                     className="rounded-lg border border-border-light px-3 py-1 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
                   >
-                    Verbindung testen
+                    {t("common.testConnection")}
                   </button>
-                  {t.status === "loading" && (
+                  {st.status === "loading" && (
                     <span className="flex items-center gap-1 text-sm text-neutral-500">
-                      <Loader2 size={14} className="animate-spin" /> teste…
+                      <Loader2 size={14} className="animate-spin" /> {t("admin.providers.testing")}
                     </span>
                   )}
-                  {t.status === "ok" && (
+                  {st.status === "ok" && (
                     <span className="flex items-center gap-1 text-sm text-accent">
-                      <CheckCircle2 size={14} /> {t.msg}
+                      <CheckCircle2 size={14} /> {st.msg}
                     </span>
                   )}
-                  {t.status === "err" && (
-                    <span className="flex items-center gap-1 truncate text-sm text-red-500" title={t.msg}>
-                      <XCircle size={14} /> {t.msg}
+                  {st.status === "err" && (
+                    <span className="flex items-center gap-1 truncate text-sm text-red-500" title={st.msg}>
+                      <XCircle size={14} /> {st.msg}
                     </span>
                   )}
                 </div>
@@ -224,7 +225,7 @@ export default function ProvidersPanel() {
         className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
       >
         {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : null}
-        {saved ? "Gespeichert" : "Anbieter speichern"}
+        {saved ? t("common.saved") : t("admin.providers.save")}
       </button>
     </div>
   );

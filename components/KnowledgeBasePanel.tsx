@@ -5,6 +5,7 @@ import { Plus, Trash2, Upload, Loader2, FileText, Library } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { extractText } from "@/lib/kbText";
 import Modal from "./Modal";
+import { useT } from "@/lib/i18n";
 
 type Pending = { type: "category" | "document"; id: string; name: string };
 
@@ -26,6 +27,7 @@ interface Doc {
  * vector store.
  */
 export default function KnowledgeBasePanel() {
+  const t = useT();
   const kbEnabled = useStore((s) => s.kbEnabled);
   const toggleKb = useStore((s) => s.toggleKb);
   const isAdmin = useStore((s) => s.authUser?.role === "admin");
@@ -100,7 +102,7 @@ export default function KnowledgeBasePanel() {
       for (const f of Array.from(files)) {
         const text = await extractText(f).catch(() => "");
         if (!text.trim()) {
-          setError(`Kein Text aus „${f.name}" extrahiert.`);
+          setError(t("kb.errNoText", { name: f.name }));
           continue;
         }
         const r = await fetch("/api/kb", {
@@ -110,7 +112,7 @@ export default function KnowledgeBasePanel() {
         });
         if (!r.ok) {
           const d = await r.json().catch(() => ({}));
-          setError(d.error || `Indexierung von „${f.name}" fehlgeschlagen.`);
+          setError(d.error || t("kb.errIndex", { name: f.name }));
         }
       }
       load();
@@ -145,10 +147,9 @@ export default function KnowledgeBasePanel() {
   return (
     <div>
       <div className="mb-3">
-        <h4 className="font-medium">Kategorien & Dokumente</h4>
+        <h4 className="font-medium">{t("kb.title")}</h4>
         <p className="text-sm text-neutral-500">
-          Eigene Kategorien + Dokumente (PDF, TXT, DOCX, MD, CSV, PPTX, XLSX). Bei aktivierter Nutzung
-          durchsucht der Chat vorab die Datenbank und belegt Antworten mit Quellen.
+          {t("kb.desc")}
         </p>
       </div>
 
@@ -159,14 +160,14 @@ export default function KnowledgeBasePanel() {
           onChange={() => toggleKb()}
           className="h-4 w-4 accent-[rgb(var(--accent))]"
         />
-        Wissensdatenbank im Chat verwenden
+        {t("kb.useInChat")}
       </label>
 
       {isAdmin && (
         <div className="mb-4 flex items-end gap-2">
           <div className="flex-1">
             <label className="mb-1 block text-xs text-neutral-500">
-              Embedding-Modell (Ollama, global)
+              {t("kb.embModel")}
             </label>
             <input
               value={embModel}
@@ -179,7 +180,7 @@ export default function KnowledgeBasePanel() {
             onClick={saveEmbModel}
             className="rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
           >
-            Speichern
+            {t("common.save")}
           </button>
         </div>
       )}
@@ -187,12 +188,10 @@ export default function KnowledgeBasePanel() {
       {isAdmin && (
         <div className="mb-4 rounded-xl border border-border-light p-3 dark:border-border-dark">
           <label className="mb-1 block text-sm font-medium">
-            Eigennamen-Wörterbuch (Fuzzy-Suche)
+            {t("kb.nouns")}
           </label>
           <p className="mb-2 text-xs text-neutral-500">
-            Firmen- und Personen-Eigennamen (einer pro Zeile). Tippfehler in der
-            Suche werden per Levenshtein-Distanz automatisch auf den korrekten
-            Namen korrigiert — z. B. „Msuter GmbH“ → „Muster GmbH“.
+            {t("kb.nounsDesc")}
           </p>
           <textarea
             value={properNouns}
@@ -203,13 +202,13 @@ export default function KnowledgeBasePanel() {
           />
           <div className="mt-2 flex items-center justify-end gap-2">
             {pnSaved && (
-              <span className="text-xs text-accent">Gespeichert ✓</span>
+              <span className="text-xs text-accent">{t("kb.nounsSaved")}</span>
             )}
             <button
               onClick={saveProperNouns}
               className="rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
             >
-              Wörterbuch speichern
+              {t("kb.nounsSave")}
             </button>
           </div>
         </div>
@@ -222,14 +221,14 @@ export default function KnowledgeBasePanel() {
             value={newCat}
             onChange={(e) => setNewCat(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addCategory()}
-            placeholder="Neue Kategorie…"
+            placeholder={t("kb.newCategory")}
             className="min-w-0 flex-1 input-base"
           />
           <button
             onClick={addCategory}
             className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover"
           >
-            <Plus size={15} /> Kategorie
+            <Plus size={15} /> {t("kb.category")}
           </button>
         </div>
       )}
@@ -243,8 +242,8 @@ export default function KnowledgeBasePanel() {
       {cats.length === 0 ? (
         <p className="py-4 text-center text-sm text-neutral-400">
           {canManage
-            ? "Noch keine Kategorien. Lege eine an, um Dokumente hochzuladen."
-            : "Dir wurden noch keine Wissenskategorien freigeschaltet."}
+            ? t("kb.emptyManage")
+            : t("kb.emptyRead")}
         </p>
       ) : (
         <div className="space-y-3">
@@ -267,7 +266,7 @@ export default function KnowledgeBasePanel() {
                       ) : (
                         <Upload size={13} />
                       )}
-                      Datei
+                      {t("kb.file")}
                       <input
                         type="file"
                         accept=".pdf,.txt,.md,.csv,.docx,.pptx,.xlsx"
@@ -287,7 +286,7 @@ export default function KnowledgeBasePanel() {
                         setPending({ type: "category", id: cat.id, name: cat.name })
                       }
                       className="rounded-lg p-1.5 text-neutral-400 hover:text-red-500"
-                      title="Kategorie löschen"
+                      title={t("kb.deleteCategory")}
                     >
                       <Trash2 size={15} />
                     </button>
@@ -303,7 +302,7 @@ export default function KnowledgeBasePanel() {
                         <FileText size={14} className="shrink-0 text-neutral-400" />
                         <span className="min-w-0 flex-1 truncate">{d.name}</span>
                         <span className="shrink-0 text-xs text-neutral-400">
-                          {d.chunkCount} Abschnitte
+                          {t("kb.chunks", { n: d.chunkCount })}
                         </span>
                         {canManage && (
                         <button
@@ -311,7 +310,7 @@ export default function KnowledgeBasePanel() {
                             setPending({ type: "document", id: d.id, name: d.name })
                           }
                           className="rounded p-1 text-neutral-400 hover:text-red-500"
-                          title="Dokument entfernen"
+                          title={t("kb.removeDocument")}
                         >
                           <Trash2 size={13} />
                         </button>
@@ -329,19 +328,16 @@ export default function KnowledgeBasePanel() {
       {pending && (
         <Modal onClose={() => setPending(null)}>
           <h3 className="mb-1 text-lg font-semibold">
-            {pending.type === "category" ? "Kategorie löschen" : "Dokument löschen"}
+            {pending.type === "category" ? t("kb.deleteCategory") : t("kb.deleteDocument")}
           </h3>
           <p className="mb-4 text-sm text-neutral-500">
             {pending.type === "category" ? (
               <>
-                „{pending.name}" und <b>alle enthaltenen Dokumente</b> endgültig aus
-                der Wissensdatenbank löschen? Das kann nicht rückgängig gemacht
-                werden.
+                {t("kb.confirmCategoryPre", { name: pending.name })}<b>{t("kb.confirmCategoryBold")}</b>{t("kb.confirmCategoryPost")}
               </>
             ) : (
               <>
-                „{pending.name}" endgültig aus der Wissensdatenbank löschen? Das kann
-                nicht rückgängig gemacht werden.
+                {t("kb.confirmDocument", { name: pending.name })}
               </>
             )}
           </p>
@@ -350,13 +346,13 @@ export default function KnowledgeBasePanel() {
               onClick={() => setPending(null)}
               className="rounded-lg px-3 py-1.5 text-sm hover:bg-neutral-200 dark:hover:bg-white/10"
             >
-              Abbrechen
+              {t("common.cancel")}
             </button>
             <button
               onClick={doDelete}
               className="rounded-lg bg-red-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-red-700"
             >
-              Löschen
+              {t("common.delete")}
             </button>
           </div>
         </Modal>

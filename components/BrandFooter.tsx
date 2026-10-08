@@ -2,6 +2,7 @@
 
 import { useBrand } from "@/lib/store";
 import { supportHref, type BrandingConfig } from "@/lib/branding";
+import { useT } from "@/lib/i18n";
 
 /**
  * Legal + support links (Impressum / Datenschutz / Support) as configured by the
@@ -16,14 +17,15 @@ export default function BrandFooter({
   brand?: BrandingConfig;
   className?: string;
 }) {
+  const t = useT();
   const live = useBrand();
   const b = brand ?? live;
   const support = supportHref(b);
 
   const links: { label: string; href: string }[] = [];
-  if (b.imprintUrl) links.push({ label: "Impressum", href: b.imprintUrl });
-  if (b.privacyUrl) links.push({ label: "Datenschutz", href: b.privacyUrl });
-  if (support) links.push({ label: "Support", href: support });
+  if (b.imprintUrl) links.push({ label: t("brand.imprint"), href: b.imprintUrl });
+  if (b.privacyUrl) links.push({ label: t("brand.privacy"), href: b.privacyUrl });
+  if (support) links.push({ label: t("brand.support"), href: support });
   if (!links.length) return null;
 
   return (

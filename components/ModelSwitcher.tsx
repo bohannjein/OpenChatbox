@@ -71,7 +71,7 @@ export default function ModelSwitcher() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providers]);
 
-  useClickOutside(ref, () => setOpen(false));
+  useClickOutside(ref, () => setOpen(false), open);
 
   // Open programmatically (e.g. from the "/" command menu).
   useEffect(() => {

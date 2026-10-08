@@ -6,6 +6,7 @@ import { PanelRight, X, Star, ArrowUpRight } from "lucide-react";
 import { useStore } from "@/lib/store";
 import ArchivePanel from "./ArchivePanel";
 import type { Chat } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 
 type Segment = "files" | "starred" | "notes";
 
@@ -25,6 +26,7 @@ export default function ChatInfoPanel({
   onJump: (messageId: string) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const setChatNotes = useStore((s) => s.setChatNotes);
   const toggleStar = useStore((s) => s.toggleStar);
 
@@ -34,9 +36,9 @@ export default function ChatInfoPanel({
   const [seg, setSeg] = useState<Segment>("files");
 
   const SEGMENTS: { id: Segment; label: string; count?: number }[] = [
-    { id: "files", label: "Dateien", count: files.length },
-    { id: "starred", label: "Markiert", count: starred.length },
-    { id: "notes", label: "Notizen" },
+    { id: "files", label: t("chatInfo.files"), count: files.length },
+    { id: "starred", label: t("chatInfo.starred"), count: starred.length },
+    { id: "notes", label: t("notes.title") },
   ];
 
   return (
@@ -44,11 +46,11 @@ export default function ChatInfoPanel({
       <header className="flex shrink-0 items-center gap-2 border-b border-border-light px-4 py-2 dark:border-border-dark">
         <PanelRight size={16} className="shrink-0 text-accent" />
         <span className="min-w-0 truncate text-sm font-medium">
-          Zu diesem Chat
+          {t("chatInfo.title")}
         </span>
         <button
           onClick={onClose}
-          title="Schließen"
+          title={t("common.close")}
           className="ml-auto shrink-0 rounded-lg p-1.5 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/10"
         >
           <X size={18} />
@@ -84,8 +86,7 @@ export default function ChatInfoPanel({
         {seg === "starred" &&
           (starred.length === 0 ? (
             <p className="px-5 py-6 text-center text-sm text-neutral-500">
-              Noch nichts markiert. Der Stern unter einer Nachricht sammelt sie
-              hier.
+              {t("chatInfo.noStarred")}
             </p>
           ) : (
             <div className="space-y-1 p-2">
@@ -96,18 +97,18 @@ export default function ChatInfoPanel({
                 >
                   <div className="mb-1 flex items-center gap-2">
                     <span className="text-xs font-medium text-neutral-500">
-                      {m.role === "user" ? "Du" : "KI"}
+                      {m.role === "user" ? t("common.you") : t("msg.ai")}
                     </span>
                     <button
                       onClick={() => onJump(m.id)}
-                      title="Zur Nachricht springen"
+                      title={t("archive.jump")}
                       className="ml-auto rounded-lg p-1 text-neutral-400 transition hover:bg-neutral-200 hover:text-accent dark:hover:bg-white/10"
                     >
                       <ArrowUpRight size={15} />
                     </button>
                     <button
                       onClick={() => toggleStar(chat.id, m.id)}
-                      title="Markierung entfernen"
+                      title={t("msg.unstar")}
                       className="rounded-lg p-1 text-accent transition hover:bg-neutral-200 dark:hover:bg-white/10"
                     >
                       <Star size={15} fill="currentColor" />
@@ -125,7 +126,7 @@ export default function ChatInfoPanel({
           <textarea
             value={chat.notes ?? ""}
             onChange={(e) => setChatNotes(chat.id, e.target.value)}
-            placeholder="Notizen zu diesem Chat…"
+            placeholder={t("chatInfo.notesPlaceholder")}
             className="min-h-0 flex-1 resize-none bg-transparent p-4 text-sm leading-6 outline-none placeholder:text-neutral-400"
           />
         )}

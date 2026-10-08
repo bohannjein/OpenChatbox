@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
+import { useT } from "@/lib/i18n";
 
 const SIDEKICK_ICONS: { id: string; Icon: LucideIcon }[] = [
   { id: "star", Icon: Star },
@@ -81,8 +82,9 @@ export function SidekickIconPicker({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const t = useT();
 
-  useClickOutside(ref, () => setOpen(false));
+  useClickOutside(ref, () => setOpen(false), open);
 
   const activeColor = colorById(color).color;
 
@@ -91,7 +93,7 @@ export function SidekickIconPicker({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        title="Symbol wählen"
+        title={t("sidekicks.pickIcon")}
         className="rounded-lg border border-border-light p-1 transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
       >
         <SidekickAvatar icon={icon} color={color} size={30} />

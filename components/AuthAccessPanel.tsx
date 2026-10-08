@@ -6,6 +6,7 @@ import { useStore } from "@/lib/store";
 import { loadAllModels, displayName } from "@/lib/providers";
 import type { ModelOption } from "@/lib/types";
 import InfoTip from "./InfoTip";
+import { useT } from "@/lib/i18n";
 
 /**
  * Admin-only access policy: self-registration (with an optional email-domain
@@ -13,6 +14,7 @@ import InfoTip from "./InfoTip";
  * the admin-global config; enforced server-side in the register/guest/chat routes.
  */
 export default function AuthAccessPanel() {
+  const t = useT();
   const providers = useStore((s) => s.providers);
   const aliases = useStore((s) => s.aliases);
 
@@ -85,17 +87,16 @@ export default function AuthAccessPanel() {
   return (
     <div>
       <div className="mb-3">
-        <h4 className="font-medium">Registrierung & Gastzugang</h4>
+        <h4 className="font-medium">{t("admin.access.title")}</h4>
         <p className="text-sm text-neutral-500">
-          Welche Anmeldearten verfügbar sind, wer sich registrieren darf, und ob
-          nicht angemeldete Gäste den Chatbot testen können.
+          {t("admin.access.intro")}
         </p>
       </div>
 
       {/* Sign-in methods */}
       <div className="mb-4 rounded-lg border border-border-light p-3 dark:border-border-dark">
         <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-          Anmeldearten
+          {t("admin.access.methods")}
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -106,14 +107,13 @@ export default function AuthAccessPanel() {
               onChange={(e) => setPasswordEnabled(e.target.checked)}
               className="h-4 w-4 accent-[rgb(var(--accent))]"
             />
-            Passwort-Anmeldung erlauben (Benutzername & Passwort)
+            {t("admin.access.password")}
           </label>
-          <InfoTip text="Erlaubt die klassische Anmeldung mit Benutzername und Passwort. Ausschalten für reinen SSO-Betrieb — der Administrator kann sich dann weiterhin per Passwort anmelden." />
+          <InfoTip text={t("admin.access.passwordTip")} />
         </div>
         {!passwordEnabled && (
           <p className="mt-1 pl-6 text-xs text-neutral-500">
-            Nutzer melden sich nur mit dem Microsoft-Geschäftskonto an. Der Administrator kann sich
-            weiterhin per Passwort anmelden (Wiederherstellung).
+            {t("admin.access.passwordOff")}
           </p>
         )}
 
@@ -125,20 +125,18 @@ export default function AuthAccessPanel() {
               onChange={(e) => setSsoEnabled(e.target.checked)}
               className="h-4 w-4 accent-[rgb(var(--accent))]"
             />
-            Anmeldung mit Microsoft-Geschäftskonto (Entra ID / SSO) erlauben
+            {t("admin.access.sso")}
           </label>
-          <InfoTip text="Zeigt den Anmelde-Button für das Microsoft-Geschäftskonto. Die Zugangsdaten (Entra ID oder ein anderer OIDC-Server wie ADFS/Keycloak) richtest du im Abschnitt „Microsoft-Anmeldung (SSO)“ weiter unten ein; dort lässt sich auch die Beschriftung ändern." />
+          <InfoTip text={t("admin.access.ssoTip")} />
         </div>
         {ssoEnabled && !ssoConfigured && (
           <p className="mt-1 pl-6 text-xs text-amber-600 dark:text-amber-500">
-            SSO ist noch nicht konfiguriert — der Button bleibt inaktiv, bis du die
-            Zugangsdaten unter „Microsoft-Anmeldung (SSO)“ hinterlegst.
+            {t("admin.access.ssoMissing")}
           </p>
         )}
         {!passwordEnabled && !ssoEnabled && (
           <p className="mt-2 text-xs text-red-600 dark:text-red-400">
-            Achtung: Keine Anmeldeart aktiv. Nur der Administrator kann sich noch
-            (per Passwort) anmelden.
+            {t("admin.access.noMethod")}
           </p>
         )}
       </div>
@@ -153,15 +151,13 @@ export default function AuthAccessPanel() {
               onChange={(e) => setPwResetEnabled(e.target.checked)}
               className="h-4 w-4 accent-[rgb(var(--accent))]"
             />
-            „Passwort vergessen?“ im Login anzeigen (Self-Service-Reset)
+            {t("admin.access.reset")}
           </label>
-          <InfoTip text="Zeigt auf der Anmeldeseite einen „Passwort vergessen?“-Link. Nutzer bekommen dann per E-Mail einen Link, um ihr Passwort selbst zurückzusetzen. Setzt einen konfigurierten E-Mail-Versand und eine hinterlegte E-Mail-Adresse beim Nutzer voraus." />
+          <InfoTip text={t("admin.access.resetTip")} />
         </div>
         {pwResetEnabled && !smtpConfigured && (
           <p className="mt-1 pl-6 text-xs text-amber-600 dark:text-amber-500">
-            Noch kein E-Mail-Versand konfiguriert — der Link erscheint auf der
-            Anmeldeseite erst, wenn unter „Anmeldung &amp; E-Mail“ →
-            „E-Mail-Versand“ die Zugangsdaten hinterlegt sind.
+            {t("admin.access.smtpMissing")}
           </p>
         )}
       </div>
@@ -175,21 +171,21 @@ export default function AuthAccessPanel() {
             onChange={(e) => setSelfReg(e.target.checked)}
             className="h-4 w-4 accent-[rgb(var(--accent))]"
           />
-          Selbstregistrierung erlauben (zeigt „Registrieren“ auf der Login-Seite)
+          {t("admin.access.selfReg")}
         </label>
-        <InfoTip text="Erlaubt Besuchern, sich selbst ein Konto anzulegen. Aus = nur der Admin legt Konten an (Benutzerverwaltung oben)." />
+        <InfoTip text={t("admin.access.selfRegTip")} />
       </div>
       {selfReg && (
         <div className="mt-2 pl-6">
           <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-            Erlaubte E-Mail-Domains (optional, eine pro Zeile). Leer = alle Domains.
-            <InfoTip text="Beschränkt die Selbstregistrierung auf bestimmte E-Mail-Domains (z. B. firma.de). Der Benutzername muss dann eine E-Mail dieser Domain sein." />
+            {t("admin.access.domains")}
+            <InfoTip text={t("admin.access.domainsTip")} />
           </label>
           <textarea
             value={domains}
             onChange={(e) => setDomains(e.target.value)}
             rows={3}
-            placeholder={"firma.de\nfirma.com"}
+            placeholder={t("admin.access.domainsPh")}
             className="w-full resize-y input-base font-mono"
           />
         </div>
@@ -204,22 +200,22 @@ export default function AuthAccessPanel() {
             onChange={(e) => setGuestEnabled(e.target.checked)}
             className="h-4 w-4 accent-[rgb(var(--accent))]"
           />
-          Gast-Zugang erlauben (Nutzung ohne Anmeldung)
+          {t("admin.access.guest")}
         </label>
-        <InfoTip text="Nicht angemeldete Besucher dürfen den Chatbot mit genau einem festgelegten Modell testen. Ideal zum Ausprobieren ohne Konto." />
+        <InfoTip text={t("admin.access.guestTip")} />
       </div>
       {guestEnabled && (
         <div className="mt-2 flex items-center gap-2 pl-6">
           <div className="min-w-0 flex-1">
             <label className="mb-1 block text-xs text-neutral-500">
-              Gast-Modell (das einzige Modell, das Gäste nutzen dürfen)
+              {t("admin.access.guestModel")}
             </label>
             <select
               value={guestModel}
               onChange={(e) => setGuestModel(e.target.value)}
               className="w-full input-base py-1.5 text-sm dark:bg-sidebar-dark"
             >
-              <option value="">— Modell wählen —</option>
+              <option value="">{t("admin.access.pickModel")}</option>
               {options.map((o) => (
                 <option key={o.key} value={o.key}>
                   {displayName(aliases, o.key, o.model)}
@@ -229,7 +225,7 @@ export default function AuthAccessPanel() {
           </div>
           <button
             onClick={loadModels}
-            title="Modelle neu laden"
+            title={t("admin.access.reloadModels")}
             className="mt-5 shrink-0 rounded-lg border border-border-light p-2 transition hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-white/5"
           >
             {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
@@ -238,17 +234,17 @@ export default function AuthAccessPanel() {
       )}
       {guestEnabled && !guestModel && (
         <p className="mt-1 pl-6 text-xs text-amber-600 dark:text-amber-500">
-          Ohne gewähltes Gast-Modell bleibt der Gast-Zugang inaktiv.
+          {t("admin.access.guestNoModel")}
         </p>
       )}
 
       <div className="mt-4 flex items-center justify-end gap-2">
-        {saved && <span className="text-xs text-accent">Gespeichert ✓</span>}
+        {saved && <span className="text-xs text-accent">{t("account.saved")}</span>}
         <button
           onClick={save}
           className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover"
         >
-          Speichern
+          {t("common.save")}
         </button>
       </div>
     </div>

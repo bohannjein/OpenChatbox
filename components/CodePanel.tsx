@@ -6,6 +6,7 @@ import clsx from "clsx";
 import Markdown from "./Markdown";
 import { CodePanelContext } from "./codePanelContext";
 import { isPreviewable, buildPreviewDoc } from "@/lib/preview";
+import { useT } from "@/lib/i18n";
 
 /** Isolated, editor-like view of a code block (right splitscreen), with an
  *  optional live "Vorschau" tab that renders HTML/Tailwind/SVG in a sandbox. */
@@ -20,6 +21,7 @@ export default function CodePanel({
   name?: string;
   onClose: () => void;
 }) {
+  const t = useT();
   const canPreview = isPreviewable(code, language);
   const [tab, setTab] = useState<"code" | "preview">("code");
   // If a block stops being previewable (e.g. switched to a JS file), fall back.
@@ -31,7 +33,7 @@ export default function CodePanel({
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden border-l border-border-light bg-main-light dark:border-border-dark dark:bg-main-dark">
       <header className="flex shrink-0 items-center gap-2 border-b border-border-light px-4 py-2 dark:border-border-dark">
         <Code2 size={16} className="shrink-0 text-accent" />
-        <span className="min-w-0 truncate text-sm font-medium">{name || "Code"}</span>
+        <span className="min-w-0 truncate text-sm font-medium">{name || t("code.code")}</span>
         {language && language !== "text" && (
           <span className="shrink-0 rounded bg-neutral-200 px-1.5 py-0.5 font-mono text-xs text-neutral-600 dark:bg-white/10 dark:text-neutral-300">
             {language}
@@ -39,7 +41,7 @@ export default function CodePanel({
         )}
         <button
           onClick={onClose}
-          title="Schließen"
+          title={t("common.close")}
           className="ml-auto shrink-0 rounded-lg p-1.5 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/10"
         >
           <X size={18} />
@@ -51,8 +53,8 @@ export default function CodePanel({
         <div className="flex shrink-0 items-center gap-1 border-b border-border-light px-2 py-1.5 dark:border-border-dark">
           {(
             [
-              { id: "code", label: "Code", Icon: Code2 },
-              { id: "preview", label: "Vorschau", Icon: Eye },
+              { id: "code", label: t("code.code"), Icon: Code2 },
+              { id: "preview", label: t("code.preview"), Icon: Eye },
             ] as const
           ).map(({ id, label, Icon }) => (
             <button
@@ -76,7 +78,7 @@ export default function CodePanel({
           {/* Sandboxed: opaque origin (no allow-same-origin) so scripts can run
               for interactive HTML but can't touch the app, its cookies or storage. */}
           <iframe
-            title="Vorschau"
+            title={t("code.preview")}
             sandbox="allow-scripts allow-forms allow-popups allow-modals"
             srcDoc={buildPreviewDoc(code, language)}
             className="h-full w-full border-0"

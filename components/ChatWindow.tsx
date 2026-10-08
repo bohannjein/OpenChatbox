@@ -17,6 +17,7 @@ import {
   PanelRight,
   Trash2,
   Square,
+  ArrowDown,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import {
@@ -259,7 +260,7 @@ export default function ChatWindow() {
   const [copied, setCopied] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   // Stable, intent-aware auto-scroll (ResizeObserver-based) — see useScrollAnchor.
-  const { scrollRef, contentRef, scrollToBottom } = useScrollAnchor();
+  const { scrollRef, contentRef, scrollToBottom, atBottom } = useScrollAnchor();
   const inputRef = useRef<ChatInputHandle>(null);
   const shareRef = useRef<HTMLDivElement>(null);
 
@@ -271,6 +272,14 @@ export default function ChatWindow() {
   const isTemp = !!chat?.temporary;
 
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  // Browser tab names the open chat; a leading dot marks a reply still being
+  // written, so a background tab shows when the answer is done.
+  const appName = useStore((s) => s.brand.appName);
+  const tabTitle = messages.length && chat?.title ? `${chat.title} · ${appName}` : appName;
+  useEffect(() => {
+    document.title = (streamingId ? "● " : "") + tabTitle;
+  }, [tabTitle, streamingId]);
 
   // Always land in the input: on opening a chat, after the AI finished, and
   // after closing a side panel — so you can just start typing.
@@ -349,8 +358,8 @@ export default function ChatWindow() {
     );
   };
 
-  useClickOutside(shareRef, () => setShareOpen(false));
-  useClickOutside(ghostRef, () => setGhostMenu(false));
+  useClickOutside(shareRef, () => setShareOpen(false), shareOpen);
+  useClickOutside(ghostRef, () => setGhostMenu(false), ghostMenu);
 
   const stop = () => {
     abortRef.current?.abort();
@@ -527,7 +536,7 @@ export default function ChatWindow() {
           const d = await r.json().catch(() => ({}));
           if (d.dataUrl) {
             setMessageImages(chatId, assistantId, [d.dataUrl]);
-            setMessageContent(chatId, assistantId, "Hier ist dein generiertes Bild:");
+            setMessageContent(chatId, assistantId, t("chat.imageReady"));
             // Persist in the file store so it survives reload / shows in files.
             fetch("/api/files", {
               method: "POST",
@@ -1144,7 +1153,7 @@ export default function ChatWindow() {
       if (jobs.length) {
         // Clean the visible answer (strip any leaked doc block / raw HTML).
         let visible = stripHtmlDoc(stripDocBlocks(answer));
-        if (!visible.trim()) visible = "Hier ist dein fertiges Dokument. 📄";
+        if (!visible.trim()) visible = t("chat.docReady");
         if (visible !== answer) setMessageContent(chatId, assistantId, visible);
 
         for (const job of jobs) {
@@ -1518,15 +1527,17 @@ export default function ChatWindow() {
               placeholder={t("input.placeholder")}
             />
 
-            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* Suggestion pills under the composer, as in ChatGPT: they fill the
+                input instead of sending, so the user finishes the sentence. */}
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
               {STARTERS.map((s) => (
                 <button
                   key={s.title}
                   onClick={() => inputRef.current?.setText(t(s.prompt))}
-                  className="flex items-start gap-3 rounded-xl border border-border-light p-4 text-left transition-all duration-150 ease-out hover:scale-[1.01] hover:bg-neutral-100 hover:shadow-sm active:scale-[0.98] dark:border-border-dark dark:hover:bg-white/5"
+                  className="flex items-center gap-2 rounded-full border border-border-light px-3.5 py-2 text-sm text-neutral-600 transition-colors duration-150 ease-out hover:bg-neutral-100 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent active:bg-neutral-200 dark:border-border-dark dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white dark:active:bg-white/10"
                 >
-                  <s.icon size={18} className="mt-0.5 shrink-0 text-accent" />
-                  <span className="text-sm font-medium">{t(s.title)}</span>
+                  <s.icon size={16} className="shrink-0 text-accent" />
+                  {t(s.title)}
                 </button>
               ))}
             </div>
@@ -1562,6 +1573,20 @@ export default function ChatWindow() {
                 />
               ))}
             </div>
+          </div>
+
+          {/* Jump back to the latest message once the user has scrolled up. */}
+          <div className="relative print:hidden">
+            {!atBottom && (
+              <button
+                onClick={() => scrollToBottom("smooth")}
+                aria-label={t("chat.scrollToLatest")}
+                title={t("chat.scrollToLatest")}
+                className="absolute bottom-3 left-1/2 z-10 flex h-9 w-9 -translate-x-1/2 animate-fade-in items-center justify-center rounded-full border border-border-light bg-white text-neutral-700 shadow-[0_2px_8px_rgba(0,0,0,0.12)] transition-colors duration-150 ease-out hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:border-border-dark dark:bg-sidebar-dark dark:text-neutral-200 dark:hover:bg-white/10"
+              >
+                <ArrowDown size={18} />
+              </button>
+            )}
           </div>
 
           {/* Error banner */}

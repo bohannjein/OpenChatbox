@@ -5,29 +5,31 @@ import clsx from "clsx";
 import { SlidersHorizontal, RotateCcw, Info, ChevronDown } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useClickOutside } from "@/lib/useClickOutside";
+import { useT } from "@/lib/i18n";
 
 /** Answer style, expressed the way people actually think about it. The raw
  *  sliders stay available under "Erweitert" for anyone who wants them. */
 const STYLES = [
-  { id: "precise", label: "Präzise", temperature: 0.2, topP: 0.9 },
-  { id: "balanced", label: "Ausgewogen", temperature: 0.7, topP: 1 },
-  { id: "creative", label: "Kreativ", temperature: 1.2, topP: 1 },
+  { id: "precise", label: "params.precise", temperature: 0.2, topP: 0.9 },
+  { id: "balanced", label: "params.balanced", temperature: 0.7, topP: 1 },
+  { id: "creative", label: "params.creative", temperature: 1.2, topP: 1 },
 ] as const;
 
 const LENGTHS = [
-  { id: "short", label: "Kurz", maxTokens: 1024 },
-  { id: "normal", label: "Normal", maxTokens: 2048 },
-  { id: "long", label: "Ausführlich", maxTokens: 4096 },
+  { id: "short", label: "params.short", maxTokens: 1024 },
+  { id: "normal", label: "params.normal", maxTokens: 2048 },
+  { id: "long", label: "params.long", maxTokens: 4096 },
 ] as const;
 
 export default function ParamsPopover() {
   const params = useStore((s) => s.params);
   const setParams = useStore((s) => s.setParams);
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useClickOutside(ref, () => setOpen(false));
+  useClickOutside(ref, () => setOpen(false), open);
 
   // Derived, not stored — hand-tuned slider values simply match nothing.
   const activeStyle = STYLES.find(
@@ -39,8 +41,8 @@ export default function ParamsPopover() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        title="Antwortstil"
-        aria-label="Antwortstil"
+        title={t("params.title")}
+        aria-label={t("params.title")}
         aria-haspopup="true"
         aria-expanded={open}
         className="rounded-l-none rounded-r-xl p-2 text-zinc-400 transition-colors duration-150 hover:bg-neutral-200/70 hover:text-neutral-900 dark:hover:bg-white/10 dark:hover:text-white"
@@ -52,42 +54,42 @@ export default function ParamsPopover() {
         <div className="absolute left-0 top-full z-40 mt-2 w-72 origin-top animate-pop-in rounded-2xl border border-border-light bg-white p-4 shadow-xl dark:border-white/[0.08] dark:bg-zinc-950/75 dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] dark:backdrop-blur-xl">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-              Antwortstil
+              {t("params.title")}
             </span>
             <button
               onClick={() => {
                 setParams({ temperature: 0.7, topP: 1, maxTokens: 2048 });
                 setAdvanced(false);
               }}
-              title="Zurücksetzen"
+              title={t("common.reset")}
               className="flex items-center gap-1 text-xs text-zinc-400 transition-colors hover:text-accent"
             >
-              <RotateCcw size={12} /> Reset
+              <RotateCcw size={12} /> {t("params.reset")}
             </button>
           </div>
 
           <Choice
             options={STYLES.map((s) => ({
               id: s.id,
-              label: s.label,
+              label: t(s.label),
               onPick: () =>
                 setParams({ temperature: s.temperature, topP: s.topP }),
             }))}
             activeId={activeStyle?.id}
-            fallback="Eigene Einstellung"
+            fallback={t("params.customStyle")}
           />
 
           <div className="mb-1.5 mt-4 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-            Länge
+            {t("params.length")}
           </div>
           <Choice
             options={LENGTHS.map((l) => ({
               id: l.id,
-              label: l.label,
+              label: t(l.label),
               onPick: () => setParams({ maxTokens: l.maxTokens }),
             }))}
             activeId={activeLength?.id}
-            fallback="Eigene Länge"
+            fallback={t("params.customLength")}
           />
 
           <button
@@ -101,15 +103,15 @@ export default function ParamsPopover() {
                 advanced && "rotate-180"
               )}
             />
-            Erweitert
+            {t("params.advanced")}
           </button>
 
           {advanced && (
             <div className="mt-3 border-t border-border-light pt-3 dark:border-white/[0.06]">
           <Slider
-            label="Temperatur"
-            hint="Kreativität"
-            info="Steuert die Zufälligkeit der Antworten. Niedrig (0–0.3) = fokussiert und vorhersehbar, hoch (0.8–2) = kreativer, aber sprunghafter."
+            label={t("params.temperature")}
+            hint={t("params.temperatureHint")}
+            info={t("params.temperatureInfo")}
             min={0}
             max={2}
             step={0.1}
@@ -118,8 +120,8 @@ export default function ParamsPopover() {
           />
           <Slider
             label="Top_P"
-            hint="Nukleus-Sampling"
-            info="Begrenzt die Wortauswahl auf die wahrscheinlichsten Tokens, deren Wahrscheinlichkeit zusammen P ergibt. 1.0 = alle erlaubt, niedriger = konservativer. Meist nur Temperatur ODER Top_P anpassen."
+            hint={t("params.topPHint")}
+            info={t("params.topPInfo")}
             min={0}
             max={1}
             step={0.05}
@@ -127,9 +129,9 @@ export default function ParamsPopover() {
             onChange={(v) => setParams({ topP: v })}
           />
           <Slider
-            label="Max Tokens"
-            hint="Antwortlänge"
-            info="Obergrenze für die Länge der Antwort in Tokens (~¾ Wort pro Token). Höher erlaubt längere Antworten, kostet aber mehr Rechenzeit."
+            label={t("params.maxTokens")}
+            hint={t("params.maxTokensHint")}
+            info={t("params.maxTokensInfo")}
             min={256}
             max={8192}
             step={256}
@@ -183,12 +185,13 @@ function Choice({
 
 /** Small "i" affordance with an elegant hover/click/focus tooltip. */
 function InfoTip({ text }: { text: string }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   return (
     <span className="relative inline-flex items-center">
       <button
         type="button"
-        aria-label="Erklärung anzeigen"
+        aria-label={t("params.explain")}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         onFocus={() => setOpen(true)}

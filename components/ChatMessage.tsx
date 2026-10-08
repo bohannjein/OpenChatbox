@@ -408,6 +408,7 @@ export default memo(function ChatMessage({
           )}
           <div
             className={clsx(
+              streaming && "stream-caret",
               bubble &&
                 // Dracula: #bd93f9 links are 3.79:1 on the #44475a bubble; #d6bcfa is 5.42:1.
                 "inline-block max-w-full rounded-2xl rounded-tl-none bg-bubble-light px-4 py-3 dark:bg-bubble-dark [.dracula_&]:[--accent-text:214_188_250]"
@@ -416,11 +417,8 @@ export default memo(function ChatMessage({
             {message.content ? (
               <Markdown content={message.content} />
             ) : streaming && !message.reasoning && !message.pipeline ? (
-              <span className="inline-block h-4 w-2 animate-blink bg-neutral-500 align-middle" />
+              <span aria-hidden className="stream-dot" />
             ) : null}
-            {streaming && message.content && (
-              <span className="ml-0.5 inline-block h-4 w-2 animate-blink bg-neutral-500 align-middle" />
-            )}
           </div>
 
           {/* Generated image(s) — rendered inline. */}

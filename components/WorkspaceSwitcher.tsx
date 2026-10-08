@@ -7,9 +7,11 @@ import { useStore, DEFAULT_WORKSPACE_ID } from "@/lib/store";
 import { useClickOutside } from "@/lib/useClickOutside";
 import { copyText } from "@/lib/clipboard";
 import Modal from "./Modal";
+import { useT } from "@/lib/i18n";
 
 /** Compact workspace selector: switch, create, delete (never the default). */
 export default function WorkspaceSwitcher() {
+  const t = useT();
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const switchWorkspace = useStore((s) => s.switchWorkspace);
@@ -38,9 +40,9 @@ export default function WorkspaceSwitcher() {
   }, [open]);
 
   const copyInvite = async (id: string) => {
-    const t = tokens[id];
-    if (!t) return;
-    if (await copyText(`${location.origin}/join-workspace/${t}`)) {
+    const token = tokens[id];
+    if (!token) return;
+    if (await copyText(`${location.origin}/join-workspace/${token}`)) {
       setCopied(id);
       setTimeout(() => setCopied((c) => (c === id ? null : c)), 1500);
     }
@@ -48,7 +50,7 @@ export default function WorkspaceSwitcher() {
   useClickOutside(ref, () => {
     setOpen(false);
     setAdding(false);
-  });
+  }, open);
 
   const active =
     workspaces.find((w) => w.id === activeWorkspaceId) ?? workspaces[0];
@@ -109,11 +111,11 @@ export default function WorkspaceSwitcher() {
               : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
           )}
         >
-          <User size={14} className="shrink-0" /> Persönlich
+          <User size={14} className="shrink-0" /> {t("workspace.personal")}
         </button>
         <button
           onClick={() => setOpen((v) => !v)}
-          title="Workspaces verwalten"
+          title={t("workspace.manage")}
           aria-haspopup="true"
           aria-expanded={open}
           className={clsx(
@@ -125,7 +127,7 @@ export default function WorkspaceSwitcher() {
         >
           <Users size={14} className="shrink-0" />
           <span className="min-w-0 truncate">
-            {isPersonal ? "Workspace" : active?.name ?? "Workspace"}
+            {isPersonal ? t("workspace.label") : active?.name ?? t("workspace.label")}
           </span>
         </button>
       </div>
@@ -134,7 +136,7 @@ export default function WorkspaceSwitcher() {
         <div className="absolute left-3 right-3 top-full z-40 mt-1 menu-panel p-1.5">
           {teamWorkspaces.length === 0 && (
             <p className="px-2 py-1.5 text-xs text-neutral-400">
-              Noch kein Team-Workspace — lege einen an, um zu teilen.
+              {t("workspace.noTeam")}
             </p>
           )}
           {teamWorkspaces.map((w) => (
@@ -156,8 +158,8 @@ export default function WorkspaceSwitcher() {
                   onClick={() =>
                     setShareWs({ id: w.id, name: w.name, token: tokens[w.id] })
                   }
-                  title="Workspace teilen"
-                  aria-label={`Workspace „${w.name}“ teilen`}
+                  title={t("workspace.share")}
+                  aria-label={t("workspace.shareNamed", { name: w.name })}
                   className="shrink-0 rounded p-1 text-neutral-400 opacity-0 transition hover:text-accent focus-visible:opacity-100 group-hover:opacity-100"
                 >
                   <Share2 size={13} />
@@ -166,8 +168,8 @@ export default function WorkspaceSwitcher() {
               {w.id !== DEFAULT_WORKSPACE_ID && (
                 <button
                   onClick={() => removeWorkspace(w.id)}
-                  title="Workspace löschen (Inhalte wandern nach „Persönlich“)"
-                  aria-label={`Workspace „${w.name}“ löschen`}
+                  title={t("workspace.deleteHint")}
+                  aria-label={t("workspace.deleteNamed", { name: w.name })}
                   className="shrink-0 rounded p-1 text-neutral-400 opacity-0 transition hover:text-red-500 focus-visible:opacity-100 group-hover:opacity-100"
                 >
                   <Trash2 size={13} />
@@ -187,8 +189,8 @@ export default function WorkspaceSwitcher() {
                     if (e.key === "Enter") add();
                     if (e.key === "Escape") setAdding(false);
                   }}
-                  placeholder="Workspace-Name…"
-                  aria-label="Workspace-Name"
+                  placeholder={t("workspace.namePlaceholder")}
+                  aria-label={t("workspace.name")}
                   className="min-w-0 flex-1 input-base"
                 />
                 <button
@@ -204,7 +206,7 @@ export default function WorkspaceSwitcher() {
                 onClick={() => setAdding(true)}
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-neutral-600 transition hover:bg-neutral-200/70 dark:text-neutral-300 dark:hover:bg-white/10"
               >
-                <Plus size={14} /> Neuer Workspace
+                <Plus size={14} /> {t("workspace.new")}
               </button>
             )}
           </div>
@@ -215,11 +217,10 @@ export default function WorkspaceSwitcher() {
         <Modal onClose={() => setShareWs(null)}>
           <div className="flex items-center gap-2">
             <Share2 size={18} className="text-accent" />
-            <h2 className="text-lg font-bold">Workspace teilen</h2>
+            <h2 className="text-lg font-bold">{t("workspace.share")}</h2>
           </div>
           <p className="mt-1 text-sm text-neutral-500">
-            Sende diesen Link an Teammitglieder — wer eingeloggt ist und ihn
-            öffnet, wird Mitglied von „{shareWs.name}".
+            {t("workspace.shareBody", { name: shareWs.name })}
           </p>
           <div className="mt-4 flex items-center gap-2">
             <input
@@ -233,7 +234,7 @@ export default function WorkspaceSwitcher() {
               className="flex shrink-0 items-center gap-1 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
             >
               {copied === shareWs.id ? <Check size={14} /> : <Copy size={14} />}
-              {copied === shareWs.id ? "Kopiert" : "Kopieren"}
+              {copied === shareWs.id ? t("common.copied") : t("common.copy")}
             </button>
           </div>
         </Modal>

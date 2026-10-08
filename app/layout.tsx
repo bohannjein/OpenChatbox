@@ -2,6 +2,7 @@ import { cache } from "react";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import AppRoot from "@/components/AppRoot";
+import ServiceWorker from "@/components/ServiceWorker";
 import { getBranding } from "@/lib/server/config";
 import { brandTokenCss, normalizeHex } from "@/lib/branding";
 
@@ -79,6 +80,7 @@ export default function RootLayout({
       </head>
       <body>
         <AppRoot />
+        <ServiceWorker />
         {children}
       </body>
     </html>

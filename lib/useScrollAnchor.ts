@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /** How close to the bottom (px) still counts as "parked at the bottom". */
 const NEAR_BOTTOM_PX = 120;
@@ -33,6 +33,9 @@ export function useScrollAnchor() {
   // User-intent flag: are we still pinned to the bottom? Starts true so a chat
   // opens at its latest message.
   const stick = useRef(true);
+  // Mirrors `stick` as state so the view can offer a "jump to latest" button.
+  // setState bails out on an unchanged value, so scrolling stays render-free.
+  const [atBottom, setAtBottom] = useState(true);
 
   const isAtBottom = () => {
     const el = elRef.current;
@@ -45,6 +48,7 @@ export function useScrollAnchor() {
   // scroll disengages the pin.
   const onScroll = useCallback(() => {
     stick.current = isAtBottom();
+    setAtBottom(stick.current);
   }, []);
 
   const pin = useCallback(() => {
@@ -87,5 +91,5 @@ export function useScrollAnchor() {
 
   useEffect(() => () => roRef.current?.disconnect(), []);
 
-  return { scrollRef, contentRef, scrollToBottom };
+  return { scrollRef, contentRef, scrollToBottom, atBottom };
 }

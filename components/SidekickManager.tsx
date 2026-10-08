@@ -11,6 +11,7 @@ import {
   DEFAULT_COLOR,
 } from "./SidekickIcon";
 import type { ModelOption } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 
 const MAX_SIDEKICKS = 5;
 
@@ -20,6 +21,7 @@ export default function SidekickManager() {
   const removeSidekick = useStore((s) => s.removeSidekick);
   const providers = useStore((s) => s.providers);
   const [models, setModels] = useState<ModelOption[]>([]);
+  const t = useT();
 
   useEffect(() => {
     loadAllModels(providers).then((r) => setModels(r.options));
@@ -30,7 +32,7 @@ export default function SidekickManager() {
     if (atMax) return;
     upsertSidekick({
       id: uid(),
-      name: "Neuer Sidekick",
+      name: t("sidekicks.newName"),
       icon: DEFAULT_ICON,
       color: DEFAULT_COLOR,
       modelKey: "",
@@ -44,14 +46,13 @@ export default function SidekickManager() {
         <div>
           <h4 className="font-medium">Sidekicks</h4>
           <p className="text-sm text-neutral-500">
-            Spezialisierte Profile mit eigenem Modell + System-Prompt. Erscheinen
-            in der Sidebar unter „Meine Sidekicks". Max. {MAX_SIDEKICKS}.
+            {t("sidekicks.hint", { max: MAX_SIDEKICKS })}
           </p>
         </div>
         <button
           onClick={add}
           disabled={atMax}
-          title={atMax ? `Maximal ${MAX_SIDEKICKS} Sidekicks` : undefined}
+          title={atMax ? t("sidekicks.max", { max: MAX_SIDEKICKS }) : undefined}
           className="flex shrink-0 items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-40"
         >
           <Plus size={15} /> Sidekick ({sidekicks.length}/{MAX_SIDEKICKS})
@@ -60,7 +61,7 @@ export default function SidekickManager() {
 
       <div className="space-y-3">
         {sidekicks.length === 0 && (
-          <p className="text-sm text-neutral-500">Noch keine Sidekicks.</p>
+          <p className="text-sm text-neutral-500">{t("sidekicks.empty")}</p>
         )}
         {sidekicks.map((sk) => (
           <div
@@ -78,7 +79,7 @@ export default function SidekickManager() {
               <input
                 value={sk.name}
                 onChange={(e) => upsertSidekick({ ...sk, name: e.target.value })}
-                placeholder="Name (z. B. IT-Recht-Anwalt)"
+                placeholder={t("sidekicks.namePh")}
                 className="min-w-0 flex-1 input-base"
               />
               <select
@@ -88,7 +89,7 @@ export default function SidekickManager() {
                 }
                 className="max-w-[10rem] input-base dark:bg-sidebar-dark"
               >
-                <option value="">Aktuelles Modell</option>
+                <option value="">{t("sidekicks.currentModel")}</option>
                 {models.map((m) => (
                   <option key={m.key} value={m.key}>
                     {m.model}
@@ -98,7 +99,7 @@ export default function SidekickManager() {
               <button
                 onClick={() => removeSidekick(sk.id)}
                 className="rounded-lg p-2 text-neutral-400 hover:text-red-500"
-                title="Löschen"
+                title={t("common.delete")}
               >
                 <Trash2 size={16} />
               </button>
@@ -109,7 +110,7 @@ export default function SidekickManager() {
                 upsertSidekick({ ...sk, systemPrompt: e.target.value })
               }
               rows={3}
-              placeholder="System-Prompt, z. B. Du bist ein erfahrener IT-Recht-Anwalt und antwortest präzise auf Deutsch…"
+              placeholder={t("sidekicks.promptPh")}
               className="mt-2 w-full resize-y input-base"
             />
           </div>

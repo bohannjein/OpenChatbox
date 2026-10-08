@@ -554,3 +554,37 @@ body {
 .param-range:active::-moz-range-thumb {
   transform: scale(0.95);
 }
+
+/* Streaming indicator, as in ChatGPT: a pulsing dot before the first token,
+   then riding at the end of the last line of text. Drawn with ::after on the
+   last text block, so it never occupies a line of its own — the reply doesn't
+   shrink and jump when it finishes. Code blocks and tables show no dot. */
+.stream-dot,
+.stream-caret .prose-chat > :is(p, h1, h2, h3, h4, h5, h6):last-child::after,
+.stream-caret .prose-chat > :is(ul, ol):last-child > li:last-child::after {
+  content: "";
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin-left: 0.3em;
+  border-radius: 9999px;
+  background: currentColor;
+  vertical-align: middle;
+  animation: stream-pulse 1.2s ease-in-out infinite;
+}
+.stream-dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-left: 0;
+}
+@keyframes stream-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stream-dot,
+  .stream-caret .prose-chat > :is(p, h1, h2, h3, h4, h5, h6):last-child::after,
+  .stream-caret .prose-chat > :is(ul, ol):last-child > li:last-child::after {
+    animation: none;
+  }
+}

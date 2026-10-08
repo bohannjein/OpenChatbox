@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Github, ExternalLink, Sparkles, Tag } from "lucide-react";
 import { useStore, useBrand } from "@/lib/store";
 import BrandFooter from "./BrandFooter";
+import { useT } from "@/lib/i18n";
 import {
   APP_VERSION,
   REPO_NAME,
@@ -21,6 +22,7 @@ import {
 export default function AboutPanel() {
   const brand = useBrand();
   const markWhatsNewSeen = useStore((s) => s.markWhatsNewSeen);
+  const t = useT();
 
   useEffect(() => {
     markWhatsNewSeen();
@@ -69,10 +71,10 @@ export default function AboutPanel() {
       <div>
         <h4 className="mb-1 flex items-center gap-2 font-medium">
           <Sparkles size={16} strokeWidth={1.5} className="text-accent" />
-          Was gibt&rsquo;s Neues?
+          {t("about.whatsNew")}
         </h4>
         <p className="mb-3 text-sm text-neutral-500">
-          Die neuesten Funktionen und Verbesserungen.
+          {t("about.whatsNewHint")}
         </p>
 
         <div className="space-y-4">
@@ -92,7 +94,7 @@ export default function AboutPanel() {
                 <span className="text-xs text-neutral-400">{entry.date}</span>
                 {i === 0 && (
                   <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium text-accent">
-                    aktuell
+                    {t("about.current")}
                   </span>
                 )}
               </div>

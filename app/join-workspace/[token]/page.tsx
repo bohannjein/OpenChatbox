@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Loader2, Check, XCircle, Layers } from "lucide-react";
 import { useStore } from "@/lib/store";
 import BrandMark from "@/components/BrandMark";
+import { useT } from "@/lib/i18n";
 
 type State =
   | { k: "loading" }
@@ -12,6 +13,7 @@ type State =
   | { k: "err"; msg: string };
 
 export default function JoinWorkspacePage() {
+  const t = useT();
   const params = useParams();
   const router = useRouter();
   const token = Array.isArray(params.token) ? params.token[0] : params.token;
@@ -25,7 +27,7 @@ export default function JoinWorkspacePage() {
     ran.current = true;
     document.documentElement.classList.add("dark");
     if (!token) {
-      setState({ k: "err", msg: "Kein Einladungs-Token." });
+      setState({ k: "err", msg: t("join.noToken") });
       return;
     }
     fetch("/api/workspaces/join", {
@@ -35,7 +37,7 @@ export default function JoinWorkspacePage() {
     })
       .then(async (r) => {
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || "Beitritt fehlgeschlagen.");
+        if (!r.ok) throw new Error(d.error || t("join.failed"));
         return d;
       })
       .then((d) => {
@@ -45,7 +47,7 @@ export default function JoinWorkspacePage() {
         setTimeout(() => router.push("/"), 1200);
       })
       .catch((e) => setState({ k: "err", msg: e.message }));
-  }, [token, router, upsertWorkspace, switchWorkspace]);
+  }, [token, router, upsertWorkspace, switchWorkspace, t]);
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-main-dark px-4 text-neutral-100">
@@ -58,28 +60,28 @@ export default function JoinWorkspacePage() {
         {state.k === "loading" && (
           <>
             <Loader2 size={20} className="mx-auto animate-spin text-accent" />
-            <p className="mt-3 text-sm text-neutral-400">Trete Workspace bei…</p>
+            <p className="mt-3 text-sm text-neutral-400">{t("join.joining")}</p>
           </>
         )}
         {state.k === "ok" && (
           <>
             <Check size={22} className="mx-auto text-emerald-400" />
-            <h1 className="mt-2 text-lg font-bold">Beigetreten</h1>
+            <h1 className="mt-2 text-lg font-bold">{t("join.joined")}</h1>
             <p className="mt-1 text-sm text-neutral-400">
-              Du bist jetzt Mitglied von „{state.name}". Weiterleitung…
+              {t("join.joinedBody", { name: state.name })}
             </p>
           </>
         )}
         {state.k === "err" && (
           <>
             <XCircle size={22} className="mx-auto text-red-400" />
-            <h1 className="mt-2 text-lg font-bold">Fehlgeschlagen</h1>
+            <h1 className="mt-2 text-lg font-bold">{t("join.failedTitle")}</h1>
             <p className="mt-1 text-sm text-neutral-400">{state.msg}</p>
             <button
               onClick={() => router.push("/")}
               className="mt-4 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
             >
-              Zur App
+              {t("share.toApp")}
             </button>
           </>
         )}

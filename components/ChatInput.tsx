@@ -401,12 +401,12 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
     if (text && text.length > PASTE_LIMIT) {
       e.preventDefault();
       const n =
-        attachments.filter((a) => a.name.startsWith("eingefügter_text")).length;
+        attachments.filter((a) => a.name.startsWith(t("input.pastedName"))).length;
       setAttachments((a) => [
         ...a,
         {
           id: uid(),
-          name: n ? `eingefügter_text_${n + 1}.txt` : "eingefügter_text.txt",
+          name: `${t("input.pastedName")}${n ? `_${n + 1}` : ""}.txt`,
           size: text.length,
           kind: "text",
           text,
@@ -423,7 +423,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
     // server-side, not concatenated into the prompt text.
     const images = imageDataUrls(attachments);
     onSend(
-      text || (attachments.length ? "(Datei angehängt)" : ""),
+      text || (attachments.length ? t("input.fileOnly") : ""),
       images.length ? images : undefined,
       attachments.length ? attachments : undefined
     );
@@ -679,6 +679,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
             </button>
 
             <textarea
+              id="chat-input"
               ref={taRef}
               rows={1}
               value={value}

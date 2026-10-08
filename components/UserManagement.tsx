@@ -19,6 +19,7 @@ import { providerLabel } from "@/lib/authProvider";
 import InfoTip from "./InfoTip";
 import Modal from "./Modal";
 import ConfirmDialog from "./ConfirmDialog";
+import { useT, type TFn } from "@/lib/i18n";
 
 type U = {
   id: string;
@@ -53,25 +54,25 @@ type Session = {
 
 const ROLES = ["user", "poweruser", "admin"];
 
-const KIND_LABEL: Record<Session["kind"], string> = {
-  user: "Konto",
-  guest: "Gast",
-  assistant: "Assistent",
-};
+const KIND_LABEL = {
+  user: "admin.users.kind.user",
+  guest: "admin.users.kind.guest",
+  assistant: "admin.users.kind.assistant",
+} as const;
 
 /** "vor 2 Min" — good enough for a presence table, no dependency needed. */
-function since(ts: number, now: number): string {
+function since(t: TFn, ts: number, now: number): string {
   const s = Math.max(0, Math.floor((now - ts) / 1000));
-  if (s < 15) return "jetzt";
-  if (s < 60) return `vor ${s} s`;
-  if (s < 3600) return `vor ${Math.floor(s / 60)} Min`;
-  if (s < 86400) return `vor ${Math.floor(s / 3600)} Std`;
-  return `vor ${Math.floor(s / 86400)} Tg`;
+  if (s < 15) return t("admin.users.since.now");
+  if (s < 60) return t("admin.users.since.s", { n: s });
+  if (s < 3600) return t("admin.users.since.min", { n: Math.floor(s / 60) });
+  if (s < 86400) return t("admin.users.since.h", { n: Math.floor(s / 3600) });
+  return t("admin.users.since.d", { n: Math.floor(s / 86400) });
 }
 
 /** Shorten a user-agent to the part a human reads: browser + platform. */
-function browserOf(ua: string): string {
-  if (!ua) return "unbekannt";
+function browserOf(t: TFn, ua: string): string {
+  if (!ua) return t("admin.users.uaUnknown");
   const name =
     /Edg\//.test(ua) ? "Edge"
     : /OPR\//.test(ua) ? "Opera"
@@ -79,7 +80,7 @@ function browserOf(ua: string): string {
     : /Safari\//.test(ua) && /Version\//.test(ua) ? "Safari"
     : /Firefox\//.test(ua) ? "Firefox"
     : /curl\//i.test(ua) ? "curl"
-    : "anderer";
+    : t("admin.users.uaOther");
   const os =
     /Windows/.test(ua) ? "Windows"
     : /Android/.test(ua) ? "Android"
@@ -92,6 +93,7 @@ function browserOf(ua: string): string {
 
 /** Admin panel to manage all users: role, block/unblock, reset password, delete. */
 export default function UserManagement() {
+  const t = useT();
   const [users, setUsers] = useState<U[] | null>(null);
   const [cats, setCats] = useState<Cat[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -143,11 +145,11 @@ export default function UserManagement() {
 
   useEffect(() => {
     loadPresence();
-    const t = setInterval(loadPresence, 15_000);
+    const poll = setInterval(loadPresence, 15_000);
     // Keep the relative times moving between polls.
     const tick = setInterval(() => setNow(Date.now()), 5_000);
     return () => {
-      clearInterval(t);
+      clearInterval(poll);
       clearInterval(tick);
     };
   }, [loadPresence]);
@@ -156,7 +158,7 @@ export default function UserManagement() {
     try {
       const r = await fetch("/api/admin/users");
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Fehler");
+      if (!r.ok) throw new Error(d.error || t("common.error"));
       setUsers(d.users);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -185,7 +187,7 @@ export default function UserManagement() {
         body: JSON.stringify({ action: "setKbCategories", userId: u.id, kbCategories: next }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Fehler");
+      if (!r.ok) throw new Error(d.error || t("common.error"));
       setUsers(d.users);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -204,7 +206,7 @@ export default function UserManagement() {
         body: JSON.stringify({ action, userId, value }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Fehler");
+      if (!r.ok) throw new Error(d.error || t("common.error"));
       setUsers(d.users);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -215,11 +217,11 @@ export default function UserManagement() {
 
   const createUser = async () => {
     if (!nu.firstName.trim() || !nu.lastName.trim()) {
-      setErr("Vor- und Nachname erforderlich.");
+      setErr(t("admin.users.err.names"));
       return;
     }
     if (!nu.username.trim() || nu.password.length < 6) {
-      setErr("Benutzername und Passwort (min. 6 Zeichen) nötig.");
+      setErr(t("admin.users.err.credentials"));
       return;
     }
     setBusy("create");
@@ -231,7 +233,7 @@ export default function UserManagement() {
         body: JSON.stringify({ action: "create", ...nu }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Fehler");
+      if (!r.ok) throw new Error(d.error || t("common.error"));
       setUsers(d.users);
       setNu({ firstName: "", lastName: "", username: "", email: "", password: "", role: "user" });
     } catch (e) {
@@ -242,15 +244,15 @@ export default function UserManagement() {
   };
 
   const resetPw = (u: U) => {
-    const pw = window.prompt(`Neues Passwort für "${u.username}" (min. 6 Zeichen):`);
+    const pw = window.prompt(t("admin.users.resetPrompt", { name: u.username }));
     if (pw && pw.length >= 6) act(u.id, "resetPassword", pw);
-    else if (pw !== null) setErr("Passwort muss mindestens 6 Zeichen haben.");
+    else if (pw !== null) setErr(t("admin.users.err.pwShort"));
   };
   const del = (u: U) => {
     setAsk({
-      title: `Benutzer „${u.username}“ löschen?`,
-      message: "Das Konto wird dauerhaft entfernt.",
-      label: "Löschen",
+      title: t("admin.users.deleteTitle", { name: u.username }),
+      message: t("admin.users.deleteMsg"),
+      label: t("common.delete"),
       run: () => act(u.id, "delete"),
     });
   };
@@ -281,7 +283,7 @@ export default function UserManagement() {
         }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Fehler");
+      if (!r.ok) throw new Error(d.error || t("common.error"));
       setUsers(d.users);
       setEdit(null);
     } catch (e) {
@@ -314,15 +316,15 @@ export default function UserManagement() {
       {/* ── Active sessions ─────────────────────────────────────────────── */}
       <div className="mb-2 flex items-center gap-2">
         <Activity size={16} className="text-accent" />
-        <h4 className="font-medium">Aktive Sitzungen</h4>
+        <h4 className="font-medium">{t("admin.users.sessions")}</h4>
         <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] text-accent">
           {sessions.length}
         </span>
-        <InfoTip text="Wer in den letzten zwei Minuten eine Anfrage gestellt hat. Diese Angaben liegen ausschließlich im Arbeitsspeicher dieses Servers, werden nicht in data/ geschrieben und sind nach einem Neustart weg. Eine Zeile je Gerät bzw. Browser." />
+        <InfoTip text={t("admin.users.sessionsTip")} />
       </div>
       {sessions.length === 0 ? (
         <p className="mb-4 text-sm text-neutral-400">
-          Gerade niemand aktiv. Angemeldete Clients melden sich alle 20 Sekunden.
+          {t("admin.users.sessionsEmpty")}
         </p>
       ) : (
         <div className="mb-4 max-h-52 space-y-1 overflow-y-auto pr-1">
@@ -334,11 +336,11 @@ export default function UserManagement() {
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
               <span className="min-w-0 truncate font-medium">{s.name}</span>
               <span className="shrink-0 rounded bg-neutral-200 px-1 text-[10px] text-neutral-600 dark:bg-white/10 dark:text-neutral-300">
-                {KIND_LABEL[s.kind]}
+                {t(KIND_LABEL[s.kind])}
               </span>
-              <span className="min-w-0 truncate text-neutral-400">{browserOf(s.ua)}</span>
+              <span className="min-w-0 truncate text-neutral-400">{browserOf(t, s.ua)}</span>
               <span className="ml-auto shrink-0 font-mono text-neutral-400">{s.ip}</span>
-              <span className="shrink-0 text-neutral-500">{since(s.lastSeen, now)}</span>
+              <span className="shrink-0 text-neutral-500">{since(t, s.lastSeen, now)}</span>
             </div>
           ))}
         </div>
@@ -346,10 +348,10 @@ export default function UserManagement() {
 
       <div className="mb-2 flex items-center gap-2 border-t border-border-light pt-4 dark:border-border-dark">
         <Users size={16} className="text-accent" />
-        <h4 className="font-medium">Benutzer</h4>
+        <h4 className="font-medium">{t("admin.users.title")}</h4>
       </div>
       <p className="mb-3 text-sm text-neutral-500">
-        Rollen vergeben, Konten sperren, Passwörter zurücksetzen oder löschen.
+        {t("admin.users.intro")}
       </p>
       {err && <div className="mb-2 text-sm text-red-500">⚠ {err}</div>}
 
@@ -358,33 +360,33 @@ export default function UserManagement() {
         <input
           value={nu.firstName}
           onChange={(e) => setNu({ ...nu, firstName: e.target.value })}
-          placeholder="Vorname"
+          placeholder={t("admin.users.firstName")}
           className="input-base min-w-0 py-1"
         />
         <input
           value={nu.lastName}
           onChange={(e) => setNu({ ...nu, lastName: e.target.value })}
-          placeholder="Nachname"
+          placeholder={t("admin.users.lastName")}
           className="input-base min-w-0 py-1"
         />
         <input
           value={nu.username}
           onChange={(e) => setNu({ ...nu, username: e.target.value })}
-          placeholder="Benutzername"
+          placeholder={t("common.username")}
           className="input-base min-w-0 py-1"
         />
         <input
           type="email"
           value={nu.email}
           onChange={(e) => setNu({ ...nu, email: e.target.value })}
-          placeholder="E-Mail (optional, für Passwort-Reset)"
+          placeholder={t("admin.users.emailPh")}
           className="input-base min-w-0 py-1"
         />
         <input
           type="password"
           value={nu.password}
           onChange={(e) => setNu({ ...nu, password: e.target.value })}
-          placeholder="Passwort"
+          placeholder={t("common.password")}
           className="input-base min-w-0 py-1"
         />
         <select
@@ -403,7 +405,7 @@ export default function UserManagement() {
           disabled={busy !== null}
           className="col-span-2 flex items-center justify-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-40"
         >
-          <UserPlus size={15} /> Anlegen
+          <UserPlus size={15} /> {t("admin.users.create")}
         </button>
       </div>
 
@@ -416,7 +418,7 @@ export default function UserManagement() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Nach Name, Benutzername oder E-Mail suchen…"
+          placeholder={t("admin.users.searchPh")}
           className="input-base w-full py-1.5 pl-8"
         />
       </div>
@@ -425,7 +427,7 @@ export default function UserManagement() {
         <Loader2 size={16} className="animate-spin text-neutral-400" />
       ) : filtered.length === 0 ? (
         <p className="py-4 text-center text-sm text-neutral-400">
-          Keine Benutzer gefunden.
+          {t("admin.users.none")}
         </p>
       ) : (
         <div className="max-h-96 space-y-1.5 overflow-y-auto pr-1">
@@ -443,10 +445,10 @@ export default function UserManagement() {
               <span
                 title={
                   online(u.id)
-                    ? "gerade aktiv"
+                    ? t("admin.users.activeNow")
                     : lastSeen[u.id]
-                    ? `zuletzt ${since(lastSeen[u.id], now)}`
-                    : "seit dem letzten Neustart nicht gesehen"
+                    ? t("admin.users.lastSeen", { when: since(t, lastSeen[u.id], now) })
+                    : t("admin.users.notSeen")
                 }
                 className={clsx(
                   "h-1.5 w-1.5 shrink-0 rounded-full",
@@ -461,14 +463,14 @@ export default function UserManagement() {
                       built-in
                     </span>
                   )}
-                  {u.blocked && <span className="text-[10px] text-red-500">gesperrt</span>}
+                  {u.blocked && <span className="text-[10px] text-red-500">{t("admin.users.blocked")}</span>}
                 </div>
                 <div className="truncate text-xs text-neutral-400">
                   {fullName(u) ? `${u.username} · ` : ""}
                   {providerLabel(u.provider)}
                   {u.email ? ` · ${u.email}` : ""}
                   {lastSeen[u.id] && !online(u.id)
-                    ? ` · zuletzt ${since(lastSeen[u.id], now)}`
+                    ? ` · ${t("admin.users.lastSeen", { when: since(t, lastSeen[u.id], now) })}`
                     : ""}
                 </div>
               </div>
@@ -478,7 +480,7 @@ export default function UserManagement() {
                 disabled={u.builtin || busy !== null}
                 onChange={(e) => act(u.id, "setRole", e.target.value)}
                 className="input-base w-28 py-1 text-xs disabled:opacity-50"
-                title="Rolle"
+                title={t("admin.users.role")}
               >
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
@@ -501,8 +503,8 @@ export default function UserManagement() {
                   })
                 }
                 disabled={busy !== null}
-                title="Name, Benutzername und E-Mail bearbeiten"
-                aria-label={`${u.username} bearbeiten`}
+                title={t("admin.users.editTitle")}
+                aria-label={t("admin.users.editNamed", { name: u.username })}
                 className={clsx(
                   "rounded-lg p-1.5 transition hover:bg-neutral-200 dark:hover:bg-white/10",
                   u.email ? "text-accent" : "text-neutral-500 hover:text-accent"
@@ -515,15 +517,15 @@ export default function UserManagement() {
                 <button
                   onClick={() =>
                     setAsk({
-                      title: `2FA für „${u.username}“ abschalten?`,
-                      message: "Nötig, wenn der Authenticator verloren ist.",
-                      label: "Abschalten",
+                      title: t("admin.users.2faTitle", { name: u.username }),
+                      message: t("admin.users.2faMsg"),
+                      label: t("admin.users.2faOff"),
                       run: () => act(u.id, "clearTwoFactor"),
                     })
                   }
                   disabled={busy !== null}
-                  title="2FA aktiv — zum Zurücksetzen klicken"
-                  aria-label={`2FA für ${u.username} zurücksetzen`}
+                  title={t("admin.users.2faActive")}
+                  aria-label={t("admin.users.2faReset", { name: u.username })}
                   className="rounded-lg p-1.5 text-accent transition hover:bg-neutral-200 dark:hover:bg-white/10"
                 >
                   <ShieldCheck size={15} />
@@ -533,8 +535,8 @@ export default function UserManagement() {
               <button
                 onClick={() => resetPw(u)}
                 disabled={busy !== null}
-                title="Passwort zurücksetzen"
-                aria-label={`Passwort von ${u.username} zurücksetzen`}
+                title={t("login.titleReset")}
+                aria-label={t("admin.users.resetPwNamed", { name: u.username })}
                 className="rounded-lg p-1.5 text-neutral-500 transition hover:bg-neutral-200 hover:text-accent dark:hover:bg-white/10"
               >
                 <KeyRound size={15} />
@@ -545,8 +547,8 @@ export default function UserManagement() {
                   <button
                     onClick={() => act(u.id, u.blocked ? "unblock" : "block")}
                     disabled={busy !== null}
-                    title={u.blocked ? "Entsperren" : "Sperren"}
-                    aria-label={`${u.username} ${u.blocked ? "entsperren" : "sperren"}`}
+                    title={u.blocked ? t("admin.users.unblock") : t("admin.users.block")}
+                    aria-label={t(u.blocked ? "admin.users.unblockNamed" : "admin.users.blockNamed", { name: u.username })}
                     className="rounded-lg p-1.5 text-neutral-500 transition hover:bg-neutral-200 dark:hover:bg-white/10"
                   >
                     {u.blocked ? <Unlock size={15} /> : <Lock size={15} />}
@@ -554,8 +556,8 @@ export default function UserManagement() {
                   <button
                     onClick={() => del(u)}
                     disabled={busy !== null}
-                    title="Löschen"
-                    aria-label={`${u.username} löschen`}
+                    title={t("common.delete")}
+                    aria-label={t("common.deleteNamed", { name: u.username })}
                     className="rounded-lg p-1.5 text-neutral-500 transition hover:bg-neutral-200 hover:text-red-500 dark:hover:bg-white/10"
                   >
                     <Trash2 size={15} />
@@ -568,12 +570,12 @@ export default function UserManagement() {
                 <div className="border-t border-border-light px-2 py-1.5 dark:border-border-dark">
                   {u.role === "admin" ? (
                     <span className="text-xs text-neutral-400">
-                      Wissenszugriff: alle Kategorien (Admin)
+                      {t("admin.users.kbAll")}
                     </span>
                   ) : (
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       <span className="text-xs font-medium text-neutral-500">
-                        Wissenszugriff:
+                        {t("admin.users.kb")}
                       </span>
                       {cats.map((c) => (
                         <label
@@ -601,19 +603,18 @@ export default function UserManagement() {
 
       {edit && (
         <Modal onClose={() => setEdit(null)}>
-          <h4 className="font-medium">Konto bearbeiten</h4>
+          <h4 className="font-medium">{t("admin.users.editAccount")}</h4>
           <p className="mt-0.5 text-sm text-neutral-500">
-            Der Vorname bestimmt, wie die App den Nutzer anspricht.
+            {t("admin.users.firstNameHint")}
           </p>
           {edit.provider !== "local" && (
             <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-600 dark:text-amber-500">
-              Konto aus dem Firmenverzeichnis: Änderungen hier werden bei der nächsten
-              Anmeldung von dort überschrieben.
+              {t("admin.users.managed")}
             </p>
           )}
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs text-neutral-500">Vorname</label>
+              <label className="mb-1 block text-xs text-neutral-500">{t("admin.users.firstName")}</label>
               <input
                 autoFocus
                 value={edit.firstName}
@@ -622,7 +623,7 @@ export default function UserManagement() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-neutral-500">Nachname</label>
+              <label className="mb-1 block text-xs text-neutral-500">{t("admin.users.lastName")}</label>
               <input
                 value={edit.lastName}
                 onChange={(e) => setEdit({ ...edit, lastName: e.target.value })}
@@ -631,8 +632,8 @@ export default function UserManagement() {
             </div>
             <div className="sm:col-span-2">
               <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-                Anzeigename
-                <InfoTip text="Optional. Leer lassen — dann wird er aus Vor- und Nachnamen gebildet und bleibt automatisch aktuell." />
+                {t("admin.users.displayName")}
+                <InfoTip text={t("admin.users.displayNameTip")} />
               </label>
               <input
                 value={edit.displayName}
@@ -643,9 +644,9 @@ export default function UserManagement() {
             </div>
             <div>
               <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-                Benutzername
+                {t("common.username")}
                 {edit.builtin && (
-                  <InfoTip text="Der Built-in-Administrator kann nicht umbenannt werden — er ist der garantierte Wiederherstellungszugang." />
+                  <InfoTip text={t("admin.users.builtinTip")} />
                 )}
               </label>
               <input
@@ -657,13 +658,13 @@ export default function UserManagement() {
             </div>
             <div>
               <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-                E-Mail
-                <InfoTip text="Wird für den Passwort-Reset per E-Mail benötigt. Leer = entfernen." />
+                {t("account.email")}
+                <InfoTip text={t("admin.users.emailTip")} />
               </label>
               <input
                 value={edit.email}
                 onChange={(e) => setEdit({ ...edit, email: e.target.value })}
-                placeholder="name@firma.de"
+                placeholder={t("account.emailPh")}
                 className="w-full input-base font-mono text-xs"
               />
             </div>
@@ -673,7 +674,7 @@ export default function UserManagement() {
               onClick={() => setEdit(null)}
               className="rounded-lg border border-border-light px-3 py-1.5 text-sm dark:border-border-dark"
             >
-              Abbrechen
+              {t("common.cancel")}
             </button>
             <button
               onClick={saveEdit}
@@ -681,7 +682,7 @@ export default function UserManagement() {
               className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
             >
               {busy === "edit" && <Loader2 size={14} className="animate-spin" />}
-              Speichern
+              {t("common.save")}
             </button>
           </div>
         </Modal>

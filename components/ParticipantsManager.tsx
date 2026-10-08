@@ -6,6 +6,7 @@ import clsx from "clsx";
 import { useStore } from "@/lib/store";
 import Modal from "./Modal";
 import { SidekickAvatar } from "./SidekickIcon";
+import { useT } from "@/lib/i18n";
 
 /**
  * Virtual conference room: manage which sidekicks are active in a chat. Shows
@@ -13,6 +14,7 @@ import { SidekickAvatar } from "./SidekickIcon";
  * modal (multi-select). More than one invited → the chat becomes a group chat.
  */
 export default function ParticipantsManager({ chatId }: { chatId: string }) {
+  const t = useT();
   const sidekicks = useStore((s) => s.sidekicks);
   const chat = useStore((s) => s.chats.find((c) => c.id === chatId));
   const setChatSidekicks = useStore((s) => s.setChatSidekicks);
@@ -66,7 +68,7 @@ export default function ParticipantsManager({ chatId }: { chatId: string }) {
         )}
         <button
           onClick={openModal}
-          title="Nutzer einladen / Teilnehmer verwalten"
+          title={t("participants.button")}
           className="rounded-lg p-2 text-zinc-400 transition-colors duration-150 hover:bg-neutral-200 hover:text-neutral-900 dark:hover:bg-white/5 dark:hover:text-zinc-100"
         >
           <UserPlus size={18} strokeWidth={1.5} />
@@ -75,16 +77,14 @@ export default function ParticipantsManager({ chatId }: { chatId: string }) {
 
       {open && (
         <Modal onClose={() => setOpen(false)}>
-          <h3 className="mb-1 text-lg font-semibold">Teilnehmer verwalten</h3>
+          <h3 className="mb-1 text-lg font-semibold">{t("participants.title")}</h3>
           <p className="mb-3 text-sm text-neutral-500">
-            Lade mehrere Sidekicks in diesen Chat ein. Bei mehr als einem wird der
-            Chat zum Konferenzraum.
+            {t("participants.intro")}
           </p>
 
           {sidekicks.length === 0 ? (
             <p className="py-4 text-center text-sm text-neutral-400">
-              Noch keine Sidekicks. Lege welche unter Einstellungen →
-              KI-Personalisierung an.
+              {t("participants.empty")}
             </p>
           ) : (
             <div className="max-h-72 space-y-1 overflow-y-auto">
@@ -125,10 +125,9 @@ export default function ParticipantsManager({ chatId }: { chatId: string }) {
               className="mt-0.5 h-4 w-4 accent-[rgb(var(--accent))]"
             />
             <span>
-              <span className="font-medium">Automatische Moderation</span>
+              <span className="font-medium">{t("participants.moderation")}</span>
               <span className="block text-xs text-neutral-400">
-                Ein Moderator-Modell wählt vor jedem Beitrag den passendsten
-                Sidekick (statt fester Reihenfolge).
+                {t("participants.moderationHint")}
               </span>
             </span>
           </label>
@@ -138,13 +137,13 @@ export default function ParticipantsManager({ chatId }: { chatId: string }) {
               onClick={() => setOpen(false)}
               className="rounded-lg px-3 py-1.5 text-sm hover:bg-neutral-200 dark:hover:bg-white/10"
             >
-              Abbrechen
+              {t("common.cancel")}
             </button>
             <button
               onClick={saveSel}
               className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover"
             >
-              Speichern
+              {t("common.save")}
             </button>
           </div>
         </Modal>

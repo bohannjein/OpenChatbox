@@ -12,21 +12,23 @@ import {
   Square,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useT, type StringKey } from "@/lib/i18n";
 import { fetchModels, modelKey, pullModel } from "@/lib/providers";
 import AdminTerminal from "./AdminTerminal";
 import RolesEditor from "./RolesEditor";
 
 /** Ready-made display names describing what a model is *for*, offered as
  *  one-click fills next to the free-text alias field. */
-const PURPOSE_NAMES = [
-  "Schnell",
-  "Gründlich",
-  "Versteht Bilder",
-  "Programmieren",
-  "Übersetzen",
+const PURPOSE_NAMES: StringKey[] = [
+  "admin.ollama.purpose.fast",
+  "admin.ollama.purpose.thorough",
+  "admin.ollama.purpose.vision",
+  "admin.ollama.purpose.code",
+  "admin.ollama.purpose.translate",
 ];
 
 export default function AdminPanel() {
+  const t = useT();
   const providers = useStore((s) => s.providers);
   const favorites = useStore((s) => s.favorites);
   const toggleFavorite = useStore((s) => s.toggleFavorite);
@@ -76,7 +78,7 @@ export default function AdminPanel() {
     setPulling(true);
     setPullError(null);
     setPercent(null);
-    setStatus("Starte…");
+    setStatus(t("admin.ollama.starting"));
     const ac = new AbortController();
     abortRef.current = ac;
     try {
@@ -89,7 +91,7 @@ export default function AdminPanel() {
         },
         ac.signal
       );
-      setStatus("Fertig ✓");
+      setStatus(t("admin.ollama.done"));
       setPercent(100);
       setPullName("");
       await loadModels();
@@ -106,14 +108,13 @@ export default function AdminPanel() {
     abortRef.current?.abort();
     abortRef.current = null;
     setPulling(false);
-    setStatus("Abgebrochen");
+    setStatus(t("admin.ollama.cancelled"));
   };
 
   if (ollamaProviders.length === 0) {
     return (
       <p className="text-sm text-neutral-500">
-        Kein Ollama-Anbieter konfiguriert. Trage oben unter „Anbieter &
-        Endpunkte" einen Ollama-Anbieter ein, um Modelle zu verwalten.
+        {t("admin.ollama.noProvider")}
       </p>
     );
   }
@@ -124,7 +125,7 @@ export default function AdminPanel() {
       {ollamaProviders.length > 1 && (
         <div>
           <label className="mb-1 block text-xs text-neutral-500">
-            Ollama-Server
+            {t("admin.ollama.server")}
           </label>
           <select
             value={serverId}
@@ -142,18 +143,18 @@ export default function AdminPanel() {
 
       {/* Pull */}
       <section>
-        <h4 className="font-medium">Modelle laden</h4>
+        <h4 className="font-medium">{t("admin.ollama.pullTitle")}</h4>
         <p className="mb-2 text-sm text-neutral-500">
-          Modellname aus der Ollama-Bibliothek eingeben (z. B. <code>phi3</code>,{" "}
-          <code>llama3.2</code>, <code>qwen2.5:14b</code>). Lädt auf{" "}
-          {server?.baseUrl}.
+          {t("admin.ollama.pullHint")} <code>phi3</code>,{" "}
+          <code>llama3.2</code>, <code>qwen2.5:14b</code>).{" "}
+          {t("admin.ollama.pullTarget", { url: server?.baseUrl ?? "" })}
         </p>
         <div className="flex gap-2">
           <input
             value={pullName}
             onChange={(e) => setPullName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && startPull()}
-            placeholder="z. B. phi3"
+            placeholder={t("admin.ollama.pullPlaceholder")}
             disabled={pulling}
             className="min-w-0 flex-1 input-base px-3 font-mono disabled:opacity-60"
           />
@@ -170,7 +171,7 @@ export default function AdminPanel() {
               disabled={!pullName.trim()}
               className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-40"
             >
-              <Download size={15} /> Laden
+              <Download size={15} /> {t("admin.ollama.pull")}
             </button>
           )}
         </div>
@@ -213,17 +214,15 @@ export default function AdminPanel() {
       <section className="border-t border-border-light pt-4 dark:border-border-dark">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <h4 className="font-medium">Anzeigenamen & Favoriten</h4>
+            <h4 className="font-medium">{t("admin.ollama.aliasTitle")}</h4>
             <p className="text-sm text-neutral-500">
-              Der Anzeigename ersetzt die Modell-ID überall in der App. Nutzer
-              ohne technischen Hintergrund können mit „gemma4:e4b" nichts
-              anfangen — ein Name nach Zweck schon.
+              {t("admin.ollama.aliasHint")}
             </p>
           </div>
           <button
             onClick={loadModels}
             className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-200 dark:hover:bg-white/10"
-            title="Neu laden"
+            title={t("common.reload")}
           >
             <RefreshCw
               size={15}
@@ -236,7 +235,7 @@ export default function AdminPanel() {
           <div className="mb-2 text-sm text-red-500">⚠ {modelsError}</div>
         )}
         {models.length === 0 && !loadingModels && !modelsError && (
-          <p className="text-sm text-neutral-500">Keine Modelle gefunden.</p>
+          <p className="text-sm text-neutral-500">{t("admin.ollama.noModels")}</p>
         )}
 
         <div className="space-y-2">
@@ -251,7 +250,7 @@ export default function AdminPanel() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => toggleFavorite(key)}
-                    title={fav ? "Favorit entfernen" : "Favorisieren"}
+                    title={fav ? t("admin.ollama.unfavorite") : t("admin.ollama.favorite")}
                     className="shrink-0 text-neutral-400 hover:text-amber-400"
                   >
                     <Star
@@ -268,14 +267,14 @@ export default function AdminPanel() {
                   <input
                     value={aliases[key] ?? ""}
                     onChange={(e) => setAlias(key, e.target.value)}
-                    placeholder="Anzeigename (Alias)…"
+                    placeholder={t("admin.ollama.aliasPlaceholder")}
                     className="min-w-0 flex-1 input-base"
                   />
                 </div>
                 {/* One-click purpose names — the point is to make naming cheap
                     enough that it actually gets done. */}
                 <div className="mt-1.5 flex flex-wrap gap-1 pl-[26px]">
-                  {PURPOSE_NAMES.map((p) => (
+                  {PURPOSE_NAMES.map((pk) => t(pk)).map((p) => (
                     <button
                       key={p}
                       onClick={() => setAlias(key, p)}

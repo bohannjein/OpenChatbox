@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Mail, CheckCircle2, XCircle } from "lucide-react";
 import { useBrand } from "@/lib/store";
 import InfoTip from "./InfoTip";
+import { useT } from "@/lib/i18n";
 
 interface SmtpView {
   enabled: boolean;
@@ -21,6 +22,7 @@ interface SmtpView {
  * empty field keeps the stored one.
  */
 export default function SmtpConfigPanel() {
+  const t = useT();
   const brand = useBrand();
   const [enabled, setEnabled] = useState(false);
   const [host, setHost] = useState("");
@@ -83,11 +85,11 @@ export default function SmtpConfigPanel() {
       const d = await r.json();
       setTestResult(
         r.ok
-          ? { ok: true, msg: "Verbindung erfolgreich." }
-          : { ok: false, msg: d.error || "Verbindung fehlgeschlagen." }
+          ? { ok: true, msg: t("admin.smtp.okTest") }
+          : { ok: false, msg: d.error || t("admin.smtp.errTest") }
       );
     } catch {
-      setTestResult({ ok: false, msg: "Verbindung fehlgeschlagen." });
+      setTestResult({ ok: false, msg: t("admin.smtp.errTest") });
     } finally {
       setTesting(false);
     }
@@ -97,11 +99,11 @@ export default function SmtpConfigPanel() {
     <div>
       <div className="mb-2 flex items-center gap-2">
         <Mail size={16} className="text-accent" />
-        <h4 className="font-medium">E-Mail-Versand</h4>
-        <InfoTip text="Postausgangsserver, über den die App E-Mails verschickt — aktuell für „Passwort vergessen“-Links. Ohne konfiguriertes SMTP ist der Self-Service-Reset inaktiv." />
+        <h4 className="font-medium">{t("admin.smtp.title")}</h4>
+        <InfoTip text={t("admin.smtp.titleInfo")} />
       </div>
       <p className="mb-3 text-sm text-neutral-500">
-        Nötig, damit Nutzer ihr Passwort per E-Mail-Link selbst zurücksetzen können.
+        {t("admin.smtp.intro")}
       </p>
 
       <label className="flex cursor-pointer items-center gap-2 text-sm">
@@ -111,14 +113,14 @@ export default function SmtpConfigPanel() {
           onChange={(e) => setEnabled(e.target.checked)}
           className="h-4 w-4 accent-[rgb(var(--accent))]"
         />
-        E-Mail-Versand aktivieren
+        {t("admin.smtp.enable")}
       </label>
 
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-            Host
-            <InfoTip text="Adresse des Postausgangsservers, z. B. smtp.firma.de oder smtp.office365.com." />
+            {t("admin.smtp.host")}
+            <InfoTip text={t("admin.smtp.hostInfo")} />
           </label>
           <input
             value={host}
@@ -130,8 +132,8 @@ export default function SmtpConfigPanel() {
 
         <div>
           <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-            Port
-            <InfoTip text="465 für implizite TLS-Verschlüsselung, 587 für STARTTLS (üblich), 25 unverschlüsselt." />
+            {t("admin.smtp.port")}
+            <InfoTip text={t("admin.smtp.portInfo")} />
           </label>
           <input
             type="number"
@@ -151,16 +153,16 @@ export default function SmtpConfigPanel() {
               className="h-4 w-4 accent-[rgb(var(--accent))]"
             />
             <span className="flex items-center gap-1.5">
-              Implizites TLS
-              <InfoTip text="An = direkte TLS-Verbindung (Port 465). Aus = STARTTLS (Port 587/25). Im Zweifel: 587 + aus." />
+              {t("admin.smtp.tls")}
+              <InfoTip text={t("admin.smtp.tlsInfo")} />
             </span>
           </label>
         </div>
 
         <div>
           <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-            Benutzer
-            <InfoTip text="Login-Name beim Mailserver — meist die vollständige E-Mail-Adresse des Absenderkontos." />
+            {t("admin.smtp.user")}
+            <InfoTip text={t("admin.smtp.userInfo")} />
           </label>
           <input
             value={user}
@@ -172,23 +174,23 @@ export default function SmtpConfigPanel() {
 
         <div>
           <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-            Passwort
-            <InfoTip text="Passwort des Absenderkontos. Wird verschlüsselt gespeichert und nie zurückgegeben. Leer lassen = gespeichertes Passwort behalten." />
+            {t("common.password")}
+            <InfoTip text={t("admin.smtp.passwordInfo")} />
           </label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder={hasPassword ? "•••••••• (gespeichert)" : "Passwort"}
+            placeholder={hasPassword ? t("common.secretStored") : t("common.password")}
             className="w-full input-base py-1.5 text-sm"
           />
         </div>
 
         <div className="sm:col-span-2">
           <label className="mb-1 flex items-center gap-1.5 text-xs text-neutral-500">
-            Absender (From)
+            {t("admin.smtp.from")}
             <InfoTip
-              text={`Die im Postfach angezeigte Absenderadresse. Eine reine Adresse (noreply@firma.de) bekommt automatisch „${brand.appName}“ als Anzeigenamen; ein eigener Anzeigename wird übernommen. Leer = SMTP-Benutzer.`}
+              text={t("admin.smtp.fromInfo", { app: brand.appName })}
             />
           </label>
           <input
@@ -202,9 +204,7 @@ export default function SmtpConfigPanel() {
       </div>
 
       <p className="mt-3 text-xs text-neutral-500">
-        Der Link in der Reset-Mail nutzt die öffentliche App-URL aus den
-        Branding-Einstellungen. Ist dort nichts gesetzt, rät die App die Adresse
-        aus der Anfrage (hinter Proxy / bei Bind auf 0.0.0.0 evtl. unbrauchbar).
+        {t("admin.smtp.linkNote")}
       </p>
 
       {testResult && (
@@ -220,20 +220,20 @@ export default function SmtpConfigPanel() {
       )}
 
       <div className="mt-4 flex items-center justify-end gap-2">
-        {saved && <span className="text-xs text-accent">Gespeichert ✓</span>}
+        {saved && <span className="text-xs text-accent">{t("account.saved")}</span>}
         <button
           onClick={test}
           disabled={testing}
           className="flex items-center gap-1.5 rounded-lg border border-border-light px-3 py-1.5 text-sm transition hover:bg-neutral-100 disabled:opacity-50 dark:border-border-dark dark:hover:bg-white/5"
         >
           {testing ? <Loader2 size={14} className="animate-spin" /> : null}
-          Speichern & testen
+          {t("admin.smtp.saveTest")}
         </button>
         <button
           onClick={save}
           className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover"
         >
-          Speichern
+          {t("common.save")}
         </button>
       </div>
     </div>

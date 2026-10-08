@@ -8,7 +8,9 @@ import SettingsModal from "@/components/SettingsModal";
 import SearchModal from "@/components/SearchModal";
 import FileManager from "@/components/FileManager";
 import { useStore, useBrand } from "@/lib/store";
-import { loadServerState, startProfileSync, startLiveSync } from "@/lib/serverSync";
+import { loadServerState, startProfileSync, startLiveSync, retrySync } from "@/lib/serverSync";
+import { copyText } from "@/lib/clipboard";
+import ShortcutsDialog from "@/components/ShortcutsDialog";
 import { brandTokens } from "@/lib/branding";
 import { detectBrowserLang, useT } from "@/lib/i18n";
 import clsx from "clsx";
@@ -90,17 +92,66 @@ export default function AppRoot() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // Cmd/Ctrl+K → global chat search
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // Short-lived confirmation (e.g. "Response copied"), announced politely.
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!notice) return;
+    const id = window.setTimeout(() => setNotice(null), 2000);
+    return () => window.clearTimeout(id);
+  }, [notice]);
+
+  // Global shortcuts, bound like ChatGPT so switching users keep their habits.
+  // The cheat sheet (ShortcutsDialog) lists the same set.
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && !e.shiftKey && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSearchOpen(true);
+      } else if (mod && (e.key === "/" || e.code === "Slash")) {
+        e.preventDefault();
+        setShortcutsOpen((o) => !o);
+      } else if (e.shiftKey && !mod && e.key === "Escape") {
+        e.preventDefault();
+        document.getElementById("chat-input")?.focus();
+      } else if (mod && e.shiftKey) {
+        const st = useStore.getState();
+        if (e.code === "KeyO") {
+          e.preventDefault();
+          if (pathname === "/") st.newChat();
+          else router.push("/");
+        } else if (e.code === "KeyS") {
+          e.preventDefault();
+          st.setSidebarOpen(!st.sidebarOpen);
+        } else if (e.code === "KeyC") {
+          const msgs = st.chats.find((c) => c.id === st.activeChatId)?.messages ?? [];
+          const last = [...msgs].reverse().find((m) => m.role === "assistant" && m.content);
+          if (!last) return;
+          e.preventDefault();
+          copyText(last.content).then((ok) => ok && setNotice(t("app.copied")));
+        }
       }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [setSearchOpen]);
+  }, [setSearchOpen, pathname, router, t]);
+
+  // Offline banner + automatic re-save when the connection comes back.
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    const update = () => {
+      setOnline(navigator.onLine);
+      if (navigator.onLine && useStore.getState().syncError) retrySync();
+    };
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
 
   // Hydrate admin-global config + per-user profile + chats from the server ONCE
   // per load. NOT on every navigation — re-hydrating on the router.push that
@@ -222,14 +273,11 @@ export default function AppRoot() {
   // On /login, /share and /setup the route's own page renders; shell stays hidden.
   if (isAuthRoute || isSetupRoute || isJoinRoute) return null;
 
-  if (!mounted) {
-    return <div className="h-dvh w-full bg-main-light dark:bg-main-dark" />;
-  }
-
-  // Hold the app back until we know setup is done — avoids flashing the shell
-  // before redirecting a fresh install to /setup.
-  if (needsSetup !== false) {
-    return <div className="h-dvh w-full bg-main-light dark:bg-main-dark" />;
+  // Hold the app back until mounted and setup is known done — avoids flashing
+  // the shell before redirecting a fresh install to /setup. The skeleton keeps
+  // the layout steady so the load reads as "opening", not as a blank page.
+  if (!mounted || needsSetup !== false) {
+    return <AppSkeleton sidebar={!mounted || sidebarOpen} label={t("common.loading")} />;
   }
 
   return (
@@ -259,13 +307,58 @@ export default function AppRoot() {
       <SettingsModal />
       <SearchModal />
       <FileManager />
-      {syncError && (
+      {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
+      {!online ? (
+        <div
+          role="status"
+          className="fixed bottom-3 left-1/2 z-[70] w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg border border-border-light bg-white px-4 py-2 text-sm text-neutral-700 shadow-lg dark:border-border-dark dark:bg-sidebar-dark dark:text-neutral-200">
+          {t("app.offline")}
+        </div>
+      ) : syncError ? (
         <div
           role="alert"
-          className="fixed bottom-3 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-700 shadow-lg dark:border-red-900 dark:bg-red-950/80 dark:text-red-300">
-          {t("app.syncError")}
+          className="fixed bottom-3 left-1/2 z-[70] flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-700 shadow-lg dark:border-red-900 dark:bg-red-950/80 dark:text-red-300">
+          <span>{t("app.syncError")}</span>
+          <button
+            onClick={retrySync}
+            className="shrink-0 rounded-md px-2 py-1 font-medium underline underline-offset-2 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:hover:bg-red-900/50">
+            {t("app.retry")}
+          </button>
+        </div>
+      ) : null}
+      <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-3 left-1/2 z-[70] -translate-x-1/2">
+        {notice && (
+          <div className="animate-fade-in rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white shadow-lg dark:bg-white dark:text-neutral-900">
+            {notice}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Placeholder shell shown while the app boots: sidebar column + docked input,
+ *  matching the real layout so nothing jumps when it swaps in. */
+function AppSkeleton({ sidebar, label }: { sidebar: boolean; label: string }) {
+  const bar = "rounded-md bg-black/[0.06] dark:bg-white/[0.06]";
+  return (
+    <div
+      role="status"
+      aria-label={label}
+      className="flex h-dvh w-full overflow-hidden bg-main-light motion-safe:animate-pulse dark:bg-main-dark"
+    >
+      {sidebar && (
+        <div className="hidden w-72 shrink-0 flex-col gap-3 border-r border-border-light bg-sidebar-light p-3 dark:border-border-dark dark:bg-sidebar-dark md:flex">
+          <div className={clsx(bar, "h-10 rounded-xl")} />
+          <div className={clsx(bar, "mt-4 h-3 w-16")} />
+          {[78, 62, 70, 54, 66, 48].map((w) => (
+            <div key={w} className={clsx(bar, "h-4")} style={{ width: `${w}%` }} />
+          ))}
         </div>
       )}
+      <div className="flex flex-1 flex-col items-center justify-end px-4 pb-10">
+        <div className={clsx(bar, "h-14 w-full max-w-3xl rounded-2xl")} />
+      </div>
     </div>
   );
 }

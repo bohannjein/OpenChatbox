@@ -781,8 +781,22 @@ await bookstackTests();
   eq("i18n: no detail, no parens", withDetail("Not saved.", undefined), "Not saved.");
 }
 
+// ── PWA manifest icons ───────────────────────────────────────────────────
+{
+  const { brandIcons } = await import("../app/manifest");
+  // PNG signature + IHDR claiming 512x256.
+  const png = Buffer.alloc(24);
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(png);
+  png.writeUInt32BE(512, 16);
+  png.writeUInt32BE(256, 20);
+  eq("pwa: png icon sizes from IHDR", brandIcons("data:image/png;base64," + png.toString("base64"))?.[0]?.sizes, "512x256");
+  eq("pwa: default icon has maskable", brandIcons(undefined)?.map((i) => i.purpose), ["any", "maskable"]);
+  eq("pwa: https logo is any", brandIcons("https://x/logo.webp")?.[0], { src: "/api/brand/icon", sizes: "any" });
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 // Set the code instead of process.exit(): the providerStream tests leave undici
 // keep-alive sockets in the pool, and exiting while those handles are closing
 // trips a libuv assertion on Windows. Draining the loop is the safe way out.
 process.exitCode = fail ? 1 : 0;
+

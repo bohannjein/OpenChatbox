@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { TerminalSquare, CornerDownLeft, Square, Trash2 } from "lucide-react";
 import clsx from "clsx";
 import { useBrand } from "@/lib/store";
+import { useT } from "@/lib/i18n";
 
 type Line = { kind: "in" | "out" | "err"; text: string };
 
@@ -16,8 +17,9 @@ const QUICK = ["ollama list", "ollama ps", "ollama version", "status", "help"];
  */
 export default function AdminTerminal({ baseUrl }: { baseUrl?: string }) {
   const brand = useBrand();
+  const t = useT();
   const [lines, setLines] = useState<Line[]>([
-    { kind: "out", text: `${brand.appName} Admin-Terminal — tippe "help".` },
+    { kind: "out", text: t("admin.terminal.welcome", { app: brand.appName }) },
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -81,7 +83,7 @@ export default function AdminTerminal({ baseUrl }: { baseUrl?: string }) {
     } catch (e) {
       if ((e as Error)?.name !== "AbortError")
         push({ kind: "err", text: e instanceof Error ? e.message : String(e) });
-      else push({ kind: "err", text: "^C abgebrochen" });
+      else push({ kind: "err", text: t("admin.terminal.aborted") });
     } finally {
       abortRef.current = null;
       setBusy(false);
@@ -116,9 +118,9 @@ export default function AdminTerminal({ baseUrl }: { baseUrl?: string }) {
     <div>
       <div className="mb-2 flex items-center gap-2">
         <TerminalSquare size={16} className="text-accent" />
-        <h3 className="font-medium">Server-Terminal</h3>
+        <h3 className="font-medium">{t("admin.terminal.title")}</h3>
         <span className="rounded bg-neutral-200 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-600 dark:bg-white/10 dark:text-neutral-300">
-          nur Admin · nur Ollama
+          {t("admin.terminal.badge")}
         </span>
       </div>
 
@@ -136,7 +138,7 @@ export default function AdminTerminal({ baseUrl }: { baseUrl?: string }) {
         <button
           onClick={() => setLines([])}
           className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
-          title="Leeren"
+          title={t("admin.terminal.clear")}
         >
           <Trash2 size={12} /> Clear
         </button>
@@ -169,13 +171,13 @@ export default function AdminTerminal({ baseUrl }: { baseUrl?: string }) {
             spellCheck={false}
             autoCapitalize="off"
             autoComplete="off"
-            placeholder='z. B. "ollama list"'
+            placeholder={t("admin.terminal.placeholder")}
             className="min-w-0 flex-1 bg-transparent text-neutral-100 outline-none placeholder:text-neutral-500"
           />
           {busy ? (
             <button
               onClick={() => abortRef.current?.abort()}
-              title="Abbrechen (^C)"
+              title={t("admin.terminal.abort")}
               className="flex items-center gap-1 rounded-md bg-red-600/80 px-2 py-1 text-xs text-white hover:bg-red-600"
             >
               <Square size={11} /> Stop
@@ -184,7 +186,7 @@ export default function AdminTerminal({ baseUrl }: { baseUrl?: string }) {
             <button
               onClick={() => run(input)}
               disabled={!input.trim()}
-              title="Ausführen (⏎)"
+              title={t("admin.terminal.run")}
               className="flex items-center gap-1 rounded-md bg-accent px-2 py-1 text-xs font-medium text-white transition hover:bg-accent-hover disabled:opacity-40"
             >
               <CornerDownLeft size={12} /> Run
@@ -194,7 +196,7 @@ export default function AdminTerminal({ baseUrl }: { baseUrl?: string }) {
       </div>
       {!baseUrl && (
         <p className="mt-1.5 text-xs text-amber-500">
-          Kein Ollama-Server gewählt — ollama-Befehle brauchen einen Server.
+          {t("admin.terminal.noServer")}
         </p>
       )}
     </div>

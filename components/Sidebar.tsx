@@ -122,7 +122,7 @@ export default function Sidebar() {
   const [draggingChatId, setDraggingChatId] = useState<string | null>(null);
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
   const folderMenuRef = useRef<HTMLDivElement>(null);
-  useClickOutside(folderMenuRef, () => setFolderMenuId(null));
+  useClickOutside(folderMenuRef, () => setFolderMenuId(null), folderMenuId !== null);
 
   const toggleFolder = (id: string) =>
     setOpenFolders((prev) => {
@@ -156,7 +156,7 @@ export default function Sidebar() {
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const footerRef = useRef<HTMLDivElement>(null);
-  useClickOutside(footerRef, () => setMenuOpen(false));
+  useClickOutside(footerRef, () => setMenuOpen(false), menuOpen);
 
   const openProfile = () => {
     setMenuOpen(false);

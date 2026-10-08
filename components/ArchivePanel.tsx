@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { download } from "@/lib/share";
 import type { ChatFile } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 
 const iconFor = (k: ChatFile["kind"]) =>
   k === "image"
@@ -29,6 +30,7 @@ export default function ArchivePanel({
   files: ChatFile[];
   onJump: (messageId: string) => void;
 }) {
+  const t = useT();
   const doDownload = (f: ChatFile) => {
     if (f.dataUrl) {
       const a = document.createElement("a");
@@ -44,7 +46,7 @@ export default function ArchivePanel({
     <div className="p-2">
         {files.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-neutral-500">
-            Noch keine Dateien in diesem Chat.
+            {t("archive.empty")}
           </p>
         ) : (
           files
@@ -74,19 +76,19 @@ export default function ArchivePanel({
                       {f.name}
                     </div>
                     <div className="text-xs text-neutral-400">
-                      {f.source === "generated" ? "KI-generiert" : "Hochgeladen"}
+                      {f.source === "generated" ? t("files.generated") : t("files.uploaded")}
                     </div>
                   </div>
                   <button
                     onClick={() => onJump(f.messageId)}
-                    title="Zur Nachricht springen"
+                    title={t("archive.jump")}
                     className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-200 hover:text-accent dark:hover:bg-white/10"
                   >
                     <ArrowUpRight size={16} />
                   </button>
                   <button
                     onClick={() => doDownload(f)}
-                    title="Herunterladen"
+                    title={t("common.download")}
                     className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-200 hover:text-accent dark:hover:bg-white/10"
                   >
                     <Download size={16} />

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Check } from "lucide-react";
 import { loadServerState } from "@/lib/serverSync";
+import { useT } from "@/lib/i18n";
 
 type ImgType = "openai" | "automatic1111" | "comfyui";
 interface ImgCfg {
@@ -21,6 +22,7 @@ const DEFAULTS: ImgCfg = { enabled: false, type: "openai", size: "1024x1024" };
  * the Auto-mode image-generation scenario (/api/image).
  */
 export default function ImageGenPanel() {
+  const t = useT();
   const [cfg, setCfg] = useState<ImgCfg>(DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -59,7 +61,7 @@ export default function ImageGenPanel() {
         <div>
           <h4 className="font-medium">Backend</h4>
           <p className="text-sm text-neutral-500">
-            Backend für „generiere ein Bild …". Key bleibt serverseitig.
+            {t("admin.imagegen.desc")}
           </p>
         </div>
         <button
@@ -68,12 +70,12 @@ export default function ImageGenPanel() {
           className="flex shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-50"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : null}
-          {saved ? "Gespeichert" : "Speichern"}
+          {saved ? t("common.saved") : t("common.save")}
         </button>
       </div>
 
       {loading ? (
-        <p className="py-4 text-center text-sm text-neutral-400">Lädt…</p>
+        <p className="py-4 text-center text-sm text-neutral-400">{t("common.loading")}</p>
       ) : (
         <div className="space-y-3">
           <label className="flex cursor-pointer items-center gap-2 text-sm">
@@ -83,7 +85,7 @@ export default function ImageGenPanel() {
               onChange={(e) => set({ enabled: e.target.checked })}
               className="h-4 w-4 accent-[rgb(var(--accent))]"
             />
-            Bildgenerierung aktivieren
+            {t("admin.imagegen.enable")}
           </label>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -94,13 +96,13 @@ export default function ImageGenPanel() {
                 onChange={(e) => set({ type: e.target.value as ImgType })}
                 className="w-full input-base dark:bg-sidebar-dark"
               >
-                <option value="openai">OpenAI-kompatibel (/images/generations)</option>
+                <option value="openai">{t("admin.imagegen.openaiCompat")}</option>
                 <option value="automatic1111">Automatic1111 (/sdapi)</option>
-                <option value="comfyui">ComfyUI (noch nicht unterstützt)</option>
+                <option value="comfyui">{t("admin.imagegen.comfyui")}</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-neutral-500">Bildgröße</label>
+              <label className="mb-1 block text-xs text-neutral-500">{t("admin.imagegen.size")}</label>
               <input
                 value={cfg.size ?? ""}
                 onChange={(e) => set({ size: e.target.value })}
@@ -112,7 +114,7 @@ export default function ImageGenPanel() {
 
           <div>
             <label className="mb-1 block text-xs text-neutral-500">
-              Base-URL {cfg.type === "openai" ? "(leer = OpenAI)" : ""}
+              {t("admin.providers.baseUrl")} {cfg.type === "openai" ? t("admin.imagegen.emptyIsOpenai") : ""}
             </label>
             <input
               value={cfg.baseUrl ?? ""}
@@ -129,7 +131,7 @@ export default function ImageGenPanel() {
           {cfg.type === "openai" && (
             <>
               <div>
-                <label className="mb-1 block text-xs text-neutral-500">Modell</label>
+                <label className="mb-1 block text-xs text-neutral-500">{t("admin.imagegen.model")}</label>
                 <input
                   value={cfg.model ?? ""}
                   onChange={(e) => set({ model: e.target.value })}
@@ -138,7 +140,7 @@ export default function ImageGenPanel() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-neutral-500">API-Key</label>
+                <label className="mb-1 block text-xs text-neutral-500">{t("common.apiKey")}</label>
                 <input
                   type="password"
                   value={cfg.apiKey ?? ""}
